@@ -144,13 +144,17 @@ body.rside-hidden #rside { display: none; }
 .foldbtn { display: block; margin: 4px auto 0; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 2px 12px; border-radius: 6px; line-height: 0; }
 .foldbtn:hover { color: var(--me); background: var(--hover); }
 .thoughts { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
-.trow { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--bd); border-left: 3px solid var(--muted); border-radius: 8px; padding: 6px 10px; font-size: 13px; min-width: 0; }
-.trow .ticon { display: inline-flex; flex: none; color: var(--muted); }
-.trow .ticon svg { display: block; }
-.trow .tsum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.trow .ttoggle { flex: none; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 6px; border-radius: 6px; }
-.trow .ttoggle:hover { color: var(--me); background: var(--hover); }
-.trow .tspin { flex: none; width: 12px; height: 12px; border: 2px solid var(--bd); border-top-color: var(--me); border-radius: 50%; animation: tspin 0.8s linear infinite; }
+.thead, .trow { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--bd); border-radius: 8px; padding: 6px 10px; font-size: 13px; min-width: 0; }
+.thead { border-left: 3px solid var(--me); }
+.trow { border-left: 3px solid var(--muted); }
+.ttoggle { flex: none; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 6px; border-radius: 6px; }
+.ttoggle:hover { color: var(--me); background: var(--hover); }
+.trow .ttoggle[hidden] { display: none; }
+.thead .tsum, .trow .tsum, .tsubhead .tsum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ttype { flex: none; font-size: 11px; color: var(--muted); border: 1px solid var(--bd); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+.trow .ticon, .thead .ticon { display: inline-flex; flex: none; color: var(--muted); }
+.trow .ticon svg, .thead .ticon svg { display: block; }
+.thead .tspin, .trow .tspin { flex: none; width: 12px; height: 12px; border: 2px solid var(--bd); border-top-color: var(--me); border-radius: 50%; animation: tspin 0.8s linear infinite; }
 .trow.done .tspin { animation: none; border: 0; }
 .trow.done .tspin::after { content: "✓"; color: var(--ok); font-size: 12px; font-weight: 700; }
 .trow.done { opacity: .85; }
@@ -164,9 +168,11 @@ body.rside-hidden #rside { display: none; }
 .trow.t-file { border-left-color: #b45309; }
 .trow.t-file .ticon { color: #b45309; }
 .trow.t-system, .trow.t-tool { border-left-color: var(--muted); }
+.tbody { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+.tbody[hidden] { display: none; }
 .tdetail { margin: 0 0 2px 18px; display: flex; flex-direction: column; gap: 4px; }
 .tdetail[hidden] { display: none; }
-.tsub { border: 1px solid var(--bd); border-radius: 8px; background: var(--bg); overflow: hidden; }
+.tsub { border: 1px solid var(--bd); border-radius: 8px; background: var(--panel); background: color-mix(in srgb, var(--panel) 60%, transparent); overflow: hidden; }
 .tsubhead { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; background: none; color: var(--text); padding: 5px 10px; cursor: pointer; font-size: 12px; }
 .tsubhead:hover { background: var(--hover); }
 .tsubhead .tsum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -333,7 +333,7 @@ function addMsg(who, text, think, foot, withActs, extra) {
   if (who === "ai") {
     if (withActs) html += '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>";
   }
-  else html += '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + '</button><button type="button" data-edit title="수정 후 다시 전송">✎</button></div>';
+  else html += '<div class="acts"><button type="button" data-retry title="재시도 (이 메시지부터 새 세션으로 분기)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button><button type="button" data-copy title="복사">' + ICON_COPY + '</button><button type="button" data-edit title="수정 후 다시 전송">✎</button></div>';
   if (foot) html += '<div class="meta">' + esc(foot) + "</div>";
   if (who === "me" && text.length >= 200) {
     d.classList.add("folded");
@@ -434,6 +434,22 @@ function decorateTables(el) {
 let editingEl = null;
 let pendingPrefix = null;
 let skipEcho = false;
+let activeStreamAbort = null;
+function setSendStop(on) {
+  const btn = document.querySelector("#f button[type=submit]");
+  if (!btn) return;
+  if (on) {
+    if (btn.dataset.orig === undefined) btn.dataset.orig = btn.innerHTML;
+    btn.innerHTML = "■";
+    btn.title = "중단 (클릭)";
+    btn.setAttribute("aria-label", "중단");
+  } else if (btn.dataset.orig !== undefined) {
+    btn.innerHTML = btn.dataset.orig;
+    delete btn.dataset.orig;
+    btn.title = "전송 (Ctrl+Enter)";
+    btn.setAttribute("aria-label", "전송");
+  }
+}
 function startEdit(msgEl) {
   if (!msgEl) return;
   if (editingEl && editingEl !== msgEl) cancelEdit(editingEl);
@@ -473,7 +489,10 @@ function finishEdit(msgEl, save) {
 }
 async function saveEditedMessage(msgEl, mi, newText) {
   const c = curConv();
-  if (!c) { cancelEdit(msgEl); return; }
+  if (!c || !c.msgs[mi] || c.msgs[mi].who !== "me") { cancelEdit(msgEl); return; }
+  branchFromMessage(c, mi, newText);
+}
+async function branchFromMessage(c, mi, newText) {
   const oldSid = c.sid || sessionId;
   c.msgs[mi] = { who: "me", text: newText, ts: Date.now(), el: "" };
   c.msgs.length = mi + 1;
@@ -586,21 +605,33 @@ function ensureThoughtRow(tbox, tstate, tid, type, summary) {
   row.dataset.task = tid; row.dataset.type = type;
   const ic = document.createElement("span");
   ic.className = "ticon"; ic.innerHTML = thoughtIcon(type);
+  const lab = document.createElement("span");
+  lab.className = "ttype"; lab.textContent = THOUGHT_LABEL[type] || "작업";
   const spin = document.createElement("span");
   spin.className = "tspin";
   const sum = document.createElement("span");
   sum.className = "tsum";
   const btn = document.createElement("button");
   btn.type = "button"; btn.className = "ttoggle"; btn.title = "펼치기/접기"; btn.textContent = "▸";
-  btn.setAttribute("data-ttoggle", "");
-  row.append(ic, spin, sum, btn);
+  btn.setAttribute("data-ttoggle", ""); btn.hidden = true;
+  row.append(ic, lab, spin, sum, btn);
   const det = document.createElement("div");
   det.className = "tdetail"; det.hidden = true;
-  tbox.append(row, det);
-  r = { el: row, det, sum, type, idem: null, done: false };
+  (tstate.body || tbox).append(row, det);
+  r = { el: row, det, sum, tgl: btn, type, idem: null, done: false };
   tstate.rows.set(tid, r);
   setRowSummary(r, summary);
+  updateThoughtHead(tstate);
   return r;
+}
+function updateThoughtHead(tstate) {
+  if (!tstate.headSum) return;
+  const n = tstate.rows.size;
+  let d = 0;
+  tstate.rows.forEach((r) => { if (r.done) d++; });
+  const all = n > 0 && d >= n;
+  tstate.headSum.textContent = (all ? "추론 완료" : "추론 진행 중") + " · " + n + "단계";
+  if (tstate.headSpin) tstate.headSpin.style.display = all ? "none" : "";
 }
 function addThoughtLog(r, head, body) {
   const det = r.det;
@@ -621,6 +652,7 @@ function addThoughtLog(r, head, body) {
   bd.appendChild(pre);
   sub.append(hb, bd);
   det.appendChild(sub);
+  if (r.tgl) r.tgl.hidden = false;
 }
 function markThoughtDone(r) {
   if (!r || r.done) return;
@@ -680,7 +712,7 @@ function updateThought(tbox, tstate, ev) {
     addThoughtLog(r, sum || "출력", body);
     return;
   }
-  if (ek === "completed" || ek === "settled") { markThoughtDone(r); }
+  if (ek === "completed" || ek === "settled") { markThoughtDone(r); updateThoughtHead(tstate); }
 }
 function collectThoughts(tbox) {
   const out = [];
@@ -693,25 +725,33 @@ function markThoughtsDone(tbox) {
   tbox.querySelectorAll(".trow").forEach((r) => r.classList.add("done"));
 }
 function renderThoughtsStatic(thoughts) {
-  let html = '<div class="thoughts static">';
-  (thoughts || []).forEach((t) => {
-    html += '<div class="trow t-' + esc(String(t.k || "tool")) + ' done">' +
+  const items = thoughts || [];
+  if (!items.length) return "";
+  let rows = "";
+  items.forEach((t) => {
+    const lab = THOUGHT_LABEL[t.k] || "작업";
+    rows += '<div class="trow t-' + esc(String(t.k || "tool")) + ' done">' +
       '<span class="ticon">' + thoughtIcon(t.k) + "</span>" +
+      '<span class="ttype">' + esc(lab) + "</span>" +
       '<span class="tspin"></span><span class="tsum">' + esc(t.s || "") + "</span></div>";
   });
-  return html + "</div>";
+  return '<div class="thoughts static"><div class="thead">' +
+    '<span class="ttype">통합 추론</span>' +
+    '<span class="tsum">추론 완료 · ' + items.length + "단계</span>" +
+    '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">▸</button></div>' +
+    '<div class="tbody" hidden>' + rows + "</div></div>";
 }
 function toggleThoughtDetail(tg) {
-  let det = null, mark = null;
-  if (tg.classList.contains("tsubhead")) {
-    det = tg.nextElementSibling;
-    mark = tg.querySelector(".ttoggle");
+  let det = null, mark = tg;
+  const sub = tg.closest(".tsubhead");
+  if (sub) {
+    det = sub.nextElementSibling;
+    mark = sub.querySelector(".ttoggle");
   } else {
-    const row = tg.closest(".trow");
-    det = row ? row.nextElementSibling : null;
-    mark = tg;
+    const host = tg.closest(".trow, .thead");
+    if (host) det = host.nextElementSibling;
   }
-  if (!det || (!det.classList.contains("tsubbody") && !det.classList.contains("tdetail"))) return;
+  if (!det || !(det.classList.contains("tsubbody") || det.classList.contains("tdetail") || det.classList.contains("tbody"))) return;
   det.hidden = !det.hidden;
   if (mark) mark.textContent = det.hidden ? "▸" : "▾";
 }
@@ -731,6 +771,19 @@ chat.addEventListener("click", async (e) => {
   if (ms) { const m2 = ms.closest(".msg"); if (m2) finishEdit(m2, true); return; }
   const mc = e.target.closest("[data-mcancel]");
   if (mc) { const m2 = mc.closest(".msg"); if (m2) finishEdit(m2, false); return; }
+  const rt = e.target.closest("[data-retry]");
+  if (rt) {
+    const msgEl = rt.closest(".msg");
+    if (msgEl) {
+      const mi = +(msgEl.dataset.mi ?? -1);
+      const c = curConv();
+      if (c && c.msgs[mi] && c.msgs[mi].who === "me") {
+        if (editingEl) cancelEdit(editingEl);
+        branchFromMessage(c, mi, c.msgs[mi].text);
+      }
+    }
+    return;
+  }
   const pl = e.target.closest("[data-path]");
   if (pl) { e.preventDefault(); openPathLink(pl); return; }
   const b = e.target.closest("[data-copy]");
@@ -1424,10 +1477,11 @@ function sealAiTurn(ph, t0, fr) {
     saveMsg("ai", "🏁 목표 달성: " + fr.justDone, { ts: Date.now() });
   }
 }
-async function postChatStream(message, sid, cwd, onRun) {
+async function postChatStream(message, sid, cwd, signal, onRun) {
   const r = await fetch("/api/chat/stream", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, session_id: sid, cwd }) });
+    body: JSON.stringify({ message, session_id: sid, cwd }),
+    signal: signal || undefined });
   if (!r.ok || !r.body) throw new Error("HTTP " + r.status);
   const reader = r.body.getReader();
   const dec = new TextDecoder();
@@ -1454,23 +1508,39 @@ async function postChatStream(message, sid, cwd, onRun) {
 async function runStreamTurn(full, sid, cwd, ph, t0, goalMode) {
   const tbox = document.createElement("div");
   tbox.className = "thoughts";
+  const thead = document.createElement("div");
+  thead.className = "thead";
+  thead.innerHTML = '<span class="tspin"></span><span class="ttype">통합 추론</span>' +
+    '<span class="tsum">준비 중…</span>' +
+    '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">▸</button>';
+  const tbody = document.createElement("div");
+  tbody.className = "tbody"; tbody.hidden = true;
+  tbox.append(thead, tbody);
   ph.prepend(tbox);
   ph._tbox = tbox;
-  const tstate = { rows: new Map(), texts: [] };
-  let j = null;
+  const tstate = { rows: new Map(), texts: [], body: tbody,
+    headSpin: thead.children[0], headSum: thead.children[2] };
+  const ctl = new AbortController();
+  activeStreamAbort = ctl;
+  setSendStop(true);
   try {
-    j = await postChatStream(full, sid, cwd, (ev) => updateThought(tbox, tstate, ev));
-  } catch (err) {
-    const raw = tstate.texts.join("").trim();
-    const fr = finishAiTurn({ text: raw || "전송 실패: " + err, session_id: null }, ph, null);
+    const j = await postChatStream(full, sid, cwd, ctl.signal, (ev) => updateThought(tbox, tstate, ev));
+    const fr = finishAiTurn(j, ph, goalMode);
     sealAiTurn(ph, t0, fr);
-    return;
+  } catch (err) {
+    const aborted = err && err.name === "AbortError";
+    const base = tstate.texts.join("").trim();
+    const alt = base ? base + (aborted ? "\n\n[중단됨]" : "") : "전송 실패: " + err;
+    const fr = finishAiTurn({ text: alt, session_id: null }, ph, null);
+    sealAiTurn(ph, t0, fr);
+  } finally {
+    if (activeStreamAbort === ctl) activeStreamAbort = null;
+    setSendStop(false);
   }
-  const fr = finishAiTurn(j, ph, goalMode);
-  sealAiTurn(ph, t0, fr);
 }
 $("#f").addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (activeStreamAbort) { try { activeStreamAbort.abort(); } catch (err) {} return; }
   const text = input.value.trim();
   if (!text) return;
   if (inputGated()) { updateGate(); return; }
