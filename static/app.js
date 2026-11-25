@@ -196,8 +196,8 @@ function addMsg(who, text, think, foot) {
   d.className = "msg " + who;
   d.dataset.raw = text;
   let html = renderText(text) + (think ? "<details><summary>상세</summary>" + esc(think) + "</details>" : "");
-  if (who === "ai") html += '<div class="acts"><button type="button" data-copy>복사</button></div>';
-  else html += '<div class="acts"><button type="button" data-copy>복사</button><button type="button" data-edit title="수정 후 다시 전송">✎</button></div>';
+  if (who === "ai") html += '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>";
+  else html += '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + '</button><button type="button" data-edit title="수정 후 다시 전송">✎</button></div>';
   if (foot) html += '<div class="meta">' + esc(foot) + "</div>";
   d.innerHTML = html;
   decorateCode(d);
@@ -210,11 +210,10 @@ function decorateCode(el) {
     const code = pre.querySelector("code");
     if (!code) return;
     const b = document.createElement("button");
-    b.type = "button"; b.setAttribute("data-codecopy", ""); b.textContent = "복사";
+    b.type = "button"; b.setAttribute("data-codecopy", ""); b.title = "복사"; b.innerHTML = ICON_COPY;
     b.onclick = async (e) => {
       e.stopPropagation();
-      b.textContent = await copyText(code.textContent);
-      setTimeout(() => { b.textContent = "복사"; }, 1200);
+      flashCopy(b, code.textContent);
     };
     pre.prepend(b);
   });
@@ -229,16 +228,22 @@ function lastAiText() {
   if (!nodes.length) return "";
   return nodes[nodes.length - 1].dataset.raw || "";
 }
+const ICON_COPY = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 async function copyText(t) {
-  if (!t) return "복사할 답변이 없습니다.";
-  try { await navigator.clipboard.writeText(t); return "복사했습니다."; }
+  if (!t) return false;
+  try { await navigator.clipboard.writeText(t); return true; }
   catch (e) {
     const ta = document.createElement("textarea");
     ta.value = t; document.body.appendChild(ta); ta.select();
-    try { document.execCommand("copy"); return "복사했습니다."; }
-    catch (_) { return "복사 실패 (브라우저 권한 확인)."; }
+    try { document.execCommand("copy"); return true; }
+    catch (_) { return false; }
     finally { ta.remove(); }
   }
+}
+async function flashCopy(btn, text) {
+  const old = btn.innerHTML;
+  btn.innerHTML = (await copyText(text)) ? "✓" : "✗";
+  setTimeout(() => { btn.innerHTML = old; }, 1200);
 }
 chat.addEventListener("click", async (e) => {
   const ed = e.target.closest("[data-edit]");
@@ -255,8 +260,7 @@ chat.addEventListener("click", async (e) => {
   }
   const b = e.target.closest("[data-copy]");
   if (!b) return;
-  b.textContent = await copyText(b.closest(".msg").dataset.raw || "");
-  setTimeout(() => { b.textContent = "복사"; }, 1200);
+  flashCopy(b, b.closest(".msg").dataset.raw || "");
 });
 function curConv() { return convs.find((c) => c.k === convKey) || null; }
 function saveConv(title) {
@@ -347,7 +351,44 @@ function saveTheme(patch) {
   localStorage.setItem("muse-gui-theme", JSON.stringify(Object.assign(t, patch)));
   applyTheme();
 }
-function showModal() { $("#ovl").hidden = false; loadAccount(); }
+function showModal() { $("#ovl").hidden = false; loadAccount(); loadUsage(); }
+document.querySelectorAll("#mtabs button").forEach((b) => { b.onclick = () => {
+  document.querySelectorAll("#mtabs button").forEach((x) => x.classList.toggle("sel", x === b));
+  document.querySelectorAll('#modal section[data-pane]').forEach((s) => s.classList.toggle("on", s.dataset.pane === b.dataset.tab));
+}; });
+async function loadUsage() {
+  const box = $("#usagebox");
+  box.textContent = "불러오는 중…";
+  try {
+    const r = await fetch("/api/usage"); const j = await r.json();
+    const tot = { calls: 0, input: 0, output: 0 };
+    Object.values(j.models || {}).forEach((m) => {
+      tot.calls += m.calls || 0; tot.input += m.input || 0; tot.output += m.output || 0;
+    });
+    let html = "<p>총 " + j.turns + "턴 · 호출 " + tot.calls +
+      " · in " + tot.input + " / out " + tot.output + "</p>";
+    const al = j.allowance || {};
+    html += "<p>구독: " + esc(al.allowance ? JSON.stringify(al.allowance) : (al.reason || al.hint || "조회 실패")) + "</p>";
+    const names = Object.keys(j.models || {});
+    if (names.length) {
+      html += '<table class="usg"><tr><th>모델</th><th>호출</th><th>in</th><th>out</th></tr>';
+      names.forEach((n) => {
+        const m = j.models[n];
+        html += "<tr><td>" + esc(n) + "</td><td>" + m.calls + "</td><td>" + m.input + "</td><td>" + m.output + "</td></tr>";
+      });
+      html += "</table>";
+    }
+    const ss = (j.sessions || []).slice(0, 20);
+    if (ss.length) {
+      html += '<table class="usg"><tr><th>세션</th><th>턴</th></tr>';
+      ss.forEach((s) => {
+        html += "<tr><td>" + esc(String(s.sid).slice(0, 8)) + "</td><td>" + s.turns + "</td></tr>";
+      });
+      html += "</table>";
+    }
+    box.innerHTML = html;
+  } catch (e) { box.textContent = "불러오기 실패"; }
+}
 function hideModal() { $("#ovl").hidden = true; }
 async function loadAccount() {
   try {
@@ -406,14 +447,17 @@ input.addEventListener("input", () => {
   else slash.style.display = "none";
 });
 input.addEventListener("keydown", (e) => {
-  if (slash.style.display === "block" && (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Tab")) {
+  const popup = slash.style.display === "block";
+  if (popup && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
     e.preventDefault();
     const bs = [...slash.querySelectorAll("button")];
     slashIdx = (slashIdx + (e.key === "ArrowUp" ? -1 : 1) + bs.length) % bs.length;
     bs.forEach((b, i) => b.classList.toggle("sel", i === slashIdx));
-  } else if (e.key === "Enter" && !e.shiftKey) {
+  } else if (popup && e.key === "Tab") {
+    e.preventDefault();
     const sel = slash.querySelector("button.sel");
-    if (slash.style.display === "block" && sel) { e.preventDefault(); sel.click(); return; }
+    if (sel) sel.click();
+  } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
     e.preventDefault(); $("#f").requestSubmit();
   }
 });
@@ -421,7 +465,10 @@ $("#f").addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = input.value.trim();
   if (!text) return;
+  const pre = text.startsWith("/") ? [] : featPrefixes();
   input.value = ""; slash.style.display = "none";
+  $("#feats").innerHTML = "";
+  const full = (pre.length ? pre.join("\n") + "\n" : "") + text;
   if (text === "/clear" || text.startsWith("/clear ")) {
     chat.innerHTML = "";
     const c = curConv();
@@ -432,7 +479,7 @@ $("#f").addEventListener("submit", async (e) => {
   const meTs = Date.now();
   addMsg("me", text, null, timeStr(meTs)); saveMsg("me", text, { ts: meTs });
   if (text === "/copy" || text.startsWith("/copy ")) {
-    const done = await copyText(lastAiText());
+    const done = (await copyText(lastAiText())) ? "복사했습니다." : "복사할 답변이 없습니다.";
     addMsg("ai", done); saveMsg("ai", done); drawConvs();
     return;
   }
@@ -441,7 +488,7 @@ $("#f").addEventListener("submit", async (e) => {
   try {
     const r = await fetch("/api/chat", { method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, session_id: sessionId }) });
+      body: JSON.stringify({ message: full, session_id: sessionId }) });
     const j = await r.json();
     if (j.text === "__COPY__") {
       const prev = [...chat.querySelectorAll(".msg.ai")].filter((n) => n !== ph).pop();
@@ -451,7 +498,7 @@ $("#f").addEventListener("submit", async (e) => {
     else {
       sessionId = j.session_id || sessionId;
       ph.dataset.raw = j.text || "(빈 응답)";
-      ph.innerHTML = renderText(ph.dataset.raw) + '<div class="acts"><button type="button" data-copy>복사</button></div>';
+      ph.innerHTML = renderText(ph.dataset.raw) + '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>";
       decorateCode(ph);
     }
     if (!j.new_session) {
@@ -488,13 +535,12 @@ $("#ovl").addEventListener("click", (e) => { if (e.target === $("#ovl")) hideMod
 document.querySelectorAll("#themes .optbtn").forEach((b) => { b.onclick = () => saveTheme({ theme: b.dataset.th }); });
 document.querySelectorAll("#accents .sw").forEach((b) => { b.onclick = () => saveTheme({ accent: b.dataset.ac }); });
 $("#tokcopy").onclick = async (e) => {
-  const b = e.target;
+  const b = e.currentTarget;
   try {
     const r = await fetch("/api/account/token", { method: "POST" });
     const j = await r.json();
     if (!j.ok || !j.token) return;
-    b.textContent = await copyText(j.token);
-    setTimeout(() => { b.textContent = "복사"; }, 1200);
+    flashCopy(b, j.token);
   } catch (_) {}
 };
 input.addEventListener("input", () => {
@@ -505,12 +551,29 @@ function setMode() {
   const lobby = !chat.children.length;
   document.querySelector("main").classList.toggle("lobby", lobby);
 }
+const FEATS = {
+  viz: { chip: "시각화", prefix: "[시각화 요청] 답변에 인터랙티브 시각화가 필요하면 설명과 함께 아래 형식 코드블록을 포함하라.\n```viz-html\n(외부 CDN 없이 동작하는 단일 HTML 문서. <script> 사용 가능. sandbox라서 same-origin 접근·팝업·다운로드 불가)\n```\n높이는 ```viz-html:높이 로 지정(기본 360). 시각화가 필요 없으면 생략해도 된다." },
+  web: { chip: "웹 검색", prefix: "[웹 검색 필수] 아래 요청에 답하기 전에 반드시 웹 검색을 수행하고 검색 결과와 함께 답하라. 검색 없이 알던 내용으로 답하지 마라. 사용한 검색어와 핵심 근거를 밝혀라." }
+};
 const DOCK_FEATURES = [
-  { id: "viz", label: "시각화", desc: "인터랙티브 패널로 답변 요청", ready: true,
-    insert: "다음 답변은 설명과 함께 인터랙티브 시각화(viz-html 코드블록) 패널로도 보여줘: " },
-  { id: "web", label: "웹 검색", desc: "준비 중", ready: false },
+  { id: "viz", label: "시각화", desc: "인터랙티브 패널로 답변 요청", ready: true, feat: "viz" },
+  { id: "web", label: "웹 검색", desc: "반드시 검색 후 답변", ready: true, feat: "web" },
   { id: "upload", label: "파일 업로드", desc: "준비 중", ready: false }
 ];
+function addFeat(id) {
+  if (!FEATS[id] || document.querySelector('#feats [data-f="' + id + '"]')) return;
+  const s = document.createElement("span");
+  s.className = "fchip"; s.dataset.f = id;
+  s.textContent = FEATS[id].chip + " ";
+  const x = document.createElement("button");
+  x.type = "button"; x.textContent = "×"; x.title = "제거";
+  x.onclick = (e) => { e.stopPropagation(); s.remove(); input.focus(); };
+  s.appendChild(x);
+  $("#feats").appendChild(s);
+}
+function featPrefixes() {
+  return [...document.querySelectorAll("#feats .fchip")].map((c) => FEATS[c.dataset.f].prefix);
+}
 function renderPlusMenu() {
   const menu = $("#plusmenu");
   menu.innerHTML = "";
@@ -518,12 +581,12 @@ function renderPlusMenu() {
     const b = document.createElement("button");
     b.type = "button"; b.disabled = !f.ready;
     b.innerHTML = esc(f.label) + "<small>" + esc(f.ready ? f.desc : f.desc + " (추후 추가)") + "</small>";
-    if (f.ready) b.onclick = (e) => { e.stopPropagation(); input.value = f.insert + input.value; input.focus(); menu.hidden = true; };
+    if (f.ready) b.onclick = (e) => { e.stopPropagation(); addFeat(f.feat); input.focus(); menu.hidden = true; };
     menu.appendChild(b);
   });
 }
 $("#plus").onclick = (e) => { e.stopPropagation(); renderPlusMenu(); $("#plusmenu").hidden = !$("#plusmenu").hidden; };
-document.addEventListener("click", (e) => { if (!e.target.closest("#plusrow")) $("#plusmenu").hidden = true; });
+document.addEventListener("click", (e) => { if (!e.target.closest("footer")) $("#plusmenu").hidden = true; });
 const CHIPS = ["이 폴더 구조 설명해줘", "/usage", "viz-html 예시 보여줘"];
 function renderChips() {
   const box = $("#chips");

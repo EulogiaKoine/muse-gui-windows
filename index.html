@@ -21,6 +21,10 @@
 </aside>
 <div id="ovl" hidden><div id="modal" role="dialog" aria-label="설정">
 <h2>설정</h2>
+<div class="tabs" id="mtabs" role="tablist">
+<button type="button" data-tab="gen" class="sel">일반</button><button type="button" data-tab="acct">계정</button><button type="button" data-tab="usage">사용량</button>
+</div>
+<section data-pane="gen" class="on">
 <h3>테마</h3>
 <div class="row" id="themes">
 <button type="button" class="optbtn" data-th="light">라이트</button><button type="button" class="optbtn" data-th="dark">다크</button>
@@ -29,25 +33,31 @@
 <div class="row" id="accents">
 <button type="button" class="sw" data-ac="blue" title="블루" style="background:#2f6fed"></button><button type="button" class="sw" data-ac="green" title="그린" style="background:#178a4c"></button><button type="button" class="sw" data-ac="amber" title="앰버" style="background:#b45309"></button>
 </div>
+</section>
+<section data-pane="acct">
 <h3>계정</h3>
 <p id="acct">불러오는 중…</p>
 <h3>API 토큰</h3>
-<div class="row"><code id="tok" class="grow">…</code><button type="button" class="optbtn" id="tokcopy">복사</button></div>
+<div class="row"><code id="tok" class="grow">…</code><button type="button" class="iconbtn" id="tokcopy" title="토큰 복사"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
+<h3>로그인 관리</h3>
+<p class="hint">로그인·로그아웃은 터미널에서만 (브라우저 승인 / 자격 삭제).<br><code>muse login</code> · <code>muse logout</code></p>
+</section>
+<section data-pane="usage">
+<h3>총 사용량</h3>
+<div id="usagebox">불러오는 중…</div>
+</section>
 <button type="button" id="mclose">닫기</button>
 </div></div>
 <main>
 <header><span id="status"></span><span id="meta">연결 중…</span></header>
 <div id="lobby"><h1>muse-gui</h1><p>WSL의 muse 에이전트와 대화하세요</p><div class="chips" id="chips"></div></div>
 <div id="chat" aria-live="polite"></div>
-<footer><label>모델 <select id="model"></select></label><label>effort <select id="effort"></select></label></footer>
-<div id="dock">
+<footer><button id="plus" type="button" title="기능 추가" aria-label="기능 추가">+</button><div id="plusmenu" hidden></div><label>모델 <select id="model"></select></label><label>effort <select id="effort"></select></label></footer>
 <form id="f">
 <div id="slash" role="listbox"></div>
-<textarea id="in" placeholder="메시지 입력 (Enter 전송, Shift+Enter 줄바꿈, / 자동완성)" autocomplete="off"></textarea>
-<button type="submit">전송</button>
+<div id="inwrap"><textarea id="in" placeholder="메시지 입력 (Ctrl+Enter 전송, Enter 줄바꿈, / 자동완성)" autocomplete="off"></textarea><div id="feats"></div></div>
+<button type="submit" title="전송 (Ctrl+Enter)" aria-label="전송"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
 </form>
-<div id="plusrow"><button id="plus" type="button" title="기능 추가" aria-label="기능 추가">+</button><div id="plusmenu" hidden></div></div>
-</div>
 </main>
 <script src="/static/app.js"></script>
 </body>

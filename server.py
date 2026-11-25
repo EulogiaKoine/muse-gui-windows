@@ -403,6 +403,42 @@ def running_session_ids():
             if isinstance(s, dict)}
 
 
+def usage_report():
+    """로컬 원장 집계 + 구독 allowance. 실패해도 원장은 돌려준다."""
+    try:
+        with open(USAGE_FILE) as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            data = {}
+    except (OSError, ValueError):
+        data = {}
+    turns, models, sessions = 0, {}, []
+    for sid, e in data.items():
+        if not isinstance(e, dict):
+            continue
+        t = e.get("turns", 0) or 0
+        turns += t
+        for name, a in (e.get("models") or {}).items():
+            if not isinstance(a, dict):
+                continue
+            acc = models.setdefault(
+                name, {"calls": 0, "input": 0, "output": 0, "reasoning": 0})
+            for k in ("calls", "input", "output", "reasoning"):
+                acc[k] += a.get(k, 0) or 0
+        sessions.append({"sid": sid, "turns": t,
+                         "models": e.get("models") or {}})
+    allowance = None
+    try:
+        proc = subprocess.run(["muse", "usage", "--json"],
+                              capture_output=True, text=True, timeout=30,
+                              stdin=subprocess.DEVNULL)
+        allowance = json.loads(proc.stdout or "{}")
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        allowance = None
+    return {"turns": turns, "models": models, "sessions": sessions,
+            "allowance": allowance}
+
+
 def delete_session(sid):
     """실제 세션 로그 디렉터리를 삭제한다. 실행 중 세션은 거부한다."""
     if not isinstance(sid, str) or not SID_RE.match(sid):
@@ -636,6 +672,9 @@ class Handler(BaseHTTPRequestHandler):
             }, ensure_ascii=False))
         elif path == "/api/slash":
             self._send(200, json.dumps(slash_command_list(),
+                                      ensure_ascii=False))
+        elif path == "/api/usage":
+            self._send(200, json.dumps(usage_report(),
                                       ensure_ascii=False))
         elif path == "/api/models":
             self._send(200, json.dumps(list_models(),
