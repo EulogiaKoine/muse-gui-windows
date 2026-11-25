@@ -1180,12 +1180,8 @@ def open_folder(path):
         return False, "열기 실패: %s" % e
 
 
-def run_muse_exec(prompt, session_id=None, cwd=None):
-    """Run `muse exec --json` and collect the assistant text.
-
-    cwd: 새 세션의 작업 디렉터리. 이어쓰기(session_id 있음)는 세션 고유
-    작업 공간을 유지하므로 --workspace를 붙이지 않는다.
-    (sid, text, workdir)를 돌려준다."""
+def prepare_workdir(cwd):
+    """대화별 작업 디렉터리를 확정하고 .agent 하위를 보장한다."""
     workdir = valid_cwd(cwd) or os.getcwd()
     # 에이전트 내부 파일 저장소: <작업 디렉터리>/.agent (없으면 생성)
     for _d in (os.path.join(workdir, ".agent"),
@@ -1195,6 +1191,11 @@ def run_muse_exec(prompt, session_id=None, cwd=None):
             os.makedirs(_d, exist_ok=True)
         except OSError:
             pass
+    return workdir
+
+
+def build_muse_cmd(prompt, session_id, workdir):
+    """`muse exec` 호출 argv를 만든다."""
     cmd = ["muse", "exec", "--json"] + MUSE_ARGS
     # --model/--reasoning-effort는 meta·local에서만 유효하므로
     # echo 등 다른 프로바이더에서는 붙이지 않는다.
@@ -1217,6 +1218,42 @@ def run_muse_exec(prompt, session_id=None, cwd=None):
         # 새 세션만 대화별 작업 디렉터리로 시작한다.
         cmd += ["--workspace", workdir]
     cmd.append(prompt)
+    return cmd
+
+
+def parse_exec_line(line):
+    """exec JSONL 한 줄을 파싱한다. JSON이 아니면 None."""
+    line = (line or "").strip()
+    if not line.startswith("{"):
+        return None
+    try:
+        return json.loads(line)
+    except ValueError:
+        return None
+
+
+def process_exec_event(ev, state):
+    """exec JSONL 이벤트 1건을 state에 반영한다.
+
+    state: {"sid":..., "texts":[...]}. 사용량 원장 기록 포함."""
+    stream = ev.get("stream", {}) or {}
+    if stream.get("kind") == "session" and stream.get("id"):
+        state["sid"] = stream["id"]
+    payload = ev.get("payload", {}) or {}
+    if payload.get("kind") == "run_output_delta" and payload.get("text"):
+        state["texts"].append(payload["text"])
+    if payload.get("kind") == "run_usage":
+        record_usage(state["sid"], payload)
+
+
+def run_muse_exec(prompt, session_id=None, cwd=None):
+    """Run `muse exec --json` and collect the assistant text.
+
+    cwd: 새 세션의 작업 디렉터리. 이어쓰기(session_id 있음)는 세션 고유
+    작업 공간을 유지하므로 --workspace를 붙이지 않는다.
+    (sid, text, workdir)를 돌려준다."""
+    workdir = prepare_workdir(cwd)
+    cmd = build_muse_cmd(prompt, session_id, workdir)
     try:
         proc = subprocess.run(
             cmd, capture_output=True, text=True, timeout=600, cwd=workdir
@@ -1226,24 +1263,13 @@ def run_muse_exec(prompt, session_id=None, cwd=None):
     except subprocess.TimeoutExpired:
         return session_id, "시간 초과 (600s): muse exec가 끝나지 않았습니다.", workdir
 
-    texts, sid = [], session_id
+    state = {"sid": session_id, "texts": []}
     for line in (proc.stdout or "").splitlines():
-        line = line.strip()
-        if not line.startswith("{"):
-            continue
-        try:
-            ev = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        stream = ev.get("stream", {}) or {}
-        if stream.get("kind") == "session" and stream.get("id"):
-            sid = stream["id"]
-        payload = ev.get("payload", {}) or {}
-        if payload.get("kind") == "run_output_delta" and payload.get("text"):
-            texts.append(payload["text"])
-        if payload.get("kind") == "run_usage":
-            record_usage(sid, payload)
-    text = "".join(texts).strip()
+        ev = parse_exec_line(line)
+        if ev is not None:
+            process_exec_event(ev, state)
+    text = "".join(state["texts"]).strip()
+    sid = state["sid"] or session_id
     if proc.returncode != 0 and not text:
         err = (proc.stderr or "").strip()[-2000:]
         return sid, "muse exec 실패 (exit %d)%s" % (
@@ -1264,6 +1290,114 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def _sse_send(self, wfile, kind, obj):
+        """SSE 프레임 1개를 쓴다. 끊겼으면 False."""
+        try:
+            wfile.write(("event: %s\ndata: %s\n\n"
+                         % (kind, json.dumps(obj, ensure_ascii=False))
+                         ).encode("utf-8"))
+            wfile.flush()
+            return True
+        except (BrokenPipeError, ConnectionResetError,
+                ConnectionAbortedError):
+            return False
+
+    def handle_chat_stream(self, message, session_id, cwd):
+        """`muse exec` JSONL을 SSE로 중계한다.
+
+        run 원본 이벤트를 그대로 흘리고, 종료 시 done으로 집계 결과
+        (/api/chat과 같은 {ok, text, session_id, cwd})를 보낸다.
+        클라이언트가 끊으면 프로세스를 끝낸다."""
+        if not (message or "").strip():
+            self._send(400, json.dumps({"ok": False, "error": "empty"}))
+            return
+        workdir = prepare_workdir(cwd)
+        cmd = build_muse_cmd(message, session_id, workdir)
+        try:
+            errf = tempfile.TemporaryFile(mode="w+")
+        except OSError:
+            errf = None
+        try:
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE,
+                stderr=errf if errf is not None else subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL, text=True, bufsize=1,
+                cwd=workdir)
+        except FileNotFoundError:
+            if errf is not None:
+                errf.close()
+            ws = session_workspace(None) or workdir
+            self._send(200, json.dumps(
+                {"ok": True,
+                 "text": "muse 실행 파일을 찾을 수 없습니다 (PATH 확인).",
+                 "session_id": None, "cwd": ws}, ensure_ascii=False))
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+        dead = False
+        state = {"sid": session_id, "texts": []}
+        deadline = time.monotonic() + 600
+        rc, err = None, ""
+        try:
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                if dead:
+                    break
+                ev = parse_exec_line(line)
+                if ev is None:
+                    continue
+                process_exec_event(ev, state)
+                if not self._sse_send(self.wfile, "run", ev):
+                    dead = True
+                    break
+            if not dead:
+                remain = max(1, int(deadline - time.monotonic()))
+                try:
+                    rc = proc.wait(timeout=remain)
+                except subprocess.TimeoutExpired:
+                    rc = "timeout"
+        finally:
+            if proc.poll() is None:
+                try:
+                    proc.kill()
+                except OSError:
+                    pass
+        try:
+            if errf is not None:
+                errf.seek(0)
+                err = errf.read()
+        except OSError:
+            err = ""
+        finally:
+            if errf is not None:
+                try:
+                    errf.close()
+                except OSError:
+                    pass
+        if dead:
+            return
+        if rc == "timeout":
+            payload = {"ok": True,
+                       "text": "시간 초과 (600s): muse exec가 끝나지 않았습니다.",
+                       "session_id": state["sid"] or session_id,
+                       "cwd": workdir}
+        else:
+            text = "".join(state["texts"]).strip()
+            sid = state["sid"] or session_id
+            if rc not in (0, None) and not text:
+                err = (err or "").strip()[-2000:]
+                text = "muse exec 실패 (exit %s)%s" % (
+                    rc, ("\n" + err) if err else "")
+            elif not text:
+                text = "(빈 응답)"
+            ws = session_workspace(sid) or workdir
+            payload = {"ok": True, "text": text, "session_id": sid,
+                       "cwd": ws}
+        self._sse_send(self.wfile, "done", payload)
 
     def serve_index(self):
         try:
@@ -1333,6 +1467,11 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/models":
             self._send(200, json.dumps(list_models(),
                                       ensure_ascii=False))
+        elif path == "/api/chat/stream":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            self.handle_chat_stream((q.get("message") or [""])[0],
+                                    (q.get("session_id") or [""])[0] or None,
+                                    (q.get("cwd") or [""])[0])
         elif path == "/api/fs/roots":
             self._send(200, json.dumps(fs_roots(), ensure_ascii=False))
         elif path.startswith("/api/fs/list"):

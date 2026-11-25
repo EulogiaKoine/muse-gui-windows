@@ -299,17 +299,36 @@ function convToMd(c) {
   });
   return lines.join("\n").trim() + "\n";
 }
+function truncStr(s, n) {
+  s = String(s == null ? "" : s);
+  return s.length > n ? s.slice(0, n) + "…" : s;
+}
+function thoughtKind(taskKind, operation) {
+  const k = String(taskKind || operation || "").toLowerCase();
+  if (!k) return "system";
+  if (k.indexOf("model.") === 0) return "reason";
+  if (k.indexOf("reminder") !== -1) return "system";
+  if (k.indexOf("tool:") === 0 || k.indexOf("tool.") === 0) {
+    const n = k.replace(/^tool[:.]/, "");
+    if (/bash|shell|exec|terminal|command|process|run/.test(n)) return "terminal";
+    if (/search|web|fetch|query|browser|http/.test(n)) return "web";
+    if (/read|write|edit|file|apply|patch/.test(n)) return "file";
+    return "tool";
+  }
+  return "system";
+}
 function timeStr(ts) {
   if (!ts) return "";
   const d = new Date(ts);
   return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
 }
-function addMsg(who, text, think, foot, withActs) {
+function addMsg(who, text, think, foot, withActs, extra) {
   const d = document.createElement("div");
   d.className = "msg " + who;
   d.dataset.raw = text;
   d.dataset.mi = chat.querySelectorAll(".msg").length;
-  let html = renderText(text) + (think ? "<details><summary>상세</summary>" + esc(think) + "</details>" : "");
+  let html = ((extra && extra.thoughts && extra.thoughts.length) ? renderThoughtsStatic(extra.thoughts) : "") +
+    renderText(text) + (think ? "<details><summary>상세</summary>" + esc(think) + "</details>" : "");
   if (withActs === undefined) withActs = true;
   if (who === "ai") {
     if (withActs) html += '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>";
@@ -473,7 +492,7 @@ async function saveEditedMessage(msgEl, mi, newText) {
   skipEcho = true;
   editingEl = null;
   chat.innerHTML = "";
-  c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m)));
+  c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m), undefined, m.th ? { thoughts: m.th } : null));
   chat.scrollTop = chat.scrollHeight;
   setRoute("/" + c.k);
   input.value = newText; input.focus();
@@ -506,6 +525,11 @@ const ICON_CHEVD = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" 
 const ICON_CHEVU = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>';
 const ICON_SIDEL = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>';
 const ICON_SIDER = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+const ICON_TERM = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>';
+const ICON_TWEB = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+const ICON_TREASON = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c.7 5.5 4.5 9.3 9.5 10-5 .7-8.8 4.5-9.5 10-.7-5.5-4.5-9.3-9.5-10 5-.7 8.8-4.5 9.5-10z"/></svg>';
+const ICON_TFILE = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+const ICON_TSYS = '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
 function applySide(hidden) {
   document.body.classList.toggle("side-hidden", !!hidden);
   const t = $("#sidetoggle");
@@ -536,7 +560,164 @@ async function flashCopy(btn, text) {
   btn.innerHTML = (await copyText(text)) ? "✓" : "✗";
   setTimeout(() => { btn.innerHTML = old; }, 1200);
 }
+const THOUGHT_LABEL = { reason: "자기 추론", terminal: "터미널 명령", web: "웹 검색", file: "파일 작업", system: "시스템", tool: "도구" };
+const THOUGHT_ICON = { reason: "ICON_TREASON", terminal: "ICON_TERM", web: "ICON_TWEB", file: "ICON_TFILE", system: "ICON_TSYS", tool: "ICON_TSYS" };
+function thoughtIcon(type) {
+  return { reason: ICON_TREASON, terminal: ICON_TERM, web: ICON_TWEB, file: ICON_TFILE, system: ICON_TSYS, tool: ICON_TSYS }[type] || ICON_TSYS;
+}
+function thoughtShortLabel(type, taskKind) {
+  const base = THOUGHT_LABEL[type] || "작업";
+  if (type === "system" || type === "tool") {
+    const short = String(taskKind || "").split(".").pop().replace(/[-_]/g, " ").trim();
+    if (short && short !== base) return base + " · " + truncStr(short, 40);
+  }
+  return base;
+}
+function setRowSummary(r, text) {
+  const s = truncStr(text, 140) || "작업 중…";
+  r.sum.textContent = s;
+  r.el.dataset.sum = s;
+}
+function ensureThoughtRow(tbox, tstate, tid, type, summary) {
+  let r = tstate.rows.get(tid);
+  if (r) return r;
+  const row = document.createElement("div");
+  row.className = "trow t-" + type;
+  row.dataset.task = tid; row.dataset.type = type;
+  const ic = document.createElement("span");
+  ic.className = "ticon"; ic.innerHTML = thoughtIcon(type);
+  const spin = document.createElement("span");
+  spin.className = "tspin";
+  const sum = document.createElement("span");
+  sum.className = "tsum";
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "ttoggle"; btn.title = "펼치기/접기"; btn.textContent = "▸";
+  btn.setAttribute("data-ttoggle", "");
+  row.append(ic, spin, sum, btn);
+  const det = document.createElement("div");
+  det.className = "tdetail"; det.hidden = true;
+  tbox.append(row, det);
+  r = { el: row, det, sum, type, idem: null, done: false };
+  tstate.rows.set(tid, r);
+  setRowSummary(r, summary);
+  return r;
+}
+function addThoughtLog(r, head, body) {
+  const det = r.det;
+  while (det.children.length >= 60) det.removeChild(det.firstChild);
+  const sub = document.createElement("div");
+  sub.className = "tsub";
+  const hb = document.createElement("button");
+  hb.type = "button"; hb.className = "tsubhead"; hb.setAttribute("data-ttoggle", ""); hb.title = "펼치기/접기";
+  const hs = document.createElement("span");
+  hs.className = "tsum"; hs.textContent = truncStr(head, 80) || "로그";
+  const tg = document.createElement("span");
+  tg.className = "ttoggle"; tg.textContent = "▸";
+  hb.append(hs, tg);
+  const bd = document.createElement("div");
+  bd.className = "tsubbody"; bd.hidden = true;
+  const pre = document.createElement("div");
+  pre.className = "tlog"; pre.textContent = String(body == null ? "" : body).slice(0, 3000);
+  bd.appendChild(pre);
+  sub.append(hb, bd);
+  det.appendChild(sub);
+}
+function markThoughtDone(r) {
+  if (!r || r.done) return;
+  r.done = true; r.el.classList.add("done");
+}
+function updateThought(tbox, tstate, ev) {
+  const p = (ev && ev.payload) || {};
+  const kind = p.kind;
+  if (kind === "run_output_delta") { if (p.text) tstate.texts.push(p.text); return; }
+  if (kind === "task_stream_linked") return;
+  if (kind === "tool_result") {
+    const cid = p.call_id;
+    if (!cid) return;
+    tstate.rows.forEach((r) => {
+      if (!r.idem || r.idem.indexOf(cid) < 0) return;
+      const ok = ((p.correlation_facts || {}).outcome || "") === "success";
+      if (!ok) setRowSummary(r, (r.el.dataset.sum || "") + " · 실패");
+    });
+    return;
+  }
+  if (kind !== "task_lifecycle") return;
+  const te = p.event || {};
+  const tid = p.task_id || te.task_id;
+  if (!tid) return;
+  const ek = te.kind;
+  if (ek === "proposed") {
+    const tk = te.task_kind || "";
+    const type = thoughtKind(tk, "");
+    ensureThoughtRow(tbox, tstate, tid, type, thoughtShortLabel(type, tk));
+    return;
+  }
+  let r = tstate.rows.get(tid);
+  if (!r) r = ensureThoughtRow(tbox, tstate, tid, thoughtKind("", te.operation || ""), "작업");
+  if (ek === "side_effect_intent") {
+    if (te.idempotency_key) r.idem = te.idempotency_key;
+    return;
+  }
+  if (ek === "status" && te.message) {
+    setRowSummary(r, te.message);
+    const det = te.details || {};
+    addThoughtLog(r, te.message, te.message + (det.phase ? "\n[단계: " + det.phase + "]" : ""));
+    return;
+  }
+  if (ek === "output" && typeof te.chunk === "string") {
+    let sum = null, body = te.chunk;
+    try {
+      const o = JSON.parse(te.chunk);
+      if (o && typeof o === "object") {
+        const cmd = o.command || o.tool || "";
+        const desc = o.description || o.desc || "";
+        sum = (desc || cmd || "출력") +
+          (o.exit_code !== undefined && o.exit_code !== null ? " · 종료 " + o.exit_code : "");
+        if (typeof o.output === "string") body = o.output;
+      }
+    } catch (e) {}
+    if (sum) setRowSummary(r, sum);
+    addThoughtLog(r, sum || "출력", body);
+    return;
+  }
+  if (ek === "completed" || ek === "settled") { markThoughtDone(r); }
+}
+function collectThoughts(tbox) {
+  const out = [];
+  tbox.querySelectorAll(".trow").forEach((r) => {
+    out.push({ k: r.dataset.type || "tool", s: r.dataset.sum || "" });
+  });
+  return out.length ? out : null;
+}
+function markThoughtsDone(tbox) {
+  tbox.querySelectorAll(".trow").forEach((r) => r.classList.add("done"));
+}
+function renderThoughtsStatic(thoughts) {
+  let html = '<div class="thoughts static">';
+  (thoughts || []).forEach((t) => {
+    html += '<div class="trow t-' + esc(String(t.k || "tool")) + ' done">' +
+      '<span class="ticon">' + thoughtIcon(t.k) + "</span>" +
+      '<span class="tspin"></span><span class="tsum">' + esc(t.s || "") + "</span></div>";
+  });
+  return html + "</div>";
+}
+function toggleThoughtDetail(tg) {
+  let det = null, mark = null;
+  if (tg.classList.contains("tsubhead")) {
+    det = tg.nextElementSibling;
+    mark = tg.querySelector(".ttoggle");
+  } else {
+    const row = tg.closest(".trow");
+    det = row ? row.nextElementSibling : null;
+    mark = tg;
+  }
+  if (!det || (!det.classList.contains("tsubbody") && !det.classList.contains("tdetail"))) return;
+  det.hidden = !det.hidden;
+  if (mark) mark.textContent = det.hidden ? "▸" : "▾";
+}
 chat.addEventListener("click", async (e) => {
+  const tgl = e.target.closest("[data-ttoggle]");
+  if (tgl) { toggleThoughtDetail(tgl); return; }
   const fb = e.target.closest("[data-fold]");
   if (fb) {
     const m = fb.closest(".msg");
@@ -571,7 +752,7 @@ function saveConv(title) {
 function saveMsg(who, text, meta) {
   const c = curConv();
   if (!c) return;
-  c.msgs.push({ who, text, ts: (meta && meta.ts) || Date.now(), el: (meta && meta.el) || "" });
+  c.msgs.push({ who, text, ts: (meta && meta.ts) || Date.now(), el: (meta && meta.el) || "", th: (meta && meta.th) || null });
   if (c.msgs.length > MAX_MSGS) c.msgs.splice(0, c.msgs.length - MAX_MSGS);
   if (sessionId) c.sid = sessionId;
   c.at = Date.now();
@@ -622,7 +803,7 @@ function openConv(k) {
   convKey = c.k; sessionId = c.sid || null;
   $("#cwd").textContent = c.cwd || serverCwd || "";
   chat.innerHTML = "";
-  c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m)));
+  c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m), undefined, m.th ? { thoughts: m.th } : null));
   chat.scrollTop = (typeof c.scroll === "number") ? c.scroll : chat.scrollHeight;
   setRoute("/" + (c.sid || c.k));
   drawConvs(); updateGate(); drawRside();
@@ -1194,13 +1375,107 @@ input.addEventListener("keydown", (e) => {
     e.preventDefault(); $("#f").requestSubmit();
   }
 });
+function finishAiTurn(j, ph, goalMode) {
+  sessionId = j.session_id || sessionId;
+  let justDone = null, th = null;
+  if (goalMode) {
+    const gf = goalFence(j.text || "", goalMode);
+    const gcc = curConv();
+    if (gcc && gcc.goal) {
+      const was = gcc.goal.items.filter((x) => x.done).length;
+      if (goalMode === "plan" && gf.data) gcc.goal.items = normGoalItems(gf.data);
+      if (goalMode === "status" && gf.data) {
+        const dn = gf.data.done ?? gf.data.completed ?? gf.data.finished;
+        if (dn === "all" || dn === "complete" || dn === "done")
+          gcc.goal.items.forEach((x) => { x.done = true; });
+        else if (Array.isArray(dn))
+          dn.forEach((i) => { const n = Number(i); if (Number.isInteger(n) && gcc.goal.items[n]) gcc.goal.items[n].done = true; });
+      }
+      const t = gcc.goal.items.length;
+      const d = gcc.goal.items.filter((x) => x.done).length;
+      const wasDone = t > 0 && was >= t;
+      if (t && d >= t) gcc.goal.active = false;
+      if (t && d >= t && !wasDone) justDone = gcc.goal.objective;
+      persistConvs(); drawConvs();
+    }
+    j.text = gf.clean;
+    drawRside();
+  }
+  if (j.cwd) {
+    const cc = curConv();
+    if (cc) { cc.cwd = j.cwd; persistConvs(); }
+    $("#cwd").textContent = j.cwd;
+  }
+  const tbox = ph._tbox || null;
+  if (tbox) { markThoughtsDone(tbox); th = collectThoughts(tbox); }
+  ph.dataset.raw = j.text || "(빈 응답)";
+  ph.innerHTML = renderText(ph.dataset.raw) + '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>";
+  if (tbox) ph.prepend(tbox);
+  decorateCode(ph); decorateMath(ph); decorateTables(ph);
+  return { justDone, th };
+}
+function sealAiTurn(ph, t0, fr) {
+  const el = ((Date.now() - t0) / 1000).toFixed(1);
+  const foot = timeStr(t0) + " · " + el + "초";
+  ph.innerHTML += '<div class="meta">' + esc(foot) + "</div>";
+  saveMsg("ai", ph.dataset.raw || "", { ts: t0, el, th: fr.th });
+  if (fr.justDone) {
+    addMsg("ai", "🏁 목표 달성: " + fr.justDone);
+    saveMsg("ai", "🏁 목표 달성: " + fr.justDone, { ts: Date.now() });
+  }
+}
+async function postChatStream(message, sid, cwd, onRun) {
+  const r = await fetch("/api/chat/stream", { method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, session_id: sid, cwd }) });
+  if (!r.ok || !r.body) throw new Error("HTTP " + r.status);
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "", doneJ = null, gotDone = false;
+  for (;;) {
+    const it = await reader.read();
+    if (it.value) buf += dec.decode(it.value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf("\n\n")) >= 0) {
+      const frame = buf.slice(0, idx); buf = buf.slice(idx + 2);
+      const m = frame.match(/^event: ([A-Za-z]+)\ndata: ([\s\S]*)$/);
+      if (!m) continue;
+      if (m[1] === "run") { try { onRun(JSON.parse(m[2])); } catch (e) {} }
+      else if (m[1] === "done") {
+        try { doneJ = JSON.parse(m[2]); } catch (e) { doneJ = null; }
+        gotDone = true;
+      }
+    }
+    if (it.done) break;
+  }
+  if (!gotDone || !doneJ) throw new Error("스트림이 끝나기 전에 연결이 끊어졌습니다.");
+  return doneJ;
+}
+async function runStreamTurn(full, sid, cwd, ph, t0, goalMode) {
+  const tbox = document.createElement("div");
+  tbox.className = "thoughts";
+  ph.prepend(tbox);
+  ph._tbox = tbox;
+  const tstate = { rows: new Map(), texts: [] };
+  let j = null;
+  try {
+    j = await postChatStream(full, sid, cwd, (ev) => updateThought(tbox, tstate, ev));
+  } catch (err) {
+    const raw = tstate.texts.join("").trim();
+    const fr = finishAiTurn({ text: raw || "전송 실패: " + err, session_id: null }, ph, null);
+    sealAiTurn(ph, t0, fr);
+    return;
+  }
+  const fr = finishAiTurn(j, ph, goalMode);
+  sealAiTurn(ph, t0, fr);
+}
 $("#f").addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = input.value.trim();
   if (!text) return;
   if (inputGated()) { updateGate(); return; }
   if (text.startsWith("/")) pendingPrefix = null;
-  let goalMode = null, sendText = null, justDone = null;
+  let goalMode = null, sendText = null;
   if (text === "/help" || text.startsWith("/help ")) {
     input.value = ""; slash.style.display = "none"; $("#feats").innerHTML = "";
     input.style.height = "auto"; input.style.overflowY = "hidden";
@@ -1218,7 +1493,6 @@ $("#f").addEventListener("submit", async (e) => {
       return;
     }
     sendText = goalSetPrompt(obj); goalMode = "plan";
-    justDone = null;
   }
   const pre = text.startsWith("/") ? [] : featPrefixes();
   input.value = ""; slash.style.display = "none";
@@ -1255,63 +1529,29 @@ $("#f").addEventListener("submit", async (e) => {
   const t0 = Date.now();
   try {
     const cc0 = curConv();
-  touchLive();
-  const r = await fetch("/api/chat", { method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: full, session_id: sessionId,
-      cwd: (cc0 && cc0.cwd) || serverCwd || "" }) });
-    const j = await r.json();
-    if (j.text === "__COPY__") {
-      const prev = [...chat.querySelectorAll(".msg.ai")].filter((n) => n !== ph).pop();
-      ph.dataset.raw = await copyText(prev ? prev.dataset.raw || "" : "");
-      ph.innerHTML = esc(ph.dataset.raw);
-    } else if (j.new_session) { sessionId = null; convKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); }
-    else {
-      sessionId = j.session_id || sessionId;
-      if (goalMode) {
-        const gf = goalFence(j.text || "", goalMode);
-        const gcc = curConv();
-        if (gcc && gcc.goal) {
-          const was = gcc.goal.items.filter((x) => x.done).length;
-          if (goalMode === "plan" && gf.data) gcc.goal.items = normGoalItems(gf.data);
-          if (goalMode === "status" && gf.data) {
-            const dn = gf.data.done ?? gf.data.completed ?? gf.data.finished;
-            if (dn === "all" || dn === "complete" || dn === "done")
-              gcc.goal.items.forEach((x) => { x.done = true; });
-            else if (Array.isArray(dn))
-              dn.forEach((i) => { const n = Number(i); if (Number.isInteger(n) && gcc.goal.items[n]) gcc.goal.items[n].done = true; });
-          }
-          const t = gcc.goal.items.length;
-          const d = gcc.goal.items.filter((x) => x.done).length;
-          const wasDone = t > 0 && was >= t;
-          if (t && d >= t) gcc.goal.active = false;
-          if (t && d >= t && !wasDone) justDone = gcc.goal.objective;
-          persistConvs(); drawConvs();
-        }
-        j.text = gf.clean;
-        drawRside();
+    touchLive();
+    const cwd = (cc0 && cc0.cwd) || serverCwd || "";
+    if (text.startsWith("/") && sendText === null) {
+      const r = await fetch("/api/chat", { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: full, session_id: sessionId, cwd }) });
+      const j = await r.json();
+      if (j.text === "__COPY__") {
+        const prev = [...chat.querySelectorAll(".msg.ai")].filter((n) => n !== ph).pop();
+        ph.dataset.raw = await copyText(prev ? prev.dataset.raw || "" : "");
+        ph.innerHTML = esc(ph.dataset.raw);
+      } else if (j.new_session) { sessionId = null; convKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); }
+      else {
+        const fr = finishAiTurn(j, ph, goalMode);
+        sealAiTurn(ph, t0, fr);
       }
-      if (j.cwd) {
-        const cc = curConv();
-        if (cc) { cc.cwd = j.cwd; persistConvs(); }
-        $("#cwd").textContent = j.cwd;
-      }
-      ph.dataset.raw = j.text || "(빈 응답)";
-      ph.innerHTML = renderText(ph.dataset.raw) + '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>";
-      decorateCode(ph); decorateMath(ph); decorateTables(ph);
+      drawConvs(); refreshPrefs();
+      chat.scrollTop = chat.scrollHeight;
+    } else {
+      await runStreamTurn(full, sessionId, cwd, ph, t0, goalMode);
+      drawConvs(); refreshPrefs();
+      chat.scrollTop = chat.scrollHeight;
     }
-    if (!j.new_session) {
-      const el = ((Date.now() - t0) / 1000).toFixed(1);
-      const foot = timeStr(t0) + " · " + el + "초";
-      ph.innerHTML += '<div class="meta">' + esc(foot) + "</div>";
-      saveMsg("ai", ph.dataset.raw || "", { ts: t0, el });
-      if (justDone) {
-        addMsg("ai", "🏁 목표 달성: " + justDone);
-        saveMsg("ai", "🏁 목표 달성: " + justDone, { ts: Date.now() });
-      }
-    }
-    drawConvs(); refreshPrefs();
-    chat.scrollTop = chat.scrollHeight;
   } catch (err) {
     ph.dataset.raw = "전송 실패: " + err;
     ph.innerHTML = renderText(ph.dataset.raw);
@@ -1436,11 +1676,13 @@ const FEAT_ICONS = {
 };
 const FEATS = {
   viz: { chip: "시각화", prefix: "[시각화 요청] 답변에 인터랙티브 시각화가 필요하면 설명과 함께 아래 형식 코드블록을 포함하라.\n```viz-html\n(외부 CDN 없이 동작하는 단일 HTML 문서. <script> 사용 가능. sandbox라서 same-origin 접근·팝업·다운로드 불가)\n```\n높이는 ```viz-html:높이 로 지정(기본 360). 시각화가 필요 없으면 생략해도 된다." },
-  web: { chip: "웹 검색", prefix: "[웹 검색 필수] 아래 요청에 답하기 전에 반드시 웹 검색을 수행하고 검색 결과와 함께 답하라. 검색 없이 알던 내용으로 답하지 마라. 사용한 검색어와 핵심 근거를 밝혀라. 근거가 된 문장 끝에는 [출처: 사이트명](URL) 형태로 표기하라." }
+  web: { chip: "웹 검색", prefix: "[웹 검색 필수] 아래 요청에 답하기 전에 반드시 웹 검색을 수행하고 검색 결과와 함께 답하라. 검색 없이 알던 내용으로 답하지 마라. 사용한 검색어와 핵심 근거를 밝혀라. 근거가 된 문장 끝에는 [출처: 사이트명](URL) 형태로 표기하라." },
+  autoanswer: { chip: "자동 응답", prefix: "[자동 응답] 작업 중 선택이 필요하면 사용자에게 묻지 말고 권장(기본) 선택지로 진행하고, 무엇을 선택했는지 결과에 밝혀라. 되돌릴 수 없는 파괴적 조치는 제외하고, 그 경우에만 질문하라." }
 };
 const DOCK_FEATURES = [
   { id: "viz", label: "시각화", desc: "인터랙티브 패널로 답변 요청", ready: true, feat: "viz" },
   { id: "web", label: "웹 검색", desc: "반드시 검색 후 답변", ready: true, feat: "web" },
+  { id: "autoanswer", label: "자동 응답", desc: "선택지를 묻지 않고 권장안으로 진행", ready: true, feat: "autoanswer" },
   { id: "upload", label: "파일 업로드", desc: "준비 중", ready: false }
 ];
 function addFeat(id) {

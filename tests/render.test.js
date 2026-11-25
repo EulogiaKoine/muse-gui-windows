@@ -15,7 +15,7 @@ if (start < 0 || end < 0 || end < start) {
 const sandbox = {};
 require("vm").createContext(sandbox);
 require("vm").runInContext(
-  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd };",
+  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd, thoughtKind, truncStr };",
   sandbox);
 const R = sandbox.__R;
 let pass = 0, fail = 0;
@@ -122,6 +122,8 @@ t("goalFence plan", (() => { const g = R.goalFence('본문\n```goal-plan [{"t":"
 t("goalFence variant", (() => { const g = R.goalFence('본문\n```GOAL_STATUS json\n{"done":[0]}\n```', "status"); return g.data && g.data.done && g.data.done[0] === 0; })(), "");
 t("goalFence miss", R.goalFence("본문", "plan").data === null, "");
 t("normGoalItems", (() => { const a = R.normGoalItems(["a", { t: "b", done: 1 }]); return a.length === 2 && a[0].t === "a" && !a[0].done && a[1].done; })(), "");
+t("thoughtKind", R.thoughtKind("model.meta.response") === "reason" && R.thoughtKind("tool.bash") === "terminal" && R.thoughtKind("tool:bash") === "terminal" && R.thoughtKind("tool.web_search") === "web" && R.thoughtKind("tool.read") === "file" && R.thoughtKind("reminder.agent.x") === "system" && R.thoughtKind("") === "system" && R.thoughtKind("tool.unknown_xyz") === "tool", "");
+t("truncStr", R.truncStr("abcdef", 3) === "abc…" && R.truncStr("ab", 3) === "ab", "");
 t("convToMd", (() => { const md = R.convToMd({ t: "T", sid: "s1abcd", cwd: "/w", msgs: [
   { who: "me", text: "질문", ts: 1000 },
   { who: "ai", text: "답\n```goal-plan\n[{\"t\":\"a\"}]\n```\n끝", ts: 2000 }] });
