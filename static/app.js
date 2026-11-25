@@ -144,7 +144,7 @@ function renderText(src) {
     };
     x = x.replace(/!\[([^\]]*)\]\((https?:[^)\s]+)\)/g, (m, alt, url) =>
       keep('<a href="' + url + '">' + alt + " (이미지)</a>"));
-    x = x.replace(/\[([^\]]+)\]\s*\(((?:[^()\s]|\([^()]*\))*)\)/g, (m, label, url) => {
+    const linkFor = (label, url) => {
       if (/^출처:/.test(label) && isHttp(url))
         return keep('<a class="srcchip" href="' + url + '" target="_blank" rel="noopener">' +
           '<span class="licon">' + ICON_LINK + "</span>" + label.replace(/^출처:\s*/, "") + "</a>");
@@ -156,7 +156,12 @@ function renderText(src) {
       }
       if (/^\/(?!\/)/.test(url)) return link(label, url, false);
       return nolink(label);
+    };
+    x = x.replace(/\[([^\]]+)\]\s*\(\s*&lt;((?:(?!&gt;)[^])*?)&gt;\s*\)/g, (m, label, url) => {
+      if (!url || (!isHttp(url) && !isFsPath(url) && !/^(mailto:|#|\/\/)/.test(url))) return m;
+      return linkFor(label, url);
     });
+    x = x.replace(/\[([^\]]+)\]\s*\(((?:[^()\s]|\([^()]*\))*)\)/g, (m, label, url) => linkFor(label, url));
     x = x.replace(/(^|[\s(>"'])((?:\/(?:mnt|home|tmp|etc|usr|var|opt)\/[^\s<>"')\]]+|[A-Za-z]:[\\/][^\s<>"')\]]+|~\/[^\s<>"')\]]+|\\\\[^\s<>"')\]]+))/g,
       (m, pre, raw) => {
         const pl = mkPathlink(raw, raw);
