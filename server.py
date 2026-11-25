@@ -1082,6 +1082,24 @@ def platform_label():
     return sys.platform
 
 
+def valid_path(path):
+    """존재하는 경로(파일·디렉터리)면 실경로, 아니면 None."""
+    if not isinstance(path, str) or not path or len(path) > 4096:
+        return None
+    real = os.path.realpath(os.path.expanduser(path))
+    if not os.path.exists(real):
+        return None
+    return real
+
+
+def fs_stat(path):
+    """경로 존재 여부와 종류를 돌려준다."""
+    real = valid_path(path)
+    if not real:
+        return {"ok": False, "error": "경로를 찾지 못했습니다."}
+    return {"ok": True, "path": real, "isdir": os.path.isdir(real)}
+
+
 def open_folder(path):
     """OS 파일 관리자로 폴더 열기. 성공 시 (True, ''), 실패 시 (False, 사유)."""
     is_wsl = _is_wsl()
@@ -1262,6 +1280,10 @@ class Handler(BaseHTTPRequestHandler):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             self._send(200, json.dumps(
                 fs_list((q.get("path") or [""])[0]), ensure_ascii=False))
+        elif path.startswith("/api/fs/stat"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            self._send(200, json.dumps(
+                fs_stat((q.get("path") or [""])[0]), ensure_ascii=False))
         elif path == "/api/account":
             m = read_auth_meta()
             if not m:
@@ -1338,10 +1360,10 @@ class Handler(BaseHTTPRequestHandler):
                     {"ok": False, "error": res}, ensure_ascii=False))
             return
         if path == "/api/open-folder":
-            p = valid_cwd(body.get("path") or "")
+            p = valid_path(body.get("path") or "")
             if not p:
                 self._send(200, json.dumps(
-                    {"ok": False, "error": "폴더를 찾지 못했습니다."},
+                    {"ok": False, "error": "경로를 찾지 못했습니다."},
                     ensure_ascii=False))
                 return
             ok, msg = open_folder(p)

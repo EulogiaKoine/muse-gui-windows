@@ -172,6 +172,11 @@ form { padding: 10px 12px; display: flex; gap: 8px; position: relative; align-it
 .msg a.nolink { cursor: default; text-decoration: none; }
 .msg a.srcchip { display: inline-block; font-size: 11px; border: 1px solid var(--bd); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 1px 9px; margin-left: 6px; text-decoration: none; vertical-align: baseline; }
 .msg a.srcchip:hover { color: var(--me); border-color: var(--me); }
+.msg a .licon svg, .msg a .plicon svg { width: 11px; height: 11px; vertical-align: -1px; }
+.msg a .licon, .msg a .plicon { margin-right: 4px; }
+.msg a.pathlink { cursor: pointer; }
+.msg a.srcchip .licon { margin-right: 5px; }
+.msg a.srcchip .licon svg { width: 10px; height: 10px; }
 textarea { flex: 1; min-height: 44px; max-height: 132px; font-size: 14px; padding: 11px 16px; background: var(--input); color: var(--text); border: 1px solid var(--bd); border-radius: 18px; box-shadow: 0 1px 2px #0001; resize: none; }
 textarea:focus { outline: 2px solid var(--me); outline-offset: -1px; border-color: var(--me); }
 form button[type="submit"] { width: 38px; height: 38px; flex: none; display: flex; align-items: center; justify-content: center; cursor: pointer; background: var(--me); color: #fff; border: 0; border-radius: 50%; line-height: 0; transition: transform .12s ease, filter .12s ease; }

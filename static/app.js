@@ -27,6 +27,9 @@ function persistConvs() {
 
 function esc(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function escAttr(s) { return esc(String(s)).replace(/"/g, "&quot;"); }
+const ICON_LINK = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+const ICON_FOLDER = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+const ICON_FILE = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
 const GREEK = { alpha:"α", beta:"β", gamma:"γ", delta:"δ", epsilon:"ε", varepsilon:"ε", zeta:"ζ", eta:"η", theta:"θ", iota:"ι", kappa:"κ", lambda:"λ", mu:"μ", nu:"ν", xi:"ξ", pi:"π", rho:"ρ", sigma:"σ", tau:"τ", phi:"φ", varphi:"φ", chi:"χ", psi:"ψ", omega:"ω", times:"×", div:"÷", pm:"±", cdot:"·", leq:"≤", geq:"≥", neq:"≠", approx:"≈", equiv:"≡", infty:"∞", to:"→", rightarrow:"→", leftarrow:"←", sum:"∑", prod:"∏", int:"∫", partial:"∂", ldots:"…", ell:"ℓ", circ:"∘" };
 function renderMath(tex, display) {
   const raw = tex.trim();
@@ -116,28 +119,35 @@ function renderText(src) {
   s = s.replace(/\$([^$\n]+?)\$/g, (m, tex) => keep(renderMath(tex, false)));
   s = esc(s);
   const inline = (x) => {
-    const link = (label, url) => keep('<a href="' + url + '" target="_blank" rel="noopener">' + label + "</a>");
+    const link = (label, url, icon) => keep('<a href="' + url + '" target="_blank" rel="noopener">' +
+      (icon ? '<span class="licon">' + ICON_LINK + "</span>" : "") + label + "</a>");
     const nolink = (label) => keep('<a class="nolink">' + label + "</a>");
+    const isHttp = (u) => /^(https?:\/\/)/.test(u);
+    const isLocalPath = (u) => /^\/(?!\/)/.test(u) || /^[A-Za-z]:[\\/]/.test(u) ||
+      /^\.\.?(\/|$)/.test(u) || /^~(\/|$)/.test(u);
     const autolink = (m, pre, raw, scheme) => {
       const t = raw.match(/[.,;:!?]+$/);
       const core = t ? raw.slice(0, -t[0].length) : raw;
       if (!core) return m;
       const url = (scheme || "") + core;
-      return pre + keep('<a href="' + url + '" target="_blank" rel="noopener">' + core + "</a>") + (t ? t[0] : "");
+      return pre + keep('<a href="' + url + '" target="_blank" rel="noopener"><span class="licon">' +
+        ICON_LINK + "</span>" + core + "</a>") + (t ? t[0] : "");
     };
     x = x.replace(/!\[([^\]]*)\]\((https?:[^)\s]+)\)/g, (m, alt, url) =>
       keep('<a href="' + url + '">' + alt + " (이미지)</a>"));
     x = x.replace(/\[([^\]]+)\]\(([^)\s]*)\)/g, (m, label, url) => {
-      if (/^출처:/.test(label) && /^(https?:\/\/)/.test(url))
+      if (/^출처:/.test(label) && isHttp(url))
         return keep('<a class="srcchip" href="' + url + '" target="_blank" rel="noopener">' +
-          label.replace(/^출처:\s*/, "") + "</a>");
-      return /^(https?:\/\/|mailto:|#|\/)/.test(url)
-        ? link(label, url)
-        : nolink(label);
+          '<span class="licon">' + ICON_LINK + "</span>" + label.replace(/^출처:\s*/, "") + "</a>");
+      if (isHttp(url)) return link(label, url, true);
+      if (/^(mailto:|#|\/\/)/.test(url)) return link(label, url, false);
+      if (isLocalPath(url)) return keep('<a class="pathlink" data-path="' + escAttr(url) + '">' +
+        '<span class="plicon">' + ICON_FOLDER + "</span>" + label + "</a>");
+      return nolink(label);
     });
     x = x.replace(/&lt;(https?:\/\/[^<>\s]+?)&gt;/g, (m, raw) => {
       const safe = raw.replace(/&(?!amp;|lt;|gt;|quot;)/g, "&amp;");
-      return link(safe, safe);
+      return link(safe, safe, true);
     });
     x = x.replace(/(^|[\s(>"'])(https?:\/\/[^\s<>"')\]]+)/g, (m, pre, raw) => autolink(m, pre, raw, ""));
     x = x.replace(/(^|[\s(>"'])((?:www\.)[^\s<>"')\]]+)/g, (m, pre, raw) => autolink(m, pre, raw, "https://"));
@@ -268,9 +278,51 @@ function addMsg(who, text, think, foot, withActs) {
       '<button type="button" class="foldbtn" data-fold title="펼치기/접기">' + ICON_CHEVD + "</button>";
   }
   d.innerHTML = html;
-  decorateCode(d); decorateMath(d); decorateTables(d);
+  decorateCode(d); decorateMath(d); decorateTables(d); decoratePaths(d);
   chat.appendChild(d); chat.scrollTop = chat.scrollHeight;
   return d;
+}
+const pathStatCache = new Map();
+function resolveLinkPath(p) {
+  p = (p || "").trim();
+  if (!p) return "";
+  if (/^[A-Za-z]:[\\/]/.test(p) || p[0] === "/" || p[0] === "~") return p;
+  const base = ((curConv() && curConv().cwd) || serverCwd || "").replace(/\/+$/, "");
+  if (p.startsWith("./")) p = p.slice(2);
+  return base ? base + "/" + p : p;
+}
+async function decoratePaths(root) {
+  const els = [...root.querySelectorAll("a.pathlink:not([data-done])")];
+  if (!els.length) return;
+  await Promise.all(els.map(async (a) => {
+    a.dataset.done = "1";
+    const abs = resolveLinkPath(a.dataset.path);
+    if (!abs) return;
+    a.dataset.abs = abs; a.title = abs;
+    let st = pathStatCache.get(abs);
+    if (st === undefined) {
+      try {
+        const r = await fetch("/api/fs/stat?path=" + encodeURIComponent(abs));
+        st = await r.json();
+      } catch (e) { st = null; }
+      pathStatCache.set(abs, st);
+    }
+    if (st && st.ok && !st.isdir) {
+      const ic = a.querySelector(".plicon");
+      if (ic) ic.innerHTML = ICON_FILE;
+    }
+  }));
+}
+async function openPathLink(a) {
+  const abs = a.dataset.abs || resolveLinkPath(a.dataset.path);
+  if (!abs) return;
+  try {
+    const r = await fetch("/api/open-folder", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: abs }) });
+    const j = await r.json();
+    if (!j.ok) alert("열기 실패: " + (j.error || abs));
+  } catch (e) { alert("열기 실패: " + abs); }
 }
 function decorateMath(el) {
   el.querySelectorAll(".math[data-tex]").forEach((m) => {
@@ -393,6 +445,8 @@ chat.addEventListener("click", async (e) => {
     $("#f").requestSubmit();
     return;
   }
+  const pl = e.target.closest("[data-path]");
+  if (pl) { e.preventDefault(); openPathLink(pl); return; }
   const b = e.target.closest("[data-copy]");
   if (!b) return;
   flashCopy(b, b.closest(".msg").dataset.raw || "");
