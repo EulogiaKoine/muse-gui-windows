@@ -1128,7 +1128,12 @@ def run_muse_exec(prompt, session_id=None, cwd=None):
             cmd += ["--model", STATE["model"]]
         if (not flag_value(MUSE_ARGS, "--reasoning-effort", "--effort")
                 and STATE.get("effort")):
-            cmd += ["--reasoning-effort", STATE["effort"]]
+            eff = STATE["effort"]
+            if eff == "none":
+                # exec는 none을 거부하므로 (exit 2 + 도움말 출력)
+                # 지원하는 최소값으로 대체한다.
+                eff = "minimal"
+            cmd += ["--reasoning-effort", eff]
     if session_id:
         cmd += ["--session-id", session_id]
     elif not flag_value(MUSE_ARGS, "--workspace"):

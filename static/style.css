@@ -71,7 +71,7 @@ body.rside-hidden #rside { display: none; }
 #rsidetabs button { flex: 1; border: 1px solid transparent; background: none; color: var(--muted); border-radius: 8px; padding: 7px 4px; cursor: pointer; font-size: 13px; }
 #rsidetabs button:hover { color: var(--text); background: var(--hover); }
 #rsidetabs button.sel { background: var(--bg); color: var(--text); font-weight: 600; border-color: var(--bd); }
-#rsidetabs button .tx { margin-left: 6px; color: var(--muted); border-radius: 4px; padding: 0 2px; }
+#rsidetabs button .tx { margin-left: 6px; color: var(--muted); border-radius: 4px; padding: 0 2px; font-size: 1.5em; line-height: 1; }
 #rsidetabs button .tx:hover { color: var(--err); background: var(--hover); }
 #rsidetoggle, #rsideopen { border: 1px solid var(--bd); background: var(--bg); border-radius: 8px; padding: 4px 6px; cursor: pointer; color: var(--muted); line-height: 0; flex: none; }
 #rsidetoggle:hover, #rsideopen:hover { border-color: var(--me); color: var(--me); }
