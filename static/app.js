@@ -8,6 +8,8 @@ function loadConvs() {
     const a = JSON.parse(localStorage.getItem("muse-gui-convs") || "[]");
     return a.map((c) => ({ k: c.k, t: c.t || "새 대화",
       sid: c.sid || null, cwd: c.cwd || null, pin: !!c.pin,
+      goal: c.goal && c.goal.objective ? { objective: c.goal.objective,
+        items: normGoalItems(c.goal.items), active: !!c.goal.active } : null,
       msgs: Array.isArray(c.msgs) ? c.msgs : [] }));
   } catch (e) { return []; }
 }
@@ -125,10 +127,14 @@ function renderText(src) {
     };
     x = x.replace(/!\[([^\]]*)\]\((https?:[^)\s]+)\)/g, (m, alt, url) =>
       keep('<a href="' + url + '">' + alt + " (이미지)</a>"));
-    x = x.replace(/\[([^\]]+)\]\(([^)\s]*)\)/g, (m, label, url) =>
-      /^(https?:\/\/|mailto:|#|\/)/.test(url)
+    x = x.replace(/\[([^\]]+)\]\(([^)\s]*)\)/g, (m, label, url) => {
+      if (/^출처:/.test(label) && /^(https?:\/\/)/.test(url))
+        return keep('<a class="srcchip" href="' + url + '" target="_blank" rel="noopener">' +
+          label.replace(/^출처:\s*/, "") + "</a>");
+      return /^(https?:\/\/|mailto:|#|\/)/.test(url)
         ? link(label, url)
-        : nolink(label));
+        : nolink(label);
+    });
     x = x.replace(/&lt;(https?:\/\/[^<>\s]+?)&gt;/g, (m, raw) => {
       const safe = raw.replace(/&(?!amp;|lt;|gt;|quot;)/g, "&amp;");
       return link(safe, safe);
@@ -224,6 +230,18 @@ function tblToCSV(rows) {
 function routeId(path) {
   const m = String(path || "").match(/^\/([A-Za-z0-9][A-Za-z0-9-]*)\/?$/);
   return m ? m[1] : null;
+}
+function goalFence(text, name) {
+  const m = String(text).match(new RegExp("```" + name + "\\s*([\\s\\S]*?)```"));
+  if (!m) return { clean: String(text), data: null };
+  let data = null;
+  try { data = JSON.parse(m[1]); } catch (e) { data = null; }
+  return { clean: String(text).replace(m[0], "").trim(), data };
+}
+function normGoalItems(data) {
+  const arr = Array.isArray(data) ? data : (data && (data.items || data.subgoals)) || [];
+  return arr.map((x, i) => typeof x === "string" ? { t: x, done: false } :
+    ({ t: String(x.t || x.title || x.name || ("단계 " + (i + 1))), done: !!x.done }));
 }
 function timeStr(ts) {
   if (!ts) return "";
@@ -431,7 +449,7 @@ function openConv(k) {
   c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m)));
   chat.scrollTop = chat.scrollHeight;
   setRoute("/" + (c.sid || c.k));
-  drawConvs(); updateGate();
+  drawConvs(); updateGate(); drawRside();
 }
 let fsCb = null, fsCur = "", fsParent = null, fsEntries = [];
 async function openFsPicker(cb) {
@@ -522,6 +540,89 @@ function drawConvs() {
     box.appendChild(row);
   });
 }
+const RSIDE_TABS = [{ id: "goal", label: "목표" }, { id: "help", label: "도움말" }];
+let rsideTab = "goal";
+function renderRsideTabs() {
+  const box = $("#rsidetabs"); if (!box) return;
+  box.innerHTML = "";
+  RSIDE_TABS.forEach((t) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = t.label; b.setAttribute("role", "tab");
+    if (t.id === rsideTab) b.classList.add("sel");
+    b.onclick = () => { rsideTab = t.id; drawRside(); };
+    box.appendChild(b);
+  });
+  document.querySelectorAll("#rside section[data-rpane]").forEach((s) => { s.hidden = s.dataset.rpane !== rsideTab; });
+}
+function applyRside(hidden) {
+  document.body.classList.toggle("rside-hidden", !!hidden);
+  const b = $("#rsideopen"); if (b) b.hidden = !hidden;
+}
+function setRside(hidden) { applyRside(hidden); saveTheme({ rside: !!hidden }); }
+function openRside(tab) {
+  if (tab) rsideTab = tab;
+  if (document.body.classList.contains("rside-hidden")) applyRside(false);
+  drawRside();
+}
+function drawRside() {
+  renderRsideTabs();
+  if (rsideTab === "goal") renderGoal(); else renderHelp();
+}
+function renderGoal() {
+  const box = $("#rsidegoal"); if (!box) return;
+  const c = curConv();
+  const g = c && c.goal;
+  if (!g) {
+    box.innerHTML = '<h3>목표</h3><p class="hint">진행 중인 목표가 없습니다.<br><code>/goal 목표 내용</code> 으로 시작하세요.</p>';
+    return;
+  }
+  const done = g.items.filter((x) => x.done).length, tot = g.items.length;
+  const pct = tot ? Math.round(done / tot * 100) : 0;
+  let html = "<h3>목표</h3>" + '<div class="goalobj">' + esc(g.objective) + "</div>";
+  html += '<div class="goalbar"><i style="width:' + pct + '%"></i></div>' +
+    '<div class="goalcount">' + done + "/" + tot + " · " + pct + "%" + (g.active ? "" : " · 완료") + "</div>";
+  html += '<div class="goalitems">';
+  g.items.forEach((it) => {
+    html += '<label class="goalitem' + (it.done ? " done" : "") + '"><input type="checkbox" disabled' +
+      (it.done ? " checked" : "") + "><span>" + esc(it.t) + "</span></label>";
+  });
+  box.innerHTML = html + "</div>";
+}
+function renderHelp() {
+  const box = $("#rsidehelp"); if (!box) return;
+  const ui = new Set(["/new", "/clear", "/copy", "/help"]);
+  const groups = [["대화", []], ["안내", []], ["muse 명령", []]];
+  (slashList || []).forEach((c) => {
+    (ui.has(c.cmd) ? groups[0][1] : (/\(CLI\)$/.test(c.desc) ? groups[2][1] : groups[1][1])).push(c);
+  });
+  let html = "<h3>도움말</h3>";
+  groups.forEach((gr) => {
+    if (!gr[1].length) return;
+    html += '<div class="helpgrp"><h4>' + gr[0] + "</h4>";
+    gr[1].forEach((c) => {
+      html += '<div class="hrow"><code>' + esc(c.cmd) + "</code><p>" + esc(c.desc) + "</p></div>";
+    });
+    html += "</div>";
+  });
+  if (!(slashList || []).length) html += '<p class="hint">불러오는 중…</p>';
+  box.innerHTML = html;
+}
+function goalSetPrompt(obj) {
+  return "[목표 설정] 아래 목표를 3~8개의 구체적 세부 단계로 나누어라. 그리고 1단계부터 바로 수행하라.\n목표: " + obj +
+    "\n규칙: 응답 맨 끝에 ```goal-plan 펜스로 JSON 배열을 출력한다. " +
+    '예: ```goal-plan [{"t":"1단계 설명"},{"t":"2단계 설명"}]``` ' +
+    "펜스 안에는 JSON만 둔다. 본문 답변과 펜스를 모두 출력한다.";
+}
+function goalTurnPrompt(g, msg) {
+  const dn = g.items.map((x, i) => x.done ? i : -1).filter((i) => i >= 0);
+  return "[진행 중 목표] " + g.objective +
+    "\n완료된 단계 번호: " + (dn.length ? dn.join(",") : "없음") +
+    "\n위 목표 달성을 위해 아래 요청을 처리하라. 처리 후 목표 전체의 진행을 평가하고, " +
+    "응답 맨 끝에 ```goal-status 펜스로 완료된 단계 번호 배열을 출력한다. " +
+    '예: ```goal-status {"done":[0,1]}``` 새로 완료된 게 없으면 {"done":[]}. ' +
+    "모든 단계가 끝나면 본문에 '목표 달성'을 명시한다." +
+    "\n요청: " + msg;
+}
 function showCtx(e, k) {
   e.preventDefault();
   const c = convs.find((x) => x.k === k);
@@ -549,7 +650,7 @@ $("#ctx").addEventListener("click", (e) => {
     const sid = c.sid || null;
     convs = convs.filter((x) => x.k !== c.k);
     if (convKey === c.k) { convKey = null; sessionId = null; resumedKey = null; chat.innerHTML = ""; }
-    persistConvs(); drawConvs(); updateGate();
+    persistConvs(); drawConvs(); updateGate(); drawRside();
     if (sid) {
       fetch("/api/session/delete", { method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -595,6 +696,7 @@ function applyTheme() {
     b.classList.toggle("sel", b.dataset.th === th));
   renderPalettes(ac);
   applySide(!!t.side);
+  applyRside(!!t.rside);
 }
 $("#sidetoggle").onclick = () => setSide(!document.body.classList.contains("side-hidden"));
 function saveTheme(patch) {
@@ -834,6 +936,7 @@ async function refreshInfo() {
   } catch (e) { $("#status").className = "err"; $("#meta").textContent = "서버 연결 실패"; }
   try {
     const r = await fetch("/api/slash"); slashList = await r.json();
+    if (typeof rsideTab !== "undefined" && rsideTab === "help") renderHelp();
   } catch (e) { slashList = []; }
 }
 function drawSlash(filter) {
@@ -861,6 +964,7 @@ input.addEventListener("keydown", (e) => {
     const bs = [...slash.querySelectorAll("button")];
     slashIdx = (slashIdx + (e.key === "ArrowUp" ? -1 : 1) + bs.length) % bs.length;
     bs.forEach((b, i) => b.classList.toggle("sel", i === slashIdx));
+    if (bs[slashIdx] && bs[slashIdx].scrollIntoView) bs[slashIdx].scrollIntoView({ block: "nearest" });
   } else if (popup && e.key === "Tab") {
     e.preventDefault();
     const sel = slash.querySelector("button.sel");
@@ -874,11 +978,36 @@ $("#f").addEventListener("submit", async (e) => {
   const text = input.value.trim();
   if (!text) return;
   if (inputGated()) { updateGate(); return; }
+  let goalMode = null, sendText = null, justDone = null;
+  if (text === "/help" || text.startsWith("/help ")) {
+    input.value = ""; slash.style.display = "none"; $("#feats").innerHTML = "";
+    input.style.height = "auto"; input.style.overflowY = "hidden";
+    openRside("help");
+    return;
+  }
+  if (text === "/goal" || text.startsWith("/goal ")) {
+    const obj = text.slice(5).trim();
+    input.value = ""; slash.style.display = "none"; $("#feats").innerHTML = "";
+    input.style.height = "auto"; input.style.overflowY = "hidden";
+    if (!obj) { openRside("goal"); return; }
+    sendText = goalSetPrompt(obj); goalMode = "plan";
+    justDone = null;
+  }
   const pre = text.startsWith("/") ? [] : featPrefixes();
   input.value = ""; slash.style.display = "none";
   input.style.height = "auto"; input.style.overflowY = "hidden";
   $("#feats").innerHTML = "";
-  const full = (pre.length ? pre.join("\n") + "\n" : "") + text;
+  let full = (pre.length ? pre.join("\n") + "\n" : "") + text;
+  const gc0 = curConv();
+  if (sendText !== null) {
+    full = sendText;
+    if (gc0) {
+      gc0.goal = { objective: text.slice(5).trim(), items: [], active: true };
+      persistConvs(); drawConvs();
+    }
+  } else if (!text.startsWith("/") && gc0 && gc0.goal && gc0.goal.active) {
+    full = goalTurnPrompt(gc0.goal, full); goalMode = "status";
+  }
   if (text === "/clear" || text.startsWith("/clear ")) {
     chat.innerHTML = "";
     const c = curConv();
@@ -906,9 +1035,27 @@ $("#f").addEventListener("submit", async (e) => {
       const prev = [...chat.querySelectorAll(".msg.ai")].filter((n) => n !== ph).pop();
       ph.dataset.raw = await copyText(prev ? prev.dataset.raw || "" : "");
       ph.innerHTML = esc(ph.dataset.raw);
-    } else if (j.new_session) { sessionId = null; convKey = null; resumedKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); }
+    } else if (j.new_session) { sessionId = null; convKey = null; resumedKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); }
     else {
       sessionId = j.session_id || sessionId;
+      if (goalMode) {
+        const gf = goalFence(j.text || "", goalMode === "plan" ? "goal-plan" : "goal-status");
+        const gcc = curConv();
+        if (gcc && gcc.goal) {
+          const was = gcc.goal.items.filter((x) => x.done).length;
+          if (goalMode === "plan" && gf.data) gcc.goal.items = normGoalItems(gf.data);
+          if (goalMode === "status" && gf.data && Array.isArray(gf.data.done))
+            gf.data.done.forEach((i) => { if (gcc.goal.items[i]) gcc.goal.items[i].done = true; });
+          const t = gcc.goal.items.length;
+          const d = gcc.goal.items.filter((x) => x.done).length;
+          const wasDone = t > 0 && was >= t;
+          if (t && d >= t) gcc.goal.active = false;
+          if (t && d >= t && !wasDone) justDone = gcc.goal.objective;
+          persistConvs(); drawConvs();
+        }
+        j.text = gf.clean;
+        drawRside();
+      }
       if (j.cwd) {
         const cc = curConv();
         if (cc) { cc.cwd = j.cwd; persistConvs(); }
@@ -923,6 +1070,10 @@ $("#f").addEventListener("submit", async (e) => {
       const foot = timeStr(t0) + " · " + el + "초";
       ph.innerHTML += '<div class="meta">' + esc(foot) + "</div>";
       saveMsg("ai", ph.dataset.raw || "", { ts: t0, el });
+      if (justDone) {
+        addMsg("ai", "🏁 목표 달성: " + justDone);
+        saveMsg("ai", "🏁 목표 달성: " + justDone, { ts: Date.now() });
+      }
     }
     drawConvs(); refreshPrefs();
     chat.scrollTop = chat.scrollHeight;
@@ -933,7 +1084,7 @@ $("#f").addEventListener("submit", async (e) => {
     saveMsg("ai", ph.dataset.raw);
   }
 });
-$("#newchat").onclick = () => { sessionId = null; convKey = null; resumedKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); input.focus(); };
+$("#newchat").onclick = () => { sessionId = null; convKey = null; resumedKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); input.focus(); };
 $("#cwdopen").onclick = async () => {
   const p = (($("#cwd") && $("#cwd").textContent) || "").trim() || serverCwd || "";
   if (!p) return;
@@ -976,6 +1127,8 @@ $("#fswin").onclick = async () => {
   finally { b.disabled = false; b.textContent = old; }
 };
 $("#fsgo").onclick = () => { const p = $("#fspath").value.trim(); if (p) fsLoad(p); };
+$("#rsidetoggle").onclick = () => setRside(true);
+$("#rsideopen").onclick = () => setRside(false);
 $("#fspath").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#fsgo").click(); } });
 $("#fsfilter").addEventListener("input", renderFsList);
 $("#fsup").onclick = () => { if (fsParent) fsLoad(fsParent); };
@@ -1022,7 +1175,7 @@ const FEAT_ICONS = {
 };
 const FEATS = {
   viz: { chip: "시각화", prefix: "[시각화 요청] 답변에 인터랙티브 시각화가 필요하면 설명과 함께 아래 형식 코드블록을 포함하라.\n```viz-html\n(외부 CDN 없이 동작하는 단일 HTML 문서. <script> 사용 가능. sandbox라서 same-origin 접근·팝업·다운로드 불가)\n```\n높이는 ```viz-html:높이 로 지정(기본 360). 시각화가 필요 없으면 생략해도 된다." },
-  web: { chip: "웹 검색", prefix: "[웹 검색 필수] 아래 요청에 답하기 전에 반드시 웹 검색을 수행하고 검색 결과와 함께 답하라. 검색 없이 알던 내용으로 답하지 마라. 사용한 검색어와 핵심 근거를 밝혀라." }
+  web: { chip: "웹 검색", prefix: "[웹 검색 필수] 아래 요청에 답하기 전에 반드시 웹 검색을 수행하고 검색 결과와 함께 답하라. 검색 없이 알던 내용으로 답하지 마라. 사용한 검색어와 핵심 근거를 밝혀라. 근거가 된 문장 끝에는 [출처: 사이트명](URL) 형태로 표기하라." }
 };
 const DOCK_FEATURES = [
   { id: "viz", label: "시각화", desc: "인터랙티브 패널로 답변 요청", ready: true, feat: "viz" },
@@ -1076,7 +1229,7 @@ function renderChips() {
 new MutationObserver(setMode).observe(chat, { childList: true });
 applyTheme();
 renderChips();
-drawConvs(); refreshInfo(); refreshPrefs(); setMode(); updateGate();
+drawConvs(); refreshInfo(); refreshPrefs(); setMode(); updateGate(); drawRside();
 (function () {
   const rid = routeId(location.pathname);
   if (!rid) return;

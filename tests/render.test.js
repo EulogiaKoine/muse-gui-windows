@@ -15,7 +15,7 @@ if (start < 0 || end < 0 || end < start) {
 const sandbox = {};
 require("vm").createContext(sandbox);
 require("vm").runInContext(
-  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId };",
+  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems };",
   sandbox);
 const R = sandbox.__R;
 let pass = 0, fail = 0;
@@ -86,5 +86,10 @@ h = R.renderText("[빈링크]()");
 t("empty url nolink", h.includes('<a class="nolink">빈링크</a>'), h.slice(0, 300));
 h = R.renderText("[참고]");
 t("bare brackets literal", h.includes("[참고]") && !h.includes("nolink"), h.slice(0, 200));
+h = R.renderText("결과다 [출처: GitHub](https://github.com/x).");
+t("srcchip", h.includes('<a class="srcchip" href="https://github.com/x"') && h.includes(">GitHub</a>"), h.slice(0, 300));
+t("goalFence plan", (() => { const g = R.goalFence('본문\n```goal-plan [{"t":"a"},{"t":"b"}]```\n꼬리', "goal-plan"); return g.data && g.data.length === 2 && g.clean === "본문\n\n꼬리"; })(), "");
+t("goalFence miss", R.goalFence("본문", "goal-plan").data === null, "");
+t("normGoalItems", (() => { const a = R.normGoalItems(["a", { t: "b", done: 1 }]); return a.length === 2 && a[0].t === "a" && !a[0].done && a[1].done; })(), "");
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
