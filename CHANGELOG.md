@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.26.10
+
+- `/api/models` 600초 캐시 (메시지·진입마다 ~1s 절감).
+- `serve_index()` 추출 (정적·SPA 폴백 중복 제거).
+- 문서 현행화 (`CODEMAP`·`AGENTS` 테스트 규칙).
+- pre-commit 훅: `tests/run.sh` + `VERSION`/`CHANGELOG` 정합성.
+
 ## 2026.11.26.9
 
 - 채팅 상단 헤더에 세션 작업 디렉터리 표시 (세션별 저장).

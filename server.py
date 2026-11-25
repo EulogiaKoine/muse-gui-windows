@@ -363,8 +363,17 @@ def save_state():
         pass
 
 
+_MODELS_CACHE = {"at": 0.0, "key": None, "value": None}
+_MODELS_TTL = 600
+
+
 def list_models():
     prov = flag_value(MUSE_ARGS, "--provider")
+    now = time.time()
+    if (_MODELS_CACHE["value"] is not None
+            and _MODELS_CACHE["key"] == prov
+            and now - _MODELS_CACHE["at"] < _MODELS_TTL):
+        return _MODELS_CACHE["value"]
     cmd = (["muse", "exec", "--list-models"]
            + (["--provider", prov] if prov else []))
     try:
@@ -374,7 +383,9 @@ def list_models():
                   if l.strip() and " " not in l.strip()
                   and ":" not in l.strip()]
         if models:
-            return {"models": models, "source": "muse-code"}
+            out = {"models": models, "source": "muse-code"}
+            _MODELS_CACHE.update(at=now, key=prov, value=out)
+            return out
     except (OSError, subprocess.TimeoutExpired):
         pass
     return {"models": list(BUILTIN_MODELS), "source": "builtin"}
@@ -867,18 +878,21 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def serve_index(self):
+        try:
+            with open(INDEX_FILE, "rb") as f:
+                data = f.read()
+        except OSError:
+            self._send(500, "index.html 없음")
+            return
+        data = data.replace(b"__GUI_VERSION__",
+                            GUI_VERSION.encode("ascii"))
+        self._send(200, data, "text/html; charset=utf-8")
+
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path
         if path in ("/", "/index.html"):
-            try:
-                with open(INDEX_FILE, "rb") as f:
-                    data = f.read()
-            except OSError:
-                self._send(500, "index.html 없음")
-                return
-            data = data.replace(b"__GUI_VERSION__",
-                                GUI_VERSION.encode("ascii"))
-            self._send(200, data, "text/html; charset=utf-8")
+            self.serve_index()
         elif path.startswith("/static/"):
             name = path[len("/static/"):]
             if "/" in name or name not in ("app.js", "style.css"):
@@ -947,15 +961,7 @@ class Handler(BaseHTTPRequestHandler):
                 }, ensure_ascii=False))
         elif re.match(r"^/[A-Za-z0-9][A-Za-z0-9-]*$", path):
             # SPA 폴백: 세션 id 라우팅(/<id>). index.html 서빙.
-            try:
-                with open(INDEX_FILE, "rb") as f:
-                    data = f.read()
-            except OSError:
-                self._send(500, "index.html 없음")
-                return
-            data = data.replace(b"__GUI_VERSION__",
-                                GUI_VERSION.encode("ascii"))
-            self._send(200, data, "text/html; charset=utf-8")
+            self.serve_index()
         else:
             self._send(404, "not found")
 
