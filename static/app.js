@@ -114,11 +114,27 @@ function renderText(src) {
   s = s.replace(/\$([^$\n]+?)\$/g, (m, tex) => keep(renderMath(tex, false)));
   s = esc(s);
   const inline = (x) => {
-    x = x.replace(/!\[([^\]]*)\]\((https?:[^)\s]+)\)/g, '<a href="$2">$1 (이미지)</a>');
-    x = x.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, label, url) =>
-      /^(https?:\/\/|#|\/)/.test(url)
-        ? '<a href="' + url + '" target="_blank" rel="noopener">' + label + "</a>"
-        : label + " (" + url + ")");
+    const link = (label, url) => keep('<a href="' + url + '" target="_blank" rel="noopener">' + label + "</a>");
+    const nolink = (label) => keep('<a class="nolink">' + label + "</a>");
+    const autolink = (m, pre, raw, scheme) => {
+      const t = raw.match(/[.,;:!?]+$/);
+      const core = t ? raw.slice(0, -t[0].length) : raw;
+      if (!core) return m;
+      const url = (scheme || "") + core;
+      return pre + keep('<a href="' + url + '" target="_blank" rel="noopener">' + core + "</a>") + (t ? t[0] : "");
+    };
+    x = x.replace(/!\[([^\]]*)\]\((https?:[^)\s]+)\)/g, (m, alt, url) =>
+      keep('<a href="' + url + '">' + alt + " (이미지)</a>"));
+    x = x.replace(/\[([^\]]+)\]\(([^)\s]*)\)/g, (m, label, url) =>
+      /^(https?:\/\/|mailto:|#|\/)/.test(url)
+        ? link(label, url)
+        : nolink(label));
+    x = x.replace(/&lt;(https?:\/\/[^<>\s]+?)&gt;/g, (m, raw) => {
+      const safe = raw.replace(/&(?!amp;|lt;|gt;|quot;)/g, "&amp;");
+      return link(safe, safe);
+    });
+    x = x.replace(/(^|[\s(>"'])(https?:\/\/[^\s<>"')\]]+)/g, (m, pre, raw) => autolink(m, pre, raw, ""));
+    x = x.replace(/(^|[\s(>"'])((?:www\.)[^\s<>"')\]]+)/g, (m, pre, raw) => autolink(m, pre, raw, "https://"));
     x = x.replace(/==([^=\n]+)==/g, "<mark>$1</mark>");
     x = x.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
     x = x.replace(/(^|[^*\w])\*([^*\n]+)\*/g, "$1<em>$2</em>");
