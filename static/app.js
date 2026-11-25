@@ -544,8 +544,8 @@ function drawConvs() {
 // 생길 때, help 탭은 /help 실행 때 생긴다. 앞으로 추가될 탭도 같은 규칙:
 // 존재 조건 + 렌더 함수 + closable 여부를 아래에 등록한다.
 const RSIDE_TABS = {
-  goal: { label: "목표", render: () => renderGoal() },
-  help: { label: "도움말", render: () => renderHelp(), closable: true, onClose: () => { helpOpen = false; } },
+  goal: { label: "goal", render: () => renderGoal() },
+  help: { label: "help", render: () => renderHelp(), closable: true, onClose: () => { helpOpen = false; } },
 };
 let rsideTab = null;
 let helpOpen = false;
@@ -575,7 +575,7 @@ function renderRsideTabs() {
     }
     box.appendChild(b);
   });
-  document.querySelectorAll("#rside section[data-rpane]").forEach((s) => { s.hidden = s.dataset.rpane !== rsideTab; });
+  document.querySelectorAll("#rside section[data-rpane]").forEach((s) => { s.hidden = s.dataset.rpane !== (rsideTab || "empty"); });
 }
 function closeRsideTab(id) {
   const t = RSIDE_TABS[id];
@@ -596,8 +596,11 @@ function openRside(tab) {
 }
 function drawRside() {
   const tabs = availTabs();
-  renderRsideTabs();
-  if (!tabs.length) { applyRside(true); return; }
+  if (!tabs.length) {
+    rsideTab = null;
+    renderRsideTabs();
+    return;
+  }
   if (!tabs.includes(rsideTab)) rsideTab = tabs[0];
   if (document.body.classList.contains("rside-hidden") && !rsideHold) applyRside(false);
   renderRsideTabs();
@@ -608,12 +611,12 @@ function renderGoal() {
   const c = curConv();
   const g = c && c.goal;
   if (!g) {
-    box.innerHTML = '<h3>목표</h3><p class="hint">진행 중인 목표가 없습니다.<br><code>/goal 목표 내용</code> 으로 시작하세요.</p>';
+    box.innerHTML = '<h3>goal</h3><p class="hint">진행 중인 목표가 없습니다.<br><code>/goal 목표 내용</code> 으로 시작하세요.</p>';
     return;
   }
   const done = g.items.filter((x) => x.done).length, tot = g.items.length;
   const pct = tot ? Math.round(done / tot * 100) : 0;
-  let html = "<h3>목표</h3>" + '<div class="goalobj">' + esc(g.objective) + "</div>";
+  let html = "<h3>goal</h3>" + '<div class="goalobj">' + esc(g.objective) + "</div>";
   html += '<div class="goalbar"><i style="width:' + pct + '%"></i></div>' +
     '<div class="goalcount">' + done + "/" + tot + " · " + pct + "%" + (g.active ? "" : " · 완료") + "</div>";
   html += '<div class="goalitems">';
@@ -630,7 +633,7 @@ function renderHelp() {
   (slashList || []).forEach((c) => {
     (ui.has(c.cmd) ? groups[0][1] : (/\(CLI\)$/.test(c.desc) ? groups[2][1] : groups[1][1])).push(c);
   });
-  let html = "<h3>도움말</h3>";
+  let html = "<h3>help</h3>";
   groups.forEach((gr) => {
     if (!gr[1].length) return;
     html += '<div class="helpgrp"><h4>' + gr[0] + "</h4>";

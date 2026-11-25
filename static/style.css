@@ -78,6 +78,10 @@ body.rside-hidden #rside { display: none; }
 #rsideopen { margin-left: auto; }
 #rsideopen[hidden] { display: none; }
 #rside section[data-rpane] { flex: 1; min-height: 0; overflow-y: auto; font-size: 13px; }
+#rside section[data-rpane][hidden] { display: none; }
+#rsideempty { display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; }
+.emptybox p { margin: 4px 0; font-size: 13px; }
+.emptybox .hint { font-size: 12px; color: var(--muted); }
 #rside h3 { margin: 2px 0 6px; font-size: 13px; }
 #rside .hint { font-size: 12px; color: var(--muted); }
 .goalobj { font-weight: 600; margin-bottom: 8px; word-break: break-word; }
