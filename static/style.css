@@ -90,6 +90,8 @@ form button[type="submit"]:active { transform: scale(.96); }
 #modal table.usg { border-collapse: collapse; width: 100%; font-size: 12px; margin: 6px 0; }
 #modal table.usg th, #modal table.usg td { border: 1px solid var(--bd); padding: 3px 7px; text-align: right; }
 #modal table.usg th:first-child, #modal table.usg td:first-child { text-align: left; }
+#dashlink { text-decoration: none; display: inline-block; color: var(--text); margin-bottom: 6px; }
+#inwrap textarea { flex: none; width: 100%; }
 #inwrap { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 #feats { display: flex; gap: 6px; flex-wrap: wrap; }
 #feats:empty { display: none; }

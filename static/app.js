@@ -482,6 +482,7 @@ $("#f").addEventListener("submit", async (e) => {
   if (!text) return;
   const pre = text.startsWith("/") ? [] : featPrefixes();
   input.value = ""; slash.style.display = "none";
+  input.style.height = "auto"; input.style.overflowY = "hidden";
   $("#feats").innerHTML = "";
   const full = (pre.length ? pre.join("\n") + "\n" : "") + text;
   if (text === "/clear" || text.startsWith("/clear ")) {
@@ -558,10 +559,13 @@ $("#tokcopy").onclick = async (e) => {
     flashCopy(b, j.token);
   } catch (_) {}
 };
-input.addEventListener("input", () => {
+function autoGrow() {
   input.style.height = "auto";
-  input.style.height = Math.min(input.scrollHeight, 132) + "px"; // 기본 44px의 3배까지
-});
+  const h = input.scrollHeight;
+  input.style.height = Math.min(h, 132) + "px"; // 기본 44px의 3배까지
+  input.style.overflowY = h > 132 ? "auto" : "hidden";
+}
+input.addEventListener("input", autoGrow);
 function setMode() {
   const lobby = !chat.children.length;
   document.querySelector("main").classList.toggle("lobby", lobby);

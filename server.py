@@ -641,6 +641,8 @@ class Handler(BaseHTTPRequestHandler):
             except OSError:
                 self._send(500, "index.html 없음")
                 return
+            data = data.replace(b"__GUI_VERSION__",
+                                GUI_VERSION.encode("ascii"))
             self._send(200, data, "text/html; charset=utf-8")
         elif path.startswith("/static/"):
             name = path[len("/static/"):]

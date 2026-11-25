@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.26.4
+
+- 사용량 탭에 dev.meta.ai 콘솔 바로가기 추가.
+- 입력창 자동확대 수정: `#inwrap` column 안에서 textarea가 `flex:1`로
+  고정 높이에 갇히던 문제 → `flex:none` + `autoGrow()` + 전송 후 리셋.
+- 정적 에셋 `?v=버전` 캐시버스터 (서버가 index.html 서빙 시 치환).
+
 ## 2026.11.26.3
 
 - +버튼·모델/effort를 입력창 하단 푸터로 이동 (로비 제외).
