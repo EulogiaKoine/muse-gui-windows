@@ -7,7 +7,8 @@ function loadConvs() {
   try {
     const a = JSON.parse(localStorage.getItem("muse-gui-convs") || "[]");
     return a.map((c) => ({ k: c.k, t: c.t || "새 대화",
-      sid: c.sid || null, msgs: Array.isArray(c.msgs) ? c.msgs : [] }));
+      sid: c.sid || null, cwd: c.cwd || null, pin: !!c.pin,
+      msgs: Array.isArray(c.msgs) ? c.msgs : [] }));
   } catch (e) { return []; }
 }
 let convs = loadConvs();
@@ -382,16 +383,90 @@ function saveMsg(who, text, meta) {
   if (sessionId) c.sid = sessionId;
   persistConvs();
 }
+let resumedKey = null; // 이번 화면 표시 중 이어가기를 허용한 대화
+function inputGated() {
+  const c = curConv();
+  if (!c) return { msg: "새 대화를 시작하려면 작업 디렉터리를 먼저 선택하세요.", btn: "작업 디렉터리 선택", act: "pick-new" };
+  if (!c.cwd) return { msg: "이 대화의 작업 디렉터리를 선택해야 입력할 수 있습니다.", btn: "작업 디렉터리 선택", act: "pick" };
+  if (c.sid && resumedKey !== c.k) return { msg: "세션 " + c.sid.slice(0, 8) + " · " + c.cwd + " — 이 디렉터리에서 내부 프로세스로 이어가려면 버튼을 누르세요.", btn: "이 세션 이어가기(내부 프로세스 재개)", act: "resume" };
+  return null;
+}
+function updateGate() {
+  const g = inputGated();
+  $("#inputgate").hidden = !g;
+  if (g) { $("#gatemsg").textContent = g.msg; $("#gatebtn").textContent = g.btn; $("#gatebtn").dataset.act = g.act; }
+}
 function openConv(k) {
   const c = convs.find((x) => x.k === k);
   if (!c) return;
-  convKey = c.k; sessionId = c.sid || null;
+  convKey = c.k; sessionId = c.sid || null; resumedKey = null;
   $("#cwd").textContent = c.cwd || serverCwd || "";
   chat.innerHTML = "";
   c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m)));
   chat.scrollTop = chat.scrollHeight;
   setRoute("/" + (c.sid || c.k));
-  drawConvs();
+  drawConvs(); updateGate();
+}
+let fsCb = null, fsCur = "", fsParent = null, fsEntries = [];
+function openFsPicker(cb) {
+  fsCb = cb; $("#fsfilter").value = ""; $("#fsovl").hidden = false;
+  fsRoots(); fsLoad(serverCwd || "/");
+}
+function hideFsPicker() { $("#fsovl").hidden = true; fsCb = null; }
+async function fsRoots() {
+  try {
+    const r = await fetch("/api/fs/roots"); const j = await r.json();
+    const box = $("#fsroots"); box.innerHTML = "";
+    (j.roots || []).forEach((rt) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "optbtn"; b.textContent = rt.label;
+      b.title = rt.path; b.onclick = () => fsLoad(rt.path);
+      box.appendChild(b);
+    });
+  } catch (e) {}
+}
+async function fsLoad(p) {
+  const box = $("#fslist"); box.innerHTML = '<div class="fempty">불러오는 중…</div>';
+  try {
+    const r = await fetch("/api/fs/list?path=" + encodeURIComponent(p));
+    if (r.status === 404) { box.innerHTML = '<div class="fempty">서버가 구버전입니다. muse-gui를 다시 시작하세요.</div>'; return; }
+    const j = await r.json();
+    if (!j.ok) { box.innerHTML = '<div class="fempty">' + esc(j.error || "읽기 실패") + "</div>"; return; }
+    fsCur = j.path; fsParent = j.parent; fsEntries = j.entries || [];
+    $("#fssel").textContent = fsCur; $("#fspath").value = fsCur;
+    renderFsCrumbs(fsCur); renderFsList();
+  } catch (e) { box.innerHTML = '<div class="fempty">서버 연결 실패</div>'; }
+}
+function renderFsCrumbs(path) {
+  const box = $("#fscrumbs"); box.innerHTML = "";
+  const mk = (label, target) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = label; b.title = target;
+    b.onclick = () => fsLoad(target);
+    box.appendChild(b);
+  };
+  mk("/", "/");
+  let acc = "";
+  path.split("/").filter(Boolean).forEach((seg) => {
+    acc += "/" + seg;
+    const s = document.createElement("span"); s.className = "sep"; s.textContent = "/"; box.appendChild(s);
+    mk(seg, acc);
+  });
+}
+function renderFsList() {
+  const box = $("#fslist"); box.innerHTML = "";
+  const q = ($("#fsfilter").value || "").toLowerCase();
+  const items = fsEntries.filter((e) => !q || e.name.toLowerCase().includes(q));
+  if (!items.length) { box.innerHTML = '<div class="fempty">비어 있음</div>'; return; }
+  items.forEach((e) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "frow" + (e.isdir ? " isdir" : " isfile");
+    b.textContent = (e.isdir ? "▸ " : "· ") + e.name + (e.isdir ? "/" : "");
+    b.title = e.name;
+    if (e.isdir) b.onclick = () => fsLoad(fsCur + "/" + e.name);
+    else b.disabled = true;
+    box.appendChild(b);
+  });
 }
 function drawConvs() {
   const box = $("#convs"); box.innerHTML = "";
@@ -401,7 +476,7 @@ function drawConvs() {
     const b = document.createElement("button");
     b.textContent = c.t + (c.msgs.length ? " (" + c.msgs.length + ")" : "");
     b.type = "button"; b.className = "ctitle"; b.dataset.k = c.k;
-    b.title = (c.sid ? c.sid.slice(0, 8) + " · " : "") + c.msgs.length + "개 메시지";
+    b.title = (c.sid ? c.sid.slice(0, 8) + " · " : "") + c.msgs.length + "개 메시지" + (c.cwd ? "\n" + c.cwd : "");
     if (c.k === convKey) b.classList.add("active");
     b.onclick = () => openConv(c.k);
     row.appendChild(b);
@@ -443,8 +518,8 @@ $("#ctx").addEventListener("click", (e) => {
   } else if (confirm('"' + c.t + '" 대화와 muse 세션 기록을 함께 삭제할까요?\n(실행 중인 세션은 삭제되지 않습니다)')) {
     const sid = c.sid || null;
     convs = convs.filter((x) => x.k !== c.k);
-    if (convKey === c.k) { convKey = null; sessionId = null; chat.innerHTML = ""; }
-    persistConvs(); drawConvs();
+    if (convKey === c.k) { convKey = null; sessionId = null; resumedKey = null; chat.innerHTML = ""; }
+    persistConvs(); drawConvs(); updateGate();
     if (sid) {
       fetch("/api/session/delete", { method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -455,7 +530,7 @@ $("#ctx").addEventListener("click", (e) => {
     }
   }
 });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { hideCtx(); hideModal(); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { hideCtx(); hideModal(); hideFsPicker(); } });
 function loadTheme() {
   try { return JSON.parse(localStorage.getItem("muse-gui-theme") || "{}"); }
   catch (e) { return {}; }
@@ -735,6 +810,7 @@ $("#f").addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = input.value.trim();
   if (!text) return;
+  if (inputGated()) { updateGate(); return; }
   const pre = text.startsWith("/") ? [] : featPrefixes();
   input.value = ""; slash.style.display = "none";
   input.style.height = "auto"; input.style.overflowY = "hidden";
@@ -767,7 +843,7 @@ $("#f").addEventListener("submit", async (e) => {
       const prev = [...chat.querySelectorAll(".msg.ai")].filter((n) => n !== ph).pop();
       ph.dataset.raw = await copyText(prev ? prev.dataset.raw || "" : "");
       ph.innerHTML = esc(ph.dataset.raw);
-    } else if (j.new_session) { sessionId = null; convKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); }
+    } else if (j.new_session) { sessionId = null; convKey = null; resumedKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); }
     else {
       sessionId = j.session_id || sessionId;
       if (j.cwd) {
@@ -794,7 +870,7 @@ $("#f").addEventListener("submit", async (e) => {
     saveMsg("ai", ph.dataset.raw);
   }
 });
-$("#newchat").onclick = () => { sessionId = null; convKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); input.focus(); };
+$("#newchat").onclick = () => { sessionId = null; convKey = null; resumedKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); input.focus(); };
 $("#cwdopen").onclick = async () => {
   const p = (($("#cwd") && $("#cwd").textContent) || "").trim() || serverCwd || "";
   if (!p) return;
@@ -806,6 +882,40 @@ $("#cwdopen").onclick = async () => {
     if (!j.ok) alert("폴더 열기 실패: " + (j.error || p));
   } catch (err) { alert("폴더 열기 실패: " + p); }
 };
+$("#gatebtn").onclick = () => {
+  const act = $("#gatebtn").dataset.act;
+  if (act === "resume") { resumedKey = convKey; updateGate(); input.focus(); }
+  else openFsPicker((p) => {
+    if (act === "pick-new") {
+      convKey = "c" + Date.now(); sessionId = null; resumedKey = null;
+      convs.unshift({ k: convKey, t: "새 대화", sid: null, cwd: p, msgs: [] });
+      persistConvs(); drawConvs(); openConv(convKey); input.focus();
+    } else {
+      const c = curConv();
+      if (c) { c.cwd = p; persistConvs(); drawConvs(); }
+      $("#cwd").textContent = p; updateGate(); input.focus();
+    }
+  });
+};
+$("#fsclose").onclick = hideFsPicker;
+$("#fscancel").onclick = hideFsPicker;
+$("#fsok").onclick = () => { if (fsCb && fsCur) { const cb = fsCb; hideFsPicker(); cb(fsCur); } };
+$("#fswin").onclick = async () => {
+  const b = $("#fswin"); b.disabled = true;
+  const old = b.textContent; b.textContent = "Windows에서 선택 중…";
+  try {
+    const r = await fetch("/api/fs/pick-native", { method: "POST" });
+    if (r.status === 404) { $("#fssel").textContent = "서버가 구버전입니다. muse-gui를 다시 시작하세요."; return; }
+    const j = await r.json();
+    if (j.ok && j.path) { const cb = fsCb; hideFsPicker(); if (cb) cb(j.path); }
+    else if (j.error && j.error !== "취소됨.") $("#fssel").textContent = j.error;
+  } catch (e) { $("#fssel").textContent = "서버 연결 실패"; }
+  finally { b.disabled = false; b.textContent = old; }
+};
+$("#fsgo").onclick = () => { const p = $("#fspath").value.trim(); if (p) fsLoad(p); };
+$("#fsfilter").addEventListener("input", renderFsList);
+$("#fsup").onclick = () => { if (fsParent) fsLoad(fsParent); };
+$("#fsovl").addEventListener("click", (e) => { if (e.target === $("#fsovl")) hideFsPicker(); });
 $("#model").addEventListener("change", async (e) => {
   await fetch("/api/prefs", { method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -903,7 +1013,7 @@ function renderChips() {
 new MutationObserver(setMode).observe(chat, { childList: true });
 applyTheme();
 renderChips();
-drawConvs(); refreshInfo(); refreshPrefs(); setMode();
+drawConvs(); refreshInfo(); refreshPrefs(); setMode(); updateGate();
 (function () {
   const rid = routeId(location.pathname);
   if (!rid) return;

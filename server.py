@@ -867,6 +867,113 @@ def session_workspace(sid):
     return None
 
 
+def fs_roots():
+    """탐색기 시작 지점: 홈·루트·마운트된 드라이브."""
+    roots, seen = [], set()
+    home = os.path.expanduser("~")
+    if os.path.isdir(home):
+        roots.append({"path": home, "label": "홈"})
+        seen.add(os.path.realpath(home))
+    if os.path.isdir("/mnt"):
+        try:
+            names = sorted(os.listdir("/mnt"))
+        except OSError:
+            names = []
+        for n in names:
+            p = os.path.join("/mnt", n)
+            if n.startswith(".") or n in ("wsl", "wslg"):
+                continue
+            if not os.path.isdir(p):
+                continue
+            if os.path.realpath(p) in seen:
+                continue
+            seen.add(os.path.realpath(p))
+            roots.append({"path": p, "label": n.upper() + ":"})
+    if os.path.isdir("/") and "/" not in seen:
+        roots.append({"path": "/", "label": "루트"})
+    return {"ok": True, "roots": roots}
+
+
+def fs_list(path):
+    """디렉터리 내용 나열. 파일은 선택 불가 표시용으로 함께 돌려준다."""
+    if not isinstance(path, str) or not path or len(path) > 4096:
+        return {"ok": False, "error": "경로를 입력하세요."}
+    real = os.path.realpath(path)
+    if not os.path.isdir(real):
+        return {"ok": False, "error": "폴더를 찾지 못했습니다."}
+    try:
+        names = os.listdir(real)
+    except OSError as e:
+        return {"ok": False, "error": "읽기 실패: %s" % e}
+    entries = []
+    for n in names:
+        if n.startswith("."):
+            continue
+        try:
+            isd = os.path.isdir(os.path.join(real, n))
+        except OSError:
+            continue
+        entries.append({"name": n, "isdir": bool(isd)})
+        if len(entries) >= 2000:
+            break
+    entries.sort(key=lambda e: (not e["isdir"], e["name"].lower()))
+    return {"ok": True, "path": real,
+            "parent": os.path.dirname(real) if real != "/" else None,
+            "entries": entries}
+
+
+FS_PICK_TIMEOUT = 180
+
+
+def pick_native_folder():
+    """Windows 기본 폴더 선택 대화상자를 띄우고 고른 경로를 돌려준다.
+
+    성공 시 (True, {"path": WSL경로, "winpath": 윈도우경로}),
+    취소·실패 시 (False, 사유)."""
+    if not shutil.which("powershell.exe"):
+        return False, "powershell.exe를 찾지 못했습니다."
+    script = (
+        "[Console]::OutputEncoding = [Text.UTF8Encoding]::UTF8; "
+        "Add-Type -AssemblyName System.Windows.Forms; "
+        "$d = New-Object System.Windows.Forms.FolderBrowserDialog; "
+        "$d.Description = 'muse-gui 작업 디렉터리 선택'; "
+        "$d.ShowNewFolderButton = $true; "
+        "if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) "
+        "{ $d.SelectedPath } else { exit 2 }")
+    try:
+        proc = subprocess.Popen(
+            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+             "-Command", script],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL, text=True)
+    except OSError as e:
+        return False, "powershell.exe 실행 실패: %s" % e
+    try:
+        out = proc.communicate(timeout=FS_PICK_TIMEOUT)[0] or ""
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        try:
+            proc.communicate(timeout=10)
+        except Exception:
+            pass
+        return False, "선택 시간 초과 (%d초). 다시 시도하세요." % FS_PICK_TIMEOUT
+    if proc.returncode == 2:
+        return False, "취소됨."
+    if proc.returncode != 0:
+        return False, "선택 실패 (exit %d)." % proc.returncode
+    win = out.strip()
+    if not win:
+        return False, "선택 실패 (빈 경로)."
+    try:
+        wp = subprocess.run(["wslpath", "-u", win], capture_output=True,
+                            text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        wp = ""
+    if not wp or not valid_cwd(wp):
+        return False, "WSL 경로 변환 실패: %s" % win
+    return True, {"path": wp, "winpath": win}
+
+
 def open_folder(path):
     """OS 파일 관리자로 폴더 열기. 성공 시 (True, ''), 실패 시 (False, 사유)."""
     try:
@@ -1039,6 +1146,12 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/models":
             self._send(200, json.dumps(list_models(),
                                       ensure_ascii=False))
+        elif path == "/api/fs/roots":
+            self._send(200, json.dumps(fs_roots(), ensure_ascii=False))
+        elif path.startswith("/api/fs/list"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            self._send(200, json.dumps(
+                fs_list((q.get("path") or [""])[0]), ensure_ascii=False))
         elif path == "/api/account":
             m = read_auth_meta()
             if not m:
@@ -1103,6 +1216,16 @@ class Handler(BaseHTTPRequestHandler):
             ok, msg = delete_session(body.get("session_id") or "")
             self._send(200, json.dumps({"ok": ok, "text": msg},
                                       ensure_ascii=False))
+            return
+        if path == "/api/fs/pick-native":
+            ok, res = pick_native_folder()
+            if ok:
+                self._send(200, json.dumps(
+                    {"ok": True, "path": res["path"],
+                     "winpath": res["winpath"]}, ensure_ascii=False))
+            else:
+                self._send(200, json.dumps(
+                    {"ok": False, "error": res}, ensure_ascii=False))
             return
         if path == "/api/open-folder":
             p = valid_cwd(body.get("path") or "")

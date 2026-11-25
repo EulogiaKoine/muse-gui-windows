@@ -20,6 +20,14 @@
 </div>
 <div id="sidefoot"><button id="gear" type="button" title="설정" aria-label="설정"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="7" cy="17" r="2.4"/></svg></button></div>
 </aside>
+<div id="fsovl" hidden><div id="fsmodal" role="dialog" aria-label="작업 디렉터리 선택">
+<div class="mhead"><h2>작업 디렉터리 선택</h2><button type="button" class="iconbtn" id="fsclose" title="닫기" aria-label="닫기"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+<div class="fsbar"><div id="fscrumbs"></div><button type="button" class="optbtn" id="fsup" title="상위 폴더">⬆ 상위</button></div>
+<div class="fsbar"><input id="fsfilter" placeholder="이름 필터" autocomplete="off"><input id="fspath" placeholder="/직접/경로/입력" autocomplete="off"><button type="button" class="optbtn" id="fsgo">이동</button></div>
+<div id="fsroots"></div>
+<div id="fslist"></div>
+<div class="fsfoot"><button type="button" class="optbtn" id="fswin" title="Windows 기본 폴더 선택 대화상자 열기">Windows 탐색기로 선택</button><code id="fssel" class="grow">…</code><button type="button" class="optbtn" id="fsok">이 폴더 선택</button><button type="button" class="optbtn" id="fscancel">취소</button></div>
+</div></div>
 <div id="ovl" hidden><div id="modal" role="dialog" aria-label="설정">
 <div class="mhead"><h2>설정</h2><button type="button" class="iconbtn" id="mclose" title="닫기" aria-label="닫기"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
 <div class="mbody">
@@ -75,6 +83,7 @@
 <div id="slash" role="listbox"></div>
 <div id="inwrap"><textarea id="in" placeholder="메시지 입력 (Ctrl+Enter 전송, Enter 줄바꿈, / 자동완성)" autocomplete="off"></textarea><div id="feats"></div></div>
 <button type="submit" title="전송 (Ctrl+Enter)" aria-label="전송"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+<div id="inputgate" hidden><div id="gatebox"><p id="gatemsg"></p><button id="gatebtn" type="button" class="optbtn"></button></div></div>
 </form>
 <footer><button id="plus" type="button" title="기능 추가" aria-label="기능 추가">+</button><div id="plusmenu" hidden></div><label>모델 <select id="model"></select></label><label>effort <select id="effort"></select></label></footer>
 </main>
