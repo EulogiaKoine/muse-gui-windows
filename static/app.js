@@ -689,7 +689,7 @@ async function refreshInfo() {
   try {
     const r = await fetch("/api/info"); const j = await r.json();
     serverCwd = j.cwd || "";
-    $("#meta").textContent = j.version + " · " + (j.muse_args.join(" ") || "기본 옵션") + " · " + j.cwd;
+    $("#meta").textContent = j.version + " · " + (j.muse_args.join(" ") || "서버 경로") + " · " + j.cwd;
     if (!convKey) $("#cwd").textContent = serverCwd;
     $("#args").textContent = "muse args: " + (j.muse_args.join(" ") || "(없음)");
     $("#status").className = "ok";
@@ -757,9 +757,11 @@ $("#f").addEventListener("submit", async (e) => {
   const ph = addMsg("ai", "응답 생성 중…", null, null, false);
   const t0 = Date.now();
   try {
+    const cc0 = curConv();
     const r = await fetch("/api/chat", { method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: full, session_id: sessionId }) });
+      body: JSON.stringify({ message: full, session_id: sessionId,
+        cwd: (cc0 && cc0.cwd) || serverCwd || "" }) });
     const j = await r.json();
     if (j.text === "__COPY__") {
       const prev = [...chat.querySelectorAll(".msg.ai")].filter((n) => n !== ph).pop();
@@ -768,6 +770,11 @@ $("#f").addEventListener("submit", async (e) => {
     } else if (j.new_session) { sessionId = null; convKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); }
     else {
       sessionId = j.session_id || sessionId;
+      if (j.cwd) {
+        const cc = curConv();
+        if (cc) { cc.cwd = j.cwd; persistConvs(); }
+        $("#cwd").textContent = j.cwd;
+      }
       ph.dataset.raw = j.text || "(빈 응답)";
       ph.innerHTML = renderText(ph.dataset.raw) + '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>";
       decorateCode(ph); decorateMath(ph); decorateTables(ph);
@@ -788,6 +795,17 @@ $("#f").addEventListener("submit", async (e) => {
   }
 });
 $("#newchat").onclick = () => { sessionId = null; convKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); input.focus(); };
+$("#cwdopen").onclick = async () => {
+  const p = (($("#cwd") && $("#cwd").textContent) || "").trim() || serverCwd || "";
+  if (!p) return;
+  try {
+    const r = await fetch("/api/open-folder", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: p }) });
+    const j = await r.json();
+    if (!j.ok) alert("폴더 열기 실패: " + (j.error || p));
+  } catch (err) { alert("폴더 열기 실패: " + p); }
+};
 $("#model").addEventListener("change", async (e) => {
   await fetch("/api/prefs", { method: "POST",
     headers: { "Content-Type": "application/json" },

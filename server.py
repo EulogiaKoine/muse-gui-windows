@@ -744,7 +744,8 @@ def dispatch_slash(message, session_id):
         tot_out = sum(m["output"] for m in u["models"].values()) if u else 0
         text = ("세션: %s\n턴: %d\n토큰: in %d / out %d\n모델: %s / effort: %s\n작업 폴더: %s"
                 % (s, turns, tot_in, tot_out, STATE.get("model"),
-                   STATE.get("effort"), os.getcwd()))
+                   STATE.get("effort"),
+                   session_workspace(session_id) or os.getcwd()))
         return True, session_id, "```\n" + text + "\n```"
     if name == "export":
         if not session_id:
@@ -814,8 +815,98 @@ def dispatch_slash(message, session_id):
         "알 수 없는 명령: /%s\n사용 가능한 명령은 /help 로 확인하세요." % name)
 
 
-def run_muse_exec(prompt, session_id=None):
-    """Run `muse exec --json` and collect the assistant text."""
+def valid_cwd(path):
+    """대화별 작업 디렉터리 검증. 존재하는 디렉터리면 실경로, 아니면 None."""
+    if not isinstance(path, str) or not path or len(path) > 4096:
+        return None
+    real = os.path.realpath(path)
+    if not os.path.isdir(real):
+        return None
+    return real
+
+
+def _find_key(o, key):
+    if isinstance(o, dict):
+        if isinstance(o.get(key), str):
+            return o[key]
+        for v in o.values():
+            r = _find_key(v, key)
+            if r is not None:
+                return r
+    elif isinstance(o, list):
+        for v in o:
+            r = _find_key(v, key)
+            if r is not None:
+                return r
+    return None
+
+
+def session_workspace(sid):
+    """세션 로그의 workspace_root를 읽는다. 없으면 None."""
+    if not isinstance(sid, str) or not SID_RE.match(sid):
+        return None
+    found = find_session_dirs([sid]).get(sid)
+    if not found:
+        return None
+    try:
+        f = open(os.path.join(found, "session.jsonl"),
+                 encoding="utf-8", errors="ignore")
+    except OSError:
+        return None
+    with f:
+        for line in f:
+            if '"workspace_root"' not in line:
+                continue
+            try:
+                r = json.loads(line)
+            except ValueError:
+                continue
+            ws = _find_key(r, "workspace_root")
+            if ws:
+                return ws
+    return None
+
+
+def open_folder(path):
+    """OS 파일 관리자로 폴더 열기. 성공 시 (True, ''), 실패 시 (False, 사유)."""
+    try:
+        with open("/proc/version") as f:
+            is_wsl = "microsoft" in f.read().lower()
+    except OSError:
+        is_wsl = False
+    if is_wsl:
+        try:
+            wp = subprocess.run(["wslpath", "-w", path], capture_output=True,
+                                text=True, timeout=10).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            wp = ""
+        if wp and shutil.which("explorer.exe"):
+            try:
+                subprocess.Popen(["explorer.exe", wp],
+                                 stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL,
+                                 stdin=subprocess.DEVNULL)
+                return True, ""
+            except OSError as e:
+                return False, "explorer.exe 실행 실패: %s" % e
+    opener = "open" if sys.platform == "darwin" else "xdg-open"
+    if not shutil.which(opener):
+        return False, "폴더 열기 도구를 찾지 못했습니다 (%s 없음)." % opener
+    try:
+        subprocess.Popen([opener, path], stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+        return True, ""
+    except OSError as e:
+        return False, "열기 실패: %s" % e
+
+
+def run_muse_exec(prompt, session_id=None, cwd=None):
+    """Run `muse exec --json` and collect the assistant text.
+
+    cwd: 새 세션의 작업 디렉터리. 이어쓰기(session_id 있음)는 세션 고유
+    작업 공간을 유지하므로 --workspace를 붙이지 않는다.
+    (sid, text, workdir)를 돌려준다."""
+    workdir = valid_cwd(cwd) or os.getcwd()
     cmd = ["muse", "exec", "--json"] + MUSE_ARGS
     # --model/--reasoning-effort는 meta·local에서만 유효하므로
     # echo 등 다른 프로바이더에서는 붙이지 않는다.
@@ -829,15 +920,18 @@ def run_muse_exec(prompt, session_id=None):
             cmd += ["--reasoning-effort", STATE["effort"]]
     if session_id:
         cmd += ["--session-id", session_id]
+    elif not flag_value(MUSE_ARGS, "--workspace"):
+        # 새 세션만 대화별 작업 디렉터리로 시작한다.
+        cmd += ["--workspace", workdir]
     cmd.append(prompt)
     try:
         proc = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=600, cwd=os.getcwd()
+            cmd, capture_output=True, text=True, timeout=600, cwd=workdir
         )
     except FileNotFoundError:
-        return None, "muse 실행 파일을 찾을 수 없습니다 (PATH 확인)."
+        return None, "muse 실행 파일을 찾을 수 없습니다 (PATH 확인).", workdir
     except subprocess.TimeoutExpired:
-        return session_id, "시간 초과 (600s): muse exec가 끝나지 않았습니다."
+        return session_id, "시간 초과 (600s): muse exec가 끝나지 않았습니다.", workdir
 
     texts, sid = [], session_id
     for line in (proc.stdout or "").splitlines():
@@ -860,8 +954,8 @@ def run_muse_exec(prompt, session_id=None):
     if proc.returncode != 0 and not text:
         err = (proc.stderr or "").strip()[-2000:]
         return sid, "muse exec 실패 (exit %d)%s" % (
-            proc.returncode, ("\n" + err) if err else "")
-    return sid, text or "(빈 응답)"
+            proc.returncode, ("\n" + err) if err else ""), workdir
+    return sid, text or "(빈 응답)", workdir
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -1010,6 +1104,18 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps({"ok": ok, "text": msg},
                                       ensure_ascii=False))
             return
+        if path == "/api/open-folder":
+            p = valid_cwd(body.get("path") or "")
+            if not p:
+                self._send(200, json.dumps(
+                    {"ok": False, "error": "폴더를 찾지 못했습니다."},
+                    ensure_ascii=False))
+                return
+            ok, msg = open_folder(p)
+            self._send(200, json.dumps(
+                {"ok": ok, "error": None if ok else msg},
+                ensure_ascii=False))
+            return
         if path == "/api/skills/create":
             try:
                 b = json.loads(self.rfile.read(
@@ -1051,9 +1157,12 @@ class Handler(BaseHTTPRequestHandler):
                                             "session_id": sid},
                                            ensure_ascii=False))
             return
-        sid, text = run_muse_exec(message, session_id)
+        sid, text, workdir = run_muse_exec(message, session_id,
+                                               body.get("cwd"))
+        ws = session_workspace(sid) or workdir
         self._send(200, json.dumps({"ok": True, "text": text,
-                                    "session_id": sid}, ensure_ascii=False))
+                                    "session_id": sid, "cwd": ws},
+                                   ensure_ascii=False))
 
 
 def main():

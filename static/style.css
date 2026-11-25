@@ -46,7 +46,11 @@ body.side-hidden aside { display: none; }
 #gear:hover { border-color: var(--me); }
 main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 header { border-bottom: 1px solid var(--bd); padding: 8px 14px; font-size: 13px; display: flex; gap: 8px; align-items: center; }
-#cwd { margin-left: auto; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#cwdwrap { margin-left: auto; display: flex; align-items: center; gap: 6px; min-width: 0; }
+#cwdlabel { color: var(--muted); font-size: 12px; flex: none; }
+#cwd { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#cwdopen { display: inline-flex; align-items: center; border: 0; background: none; padding: 4px; cursor: pointer; border-radius: 6px; line-height: 0; color: var(--muted); flex: none; }
+#cwdopen:hover { color: var(--me); }
 #newchat { display: inline-flex; align-items: center; gap: 6px; }
 #status { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
 #status.ok { background: var(--ok); } #status.err { background: var(--err); }
