@@ -17,6 +17,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -582,8 +583,95 @@ def skill_inspect(sid, scope):
     return {"ok": True, "id": s.get("id"), "scope": s.get("scope"),
             "description": s.get("description") or "",
             "activation": s.get("activation"),
+            "path": s.get("path") or "",
             "startup_tokens": cc.get("startup_estimated_tokens"),
             "diagnostics": s.get("diagnostics") or []}
+
+
+def _config_dir():
+    base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(
+        os.path.expanduser("~"), ".config")
+    return os.path.join(base, "muse")
+
+
+def skill_body(sid, scope):
+    info = skill_inspect(sid, scope)
+    if not info.get("ok"):
+        return info
+    p = info.get("path") or ""
+    if not p.startswith("$CONFIG_DIR/skills/"):
+        return {"ok": False,
+                "error": "파일 미리보기를 지원하지 않는 위치입니다."}
+    real = os.path.realpath(os.path.join(
+        _config_dir(), "skills", p[len("$CONFIG_DIR/skills/"):]))
+    root = os.path.realpath(os.path.join(_config_dir(), "skills"))
+    if not (real + os.sep).startswith(root + os.sep) or not real.endswith(".md"):
+        return {"ok": False, "error": "안전 검사 실패: 허용된 스킬 경로가 아닙니다."}
+    try:
+        if os.path.getsize(real) > 131072:
+            return {"ok": False, "error": "파일이 너무 큽니다 (128KB 초과)."}
+        with open(real, encoding="utf-8", errors="replace") as f:
+            return {"ok": True, "id": sid, "body": f.read()}
+    except OSError as e:
+        return {"ok": False, "error": "읽기 실패: %s" % e}
+
+
+SKILL_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,63}$")
+
+
+def skill_create(name, description, body):
+    """사용자 스코프로 새 스킬을 만든다. validate 통과분만 설치."""
+    if (not isinstance(name, str) or not SKILL_NAME_RE.match(name)):
+        return {"ok": False, "error": "이름은 소문자·숫자·- 만 (2~64자)."}
+    if not isinstance(description, str) or not description.strip():
+        return {"ok": False, "error": "설명을 입력하세요."}
+    if len(description) > 2000:
+        return {"ok": False, "error": "설명이 너무 깁니다 (2000자 이내)."}
+    if not isinstance(body, str) or not body.strip():
+        return {"ok": False, "error": "본문을 입력하세요."}
+    if len(body) > 65536:
+        return {"ok": False, "error": "본문이 너무 깁니다 (64KB 이내)."}
+    doc = ("---\nname: %s\ndescription: %s\n---\n%s\n"
+           % (name, " ".join(description.split()),
+              body.strip() + "\n"))
+    try:
+        with tempfile.TemporaryDirectory(prefix="mgs-skill-") as td:
+            pkg = os.path.join(td, name)
+            os.mkdir(pkg)
+            with open(os.path.join(pkg, "SKILL.md"), "w",
+                      encoding="utf-8") as f:
+                f.write(doc)
+            v = subprocess.run(["muse", "skills", "validate", pkg, "--json"],
+                               capture_output=True, text=True, timeout=60,
+                               stdin=subprocess.DEVNULL)
+            try:
+                vd = json.loads(v.stdout or "{}")
+            except ValueError:
+                vd = {}
+            compat = (vd.get("compatibility") or {}).get("result")
+            if v.returncode != 0 or compat != "compatible":
+                diag = "; ".join(
+                    str(x) for x in (vd.get("diagnostics") or [])[:3])
+                return {"ok": False,
+                        "error": "검증 실패%s" % (" (%s)" % compat if compat else "")
+                        + (" — " + diag if diag else "")}
+            p = subprocess.run(
+                ["muse", "skills", "install", pkg, "--scope", "user",
+                 "--json"],
+                capture_output=True, text=True, timeout=60,
+                stdin=subprocess.DEVNULL)
+            try:
+                inst = json.loads(p.stdout or "{}")
+            except ValueError:
+                inst = {}
+            if p.returncode != 0 or not (inst.get("installed") or {}).get("id"):
+                err = clean_ansi(p.stderr or "").strip()[-500:]
+                return {"ok": False, "error": "설치 실패%s" % (
+                    (" — " + err) if err else "")}
+            return {"ok": True,
+                    "id": inst["installed"]["id"]}
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return {"ok": False, "error": "실행 실패: %s" % e}
 
 
 def delete_session(sid):
@@ -834,6 +922,12 @@ class Handler(BaseHTTPRequestHandler):
             scope = (q.get("scope") or [""])[0]
             self._send(200, json.dumps(skill_inspect(sid, scope),
                                       ensure_ascii=False))
+        elif path.startswith("/api/skills/body"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            sid = (q.get("id") or [""])[0]
+            scope = (q.get("scope") or [""])[0]
+            self._send(200, json.dumps(skill_body(sid, scope),
+                                      ensure_ascii=False))
         elif path == "/api/models":
             self._send(200, json.dumps(list_models(),
                                       ensure_ascii=False))
@@ -898,6 +992,21 @@ class Handler(BaseHTTPRequestHandler):
             ok, msg = delete_session(body.get("session_id") or "")
             self._send(200, json.dumps({"ok": ok, "text": msg},
                                       ensure_ascii=False))
+            return
+        if path == "/api/skills/create":
+            try:
+                b = json.loads(self.rfile.read(
+                    int(self.headers.get("Content-Length", "0") or 0)
+                ).decode("utf-8") or "{}")
+            except (ValueError, UnicodeDecodeError):
+                b = None
+            if not isinstance(b, dict):
+                self._send(400, json.dumps({"ok": False,
+                                           "error": "bad json"}))
+                return
+            self._send(200, json.dumps(
+                skill_create(b.get("name") or "", b.get("description") or "",
+                             b.get("body") or ""), ensure_ascii=False))
             return
         if path == "/api/skills/toggle":
             ok, msg = skill_toggle(body.get("id") or "",

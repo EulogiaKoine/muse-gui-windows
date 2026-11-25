@@ -193,12 +193,15 @@ function timeStr(ts) {
   const d = new Date(ts);
   return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
 }
-function addMsg(who, text, think, foot) {
+function addMsg(who, text, think, foot, withActs) {
   const d = document.createElement("div");
   d.className = "msg " + who;
   d.dataset.raw = text;
   let html = renderText(text) + (think ? "<details><summary>상세</summary>" + esc(think) + "</details>" : "");
-  if (who === "ai") html += '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>";
+  if (withActs === undefined) withActs = true;
+  if (who === "ai") {
+    if (withActs) html += '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>";
+  }
   else html += '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + '</button><button type="button" data-edit title="수정 후 다시 전송">✎</button></div>';
   if (foot) html += '<div class="meta">' + esc(foot) + "</div>";
   d.innerHTML = html;
@@ -367,6 +370,63 @@ function saveTheme(patch) {
   applyTheme();
 }
 function showModal() { $("#ovl").hidden = false; loadAccount(); loadUsage(); loadSkills(); }
+const SK_SCOPE_ORDER = ["user", "project", "plugin", "bundled"];
+const SK_SCOPE_LABEL = { user: "사용자", project: "프로젝트", plugin: "플러그인", bundled: "내장" };
+function skRow(s) {
+  const row = document.createElement("div");
+  row.className = "skrow";
+  const head = document.createElement("div"); head.className = "skhead";
+  const dot = document.createElement("span");
+  dot.className = "skdot" + (s.activation === "on" ? " on" : "");
+  const nm = document.createElement("button");
+  nm.type = "button"; nm.className = "skname"; nm.textContent = s.name || s.id;
+  nm.title = (s.id || "") + " — 상세 보기";
+  const sc = document.createElement("span"); sc.className = "skscope";
+  sc.textContent = s.scope || "?";
+  const tg = document.createElement("button");
+  tg.type = "button"; tg.className = "optbtn";
+  tg.style.cssText = "margin-left:auto;padding:4px 12px;font-size:12px";
+  tg.textContent = s.activation === "on" ? "끄기" : "켜기";
+  tg.onclick = async (e) => {
+    e.stopPropagation();
+    tg.disabled = true;
+    try {
+      const rr = await fetch("/api/skills/toggle", { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: s.id, scope: s.scope,
+          enable: s.activation !== "on" }) });
+      const jj = await rr.json();
+      if (jj.ok) {
+        s.activation = jj.activation;
+        dot.classList.toggle("on", jj.activation === "on");
+        tg.textContent = jj.activation === "on" ? "끄기" : "켜기";
+      } else alert("스킬 전환 실패: " + (jj.activation || "?"));
+    } catch (_) {}
+    tg.disabled = false;
+  };
+  head.append(dot, nm, sc, tg);
+  const de = document.createElement("div"); de.className = "skdetail"; de.hidden = true;
+  const dp = document.createElement("p"); dp.className = "skdesc-full";
+  dp.textContent = s.description || "";
+  const pre = document.createElement("pre"); pre.className = "skbody";
+  pre.textContent = "불러오는 중…";
+  de.append(dp, pre);
+  let loaded = false;
+  nm.onclick = async () => {
+    de.hidden = !de.hidden;
+    if (!de.hidden && !loaded) {
+      loaded = true;
+      try {
+        const rr = await fetch("/api/skills/body?id=" + encodeURIComponent(s.id || "") +
+          "&scope=" + encodeURIComponent(s.scope || ""));
+        const jj = await rr.json();
+        pre.textContent = jj.ok ? jj.body : ("불러오기 실패: " + (jj.error || "?"));
+      } catch (_) { pre.textContent = "불러오기 실패"; }
+    }
+  };
+  row.append(head, de);
+  return row;
+}
 async function loadSkills() {
   const box = $("#skillbox");
   box.textContent = "불러오는 중…";
@@ -375,44 +435,38 @@ async function loadSkills() {
     if (j.error) { box.textContent = j.error; return; }
     if (!j.skills.length) { box.textContent = "스킬 없음"; return; }
     box.innerHTML = "";
-    j.skills.forEach((s) => {
-      const row = document.createElement("div");
-      row.className = "skrow";
-      const head = document.createElement("div"); head.className = "skhead";
-      const dot = document.createElement("span");
-      dot.className = "skdot" + (s.activation === "on" ? " on" : "");
-      const nm = document.createElement("strong"); nm.textContent = s.name || s.id;
-      nm.title = s.id || "";
-      const sc = document.createElement("span"); sc.className = "skscope";
-      sc.textContent = s.scope || "?";
-      const tg = document.createElement("button");
-      tg.type = "button"; tg.className = "optbtn";
-      tg.style.cssText = "margin-left:auto;padding:4px 12px;font-size:12px";
-      tg.textContent = s.activation === "on" ? "끄기" : "켜기";
-      tg.onclick = async () => {
-        tg.disabled = true;
-        try {
-          const rr = await fetch("/api/skills/toggle", { method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: s.id, scope: s.scope,
-              enable: s.activation !== "on" }) });
-          const jj = await rr.json();
-          if (jj.ok) {
-            s.activation = jj.activation;
-            dot.classList.toggle("on", jj.activation === "on");
-            tg.textContent = jj.activation === "on" ? "끄기" : "켜기";
-          } else alert("스킬 전환 실패: " + (jj.activation || "?"));
-        } catch (_) {}
-        tg.disabled = false;
-      };
-      head.append(dot, nm, sc, tg);
-      const de = document.createElement("div"); de.className = "skdesc";
-      de.textContent = s.description || ""; de.title = s.description || "";
-      row.append(head, de);
-      box.appendChild(row);
+    const groups = {};
+    j.skills.forEach((s) => { (groups[s.scope || "?"] = groups[s.scope || "?"] || []).push(s); });
+    SK_SCOPE_ORDER.concat(Object.keys(groups)).forEach((g) => {
+      const items = groups[g];
+      if (!items || !items.length || box.querySelector('[data-skgroup="' + g + '"]')) return;
+      const div = document.createElement("div");
+      div.className = "skdiv"; div.dataset.skgroup = g;
+      const lb = document.createElement("span");
+      lb.textContent = SK_SCOPE_LABEL[g] || g;
+      div.appendChild(lb);
+      box.appendChild(div);
+      items.forEach((s) => box.appendChild(skRow(s)));
+      delete groups[g];
     });
   } catch (e) { box.textContent = "불러오기 실패"; }
 }
+$("#skilladd").onclick = () => { $("#skillform").hidden = !$("#skillform").hidden; input.blur(); $("#skname").focus(); };
+$("#skcancel").onclick = () => { $("#skillform").hidden = true; };
+$("#sksave").onclick = async () => {
+  const name = $("#skname").value.trim(), desc = $("#skdesc").value.trim(), body = $("#skbody").value;
+  if (!name || !desc || !body.trim()) { alert("이름·설명·본문을 모두 입력하세요."); return; }
+  try {
+    const r = await fetch("/api/skills/create", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, description: desc, body }) });
+    const j = await r.json();
+    if (!j.ok) { alert("스킬 추가 실패: " + (j.error || "?")); return; }
+    $("#skillform").hidden = true;
+    $("#skname").value = ""; $("#skdesc").value = ""; $("#skbody").value = "";
+    loadSkills();
+  } catch (_) { alert("스킬 추가 실패 (서버 오류)"); }
+};
 document.querySelectorAll("#mtabs button").forEach((b) => { b.onclick = () => {
   document.querySelectorAll("#mtabs button").forEach((x) => x.classList.toggle("sel", x === b));
   document.querySelectorAll('#modal section[data-pane]').forEach((s) => s.classList.toggle("on", s.dataset.pane === b.dataset.tab));
@@ -590,7 +644,7 @@ $("#f").addEventListener("submit", async (e) => {
     addMsg("ai", done); saveMsg("ai", done); drawConvs();
     return;
   }
-  const ph = addMsg("ai", "응답 생성 중…");
+  const ph = addMsg("ai", "응답 생성 중…", null, null, false);
   const t0 = Date.now();
   try {
     const r = await fetch("/api/chat", { method: "POST",

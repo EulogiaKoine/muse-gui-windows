@@ -89,7 +89,18 @@ form button[type="submit"]:active { transform: scale(.96); }
 .skdot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--muted); }
 .skdot.on { background: var(--ok); }
 .skscope { font-size: 11px; color: var(--muted); border: 1px solid var(--bd); border-radius: 999px; padding: 1px 8px; flex: none; }
-.skdesc { font-size: 12px; color: var(--muted); margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.skdiv { display: flex; align-items: center; gap: 8px; margin: 12px 0 2px; color: var(--muted); font-size: 12px; }
+.skdiv::after { content: ""; flex: 1; border-top: 1px solid var(--bd); opacity: .7; }
+.skname { border: 0; background: none; padding: 0; cursor: pointer; font-size: 13px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.skname:hover { color: var(--me); }
+.skdetail { margin-top: 6px; }
+.skdesc-full { font-size: 12px; color: var(--text); margin: 0 0 6px; }
+.skbody { white-space: pre-wrap; word-break: break-word; font-size: 12px; background: var(--panel); border: 1px solid var(--bd); border-radius: 8px; padding: 8px 10px; max-height: 220px; overflow: auto; margin: 0; font-family: ui-monospace, Consolas, monospace; }
+#skillform { border: 1px solid var(--bd); border-radius: 10px; padding: 10px; margin: 8px 0; background: var(--panel); }
+#skillform[hidden] { display: none; }
+#skillform label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+#skillform input { width: 100%; box-sizing: border-box; font-size: 13px; padding: 6px 9px; margin-top: 2px; background: var(--input); color: var(--text); border: 1px solid var(--bd); border-radius: 7px; }
+#skillform textarea { width: 100%; box-sizing: border-box; min-height: 110px; font-size: 12px; font-family: ui-monospace, Consolas, monospace; padding: 8px 9px; margin: 2px 0 6px; background: var(--input); color: var(--text); border: 1px solid var(--bd); border-radius: 7px; resize: vertical; }
 .mhead { display: flex; align-items: center; justify-content: space-between; }
 .mhead h2 { margin: 0; }
 #modal section[data-pane] h3:first-of-type { margin-top: 8px; }
@@ -157,7 +168,7 @@ form button[type="submit"]:active { transform: scale(.96); }
 .callout.c-tip, .callout.c-example { border-left-color: var(--ok); }
 .task { list-style: none; }
 .task input { margin-right: 6px; accent-color: var(--me); }
-.viz { width: 100%; border: 0; background: transparent; display: block; }
+.viz { display: block; width: 100%; max-width: 720px; margin: 6px auto; border: 0; background: transparent; }
 .msg .acts { display: flex; gap: 6px; margin-top: 6px; }
 .msg.ai .acts { justify-content: flex-start; }
 .msg.me .acts { justify-content: flex-end; }

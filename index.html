@@ -55,6 +55,13 @@
 <section data-pane="skills">
 <h3>에이전트 스킬</h3>
 <p class="hint">muse CLI 스킬 목록. 토글로 활성화/비활성화를 변경한다. (대화형 세션에 적용, headless exec는 스킬 미로드)</p>
+<div class="row"><button type="button" class="optbtn" id="skilladd">＋ 새 스킬</button></div>
+<div id="skillform" hidden>
+<label>이름 <input id="skname" placeholder="my-skill" autocomplete="off"></label>
+<label>설명 <input id="skdesc" placeholder="언제 사용하는지 한 줄로" autocomplete="off"></label>
+<textarea id="skbody" placeholder="SKILL.md 본문 (마크다운)"></textarea>
+<div class="row"><button type="button" class="optbtn" id="sksave">저장</button><button type="button" class="optbtn" id="skcancel">취소</button></div>
+</div>
 <div id="skillbox">불러오는 중…</div>
 </section>
 </div>
