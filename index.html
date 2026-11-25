@@ -16,6 +16,7 @@
 <div id="ctx" hidden>
 <button type="button" data-act="pin">상단 고정</button>
 <button type="button" data-act="rename">이름 변경</button>
+<button type="button" data-act="export">MD로 내보내기</button>
 <button type="button" data-act="del">삭제</button>
 </div>
 <div id="sidefoot"><button id="gear" type="button" title="설정" aria-label="설정"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="7" cy="17" r="2.4"/></svg></button><span id="srvinfo" title="서버 실행 정보">연결 중…</span></div>
@@ -41,6 +42,9 @@
 </div>
 <h3>팔레트</h3>
 <div id="accents"></div>
+<h3>세션 유지</h3>
+<div class="row"><label>최근 유지 세션 수 <input id="keepn" type="number" min="1" max="5" step="1"></label></div>
+<p class="hint">탭을 옮겨도 이 개수만큼의 최근 세션은 이어가기 없이 바로 입력할 수 있다.</p>
 </section>
 <section data-pane="acct">
 <h3>계정</h3>

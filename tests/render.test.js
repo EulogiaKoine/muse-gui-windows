@@ -15,7 +15,7 @@ if (start < 0 || end < 0 || end < start) {
 const sandbox = {};
 require("vm").createContext(sandbox);
 require("vm").runInContext(
-  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems };",
+  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd };",
   sandbox);
 const R = sandbox.__R;
 let pass = 0, fail = 0;
@@ -122,5 +122,9 @@ t("goalFence plan", (() => { const g = R.goalFence('본문\n```goal-plan [{"t":"
 t("goalFence variant", (() => { const g = R.goalFence('본문\n```GOAL_STATUS json\n{"done":[0]}\n```', "status"); return g.data && g.data.done && g.data.done[0] === 0; })(), "");
 t("goalFence miss", R.goalFence("본문", "plan").data === null, "");
 t("normGoalItems", (() => { const a = R.normGoalItems(["a", { t: "b", done: 1 }]); return a.length === 2 && a[0].t === "a" && !a[0].done && a[1].done; })(), "");
+t("convToMd", (() => { const md = R.convToMd({ t: "T", sid: "s1abcd", cwd: "/w", msgs: [
+  { who: "me", text: "질문", ts: 1000 },
+  { who: "ai", text: "답\n```goal-plan\n[{\"t\":\"a\"}]\n```\n끝", ts: 2000 }] });
+  return md.includes("## 사용자") && md.includes("## 어시스턴트") && md.includes("질문") && !md.includes("goal-plan"); })(), "");
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

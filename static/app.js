@@ -6,11 +6,15 @@ const MAX_MSGS = 200;
 function loadConvs() {
   try {
     const a = JSON.parse(localStorage.getItem("muse-gui-convs") || "[]");
-    return a.map((c) => ({ k: c.k, t: c.t || "새 대화",
-      sid: c.sid || null, cwd: c.cwd || null, pin: !!c.pin,
-      goal: c.goal && c.goal.objective ? { objective: c.goal.objective,
-        items: normGoalItems(c.goal.items), active: !!c.goal.active } : null,
-      msgs: Array.isArray(c.msgs) ? c.msgs : [] }));
+    return a.map((c) => {
+      const msgs = Array.isArray(c.msgs) ? c.msgs : [];
+      return { k: c.k, t: c.t || "새 대화",
+        sid: c.sid || null, cwd: c.cwd || null, pin: !!c.pin,
+        goal: c.goal && c.goal.objective ? { objective: c.goal.objective,
+          items: normGoalItems(c.goal.items), active: !!c.goal.active } : null,
+        at: c.at || (msgs.length && msgs[msgs.length - 1].ts) || 0,
+        msgs };
+    });
   } catch (e) { return []; }
 }
 let convs = loadConvs();
@@ -274,6 +278,26 @@ function normGoalItems(data) {
   return arr.map((x, i) => typeof x === "string" ? { t: x, done: false } :
     ({ t: String(x.t || x.title || x.name || ("단계 " + (i + 1))), done: !!x.done }));
 }
+function convToMd(c) {
+  const lines = ["# " + (c.t || "대화"), ""];
+  if (c.sid) lines.push("- 세션: " + String(c.sid).slice(0, 8), "");
+  if (c.cwd) lines.push("- 작업 디렉터리: " + c.cwd, "");
+  (c.msgs || []).forEach((m) => {
+    let t = String(m.text || "");
+    t = goalFence(t, "plan").clean;
+    t = goalFence(t, "status").clean;
+    t = t.replace(/[ \t]+$/gm, "").replace(/\n{3,}/g, "\n\n").trim();
+    if (!t) return;
+    lines.push(m.who === "me" ? "## 사용자" : "## 어시스턴트", "");
+    // timeStr은 테스트 슬라이스 밖에 있어 가드로 호출한다(브라우저에선 항상 존재)
+    if (m.ts && typeof timeStr === "function") {
+      const when = timeStr(m.ts);
+      if (when) lines.push("_" + when + "_", "");
+    }
+    lines.push(t, "");
+  });
+  return lines.join("\n").trim() + "\n";
+}
 function timeStr(ts) {
   if (!ts) return "";
   const d = new Date(ts);
@@ -283,6 +307,7 @@ function addMsg(who, text, think, foot, withActs) {
   const d = document.createElement("div");
   d.className = "msg " + who;
   d.dataset.raw = text;
+  d.dataset.mi = chat.querySelectorAll(".msg").length;
   let html = renderText(text) + (think ? "<details><summary>상세</summary>" + esc(think) + "</details>" : "");
   if (withActs === undefined) withActs = true;
   if (who === "ai") {
@@ -386,6 +411,85 @@ function decorateTables(el) {
     w.appendChild(box);
   });
 }
+let editingEl = null;
+let pendingPrefix = null;
+let skipEcho = false;
+function startEdit(msgEl) {
+  if (!msgEl) return;
+  if (editingEl && editingEl !== msgEl) cancelEdit(editingEl);
+  if (editingEl === msgEl) return;
+  const old = msgEl.dataset.raw || "";
+  msgEl.dataset.orig = msgEl.innerHTML;
+  msgEl.innerHTML = '<textarea class="medit">' + esc(old) + "</textarea>" +
+    '<div class="meditbar"><button type="button" class="optbtn" data-msave>저장</button>' +
+    '<button type="button" class="optbtn" data-mcancel>취소</button></div>';
+  const ta = msgEl.querySelector(".medit");
+  if (ta) {
+    ta.focus();
+    try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch (e) {}
+  }
+  editingEl = msgEl;
+}
+function cancelEdit(msgEl) {
+  if (!msgEl) return;
+  if (msgEl.dataset.orig !== undefined) {
+    msgEl.innerHTML = msgEl.dataset.orig;
+    delete msgEl.dataset.orig;
+    decorateCode(msgEl); decorateMath(msgEl); decorateTables(msgEl);
+  }
+  if (editingEl === msgEl) editingEl = null;
+}
+function finishEdit(msgEl, save) {
+  if (editingEl === msgEl) editingEl = null;
+  if (!save) { cancelEdit(msgEl); return; }
+  const ta = msgEl.querySelector(".medit");
+  const next = ta ? ta.value.trim() : "";
+  const old = msgEl.dataset.raw || "";
+  const mi = +(msgEl.dataset.mi ?? -1);
+  if (!next || next === old) { cancelEdit(msgEl); return; }
+  const c = curConv();
+  if (!c || !(mi >= 0) || !c.msgs[mi] || c.msgs[mi].who !== "me") { cancelEdit(msgEl); return; }
+  saveEditedMessage(msgEl, mi, next);
+}
+async function saveEditedMessage(msgEl, mi, newText) {
+  const c = curConv();
+  if (!c) { cancelEdit(msgEl); return; }
+  const oldSid = c.sid || sessionId;
+  c.msgs[mi] = { who: "me", text: newText, ts: Date.now(), el: "" };
+  c.msgs.length = mi + 1;
+  c.sid = null; sessionId = null;
+  c.at = Date.now();
+  persistConvs();
+  if (oldSid) {
+    try {
+      await fetch("/api/session/archive", { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: oldSid, cwd: c.cwd || serverCwd || "" }) });
+    } catch (e) {}
+  }
+  pendingPrefix = "[이전 대화 계승] 아래는 같은 대화의 지금까지 내역이다. 이를 이어서 다음 요청을 처리하라.\n\n" +
+    convToMd(c) + "\n위 내역을 이어서 처리하라.\n\n";
+  skipEcho = true;
+  editingEl = null;
+  chat.innerHTML = "";
+  c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m)));
+  chat.scrollTop = chat.scrollHeight;
+  setRoute("/" + c.k);
+  input.value = newText; input.focus();
+  updateGate(); drawConvs(); drawRside();
+  $("#f").requestSubmit();
+}
+function exportConv(c) {
+  if (!c || !c.msgs || !c.msgs.length) { alert("내보낼 대화가 없습니다."); return; }
+  const body = convToMd(c);
+  const name = "muse-gui-" + String(c.t || "대화").replace(/[^\w가-힣-]+/g, "_").slice(0, 40) +
+    "-" + new Date().toISOString().slice(0, 10) + ".md";
+  const blob = new Blob([body], { type: "text/markdown;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
 function footFor(m) {
   const t = timeStr(m.ts);
   if (!t && !m.el) return "";
@@ -440,17 +544,11 @@ chat.addEventListener("click", async (e) => {
     return;
   }
   const ed = e.target.closest("[data-edit]");
-  if (ed) {
-    const msgEl = ed.closest(".msg");
-    const old = (msgEl && msgEl.dataset.raw) || "";
-    const next = prompt("메시지 수정 (확인 = 수정된 내용으로 같은 세션에 다시 전송)", old);
-    if (next === null) return;
-    if (!next.trim() || next === old) return;
-    input.value = next;
-    input.focus();
-    $("#f").requestSubmit();
-    return;
-  }
+  if (ed) { const msgEl = ed.closest(".msg"); if (msgEl) startEdit(msgEl); return; }
+  const ms = e.target.closest("[data-msave]");
+  if (ms) { const m2 = ms.closest(".msg"); if (m2) finishEdit(m2, true); return; }
+  const mc = e.target.closest("[data-mcancel]");
+  if (mc) { const m2 = mc.closest(".msg"); if (m2) finishEdit(m2, false); return; }
   const pl = e.target.closest("[data-path]");
   if (pl) { e.preventDefault(); openPathLink(pl); return; }
   const b = e.target.closest("[data-copy]");
@@ -466,7 +564,7 @@ function saveConv(title) {
   convKey = convKey || ("c" + Date.now());
   const ex = curConv();
   if (ex) { if (title) ex.t = title; }
-  else convs.unshift({ k: convKey, t: title || "새 대화", sid: null, cwd: serverCwd, msgs: [] });
+  else convs.unshift({ k: convKey, t: title || "새 대화", sid: null, cwd: serverCwd, msgs: [], at: Date.now() });
   persistConvs(); drawConvs();
 }
 function saveMsg(who, text, meta) {
@@ -475,14 +573,23 @@ function saveMsg(who, text, meta) {
   c.msgs.push({ who, text, ts: (meta && meta.ts) || Date.now(), el: (meta && meta.el) || "" });
   if (c.msgs.length > MAX_MSGS) c.msgs.splice(0, c.msgs.length - MAX_MSGS);
   if (sessionId) c.sid = sessionId;
+  c.at = Date.now();
   persistConvs();
 }
-let needsResume = false; // 저장된 세션으로 재진입했는지 (이어가기 동의 필요 여부)
+let liveSessions = []; // 이어가기 동의済み 대화 (탭 이동에도 유지, 최근 N개)
+function keepN() {
+  const n = +((loadTheme().keepN ?? 3));
+  return Math.min(5, Math.max(1, n || 3));
+}
+function touchLive() {
+  if (!convKey) return;
+  liveSessions = [convKey, ...liveSessions.filter((x) => x !== convKey)].slice(0, keepN());
+}
 function inputGated() {
   const c = curConv();
   if (!c) return { msg: "새 대화를 시작하려면 작업 디렉터리를 먼저 선택하세요.", btn: "작업 디렉터리 선택", act: "pick-new" };
   if (!c.cwd) return { msg: "이 대화의 작업 디렉터리를 선택해야 입력할 수 있습니다.", btn: "작업 디렉터리 선택", act: "pick" };
-  if (c.sid && needsResume) return { msg: "세션 " + c.sid.slice(0, 8) + " · " + c.cwd + " — 이 디렉터리에서 내부 프로세스로 이어가려면 버튼을 누르세요.", btn: "이 세션 이어가기(내부 프로세스 재개)", act: "resume" };
+  if (c.sid && !liveSessions.includes(c.k)) return { msg: "세션 " + c.sid.slice(0, 8) + " · " + c.cwd + " — 이 디렉터리에서 내부 프로세스로 이어가려면 버튼을 누르세요.", btn: "이 세션 이어가기(내부 프로세스 재개)", act: "resume" };
   return null;
 }
 let serverPlatform = "";
@@ -503,7 +610,7 @@ function updateOsChip() {
 function openConv(k) {
   const c = convs.find((x) => x.k === k);
   if (!c) return;
-  convKey = c.k; sessionId = c.sid || null; needsResume = !!c.sid;
+  convKey = c.k; sessionId = c.sid || null;
   $("#cwd").textContent = c.cwd || serverCwd || "";
   chat.innerHTML = "";
   c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m)));
@@ -578,7 +685,7 @@ function renderFsList() {
 }
 function drawConvs() {
   const box = $("#convs"); box.innerHTML = "";
-  convs.slice().sort((a, b) => ((b.pin ? 1 : 0) - (a.pin ? 1 : 0))).forEach((c) => {
+  convs.slice().sort((a, b) => ((b.pin ? 1 : 0) - (a.pin ? 1 : 0)) || ((b.at || 0) - (a.at || 0))).forEach((c) => {
     const row = document.createElement("div");
     row.className = "conv" + (c.pin ? " pinned" : "");
     const b = document.createElement("button");
@@ -744,9 +851,12 @@ $("#ctx").addEventListener("click", (e) => {
   } else if (act.dataset.act === "rename") {
     const t = prompt("새 이름", c.t);
     if (t && t.trim()) { c.t = t.trim().slice(0, 60); persistConvs(); drawConvs(); }
+  } else if (act.dataset.act === "export") {
+    exportConv(c);
   } else if (confirm('"' + c.t + '" 대화와 muse 세션 기록을 함께 삭제할까요?\n(실행 중인 세션은 삭제되지 않습니다)')) {
     const sid = c.sid || null;
     convs = convs.filter((x) => x.k !== c.k);
+    liveSessions = liveSessions.filter((x) => x !== c.k);
     if (convKey === c.k) { convKey = null; sessionId = null; chat.innerHTML = ""; }
     persistConvs(); drawConvs(); updateGate(); drawRside();
     if (sid) {
@@ -759,7 +869,7 @@ $("#ctx").addEventListener("click", (e) => {
     }
   }
 });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") { hideCtx(); hideModal(); hideFsPicker(); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { hideCtx(); hideModal(); hideFsPicker(); if (editingEl) cancelEdit(editingEl); } });
 function loadTheme() {
   try { return JSON.parse(localStorage.getItem("muse-gui-theme") || "{}"); }
   catch (e) { return {}; }
@@ -795,6 +905,9 @@ function applyTheme() {
   renderPalettes(ac);
   applySide(!!t.side);
   applyRside(t.rside !== false);
+  const kn = $("#keepn");
+  if (kn) kn.value = keepN();
+  liveSessions = liveSessions.slice(0, keepN());
 }
 $("#sidetoggle").onclick = () => setSide(!document.body.classList.contains("side-hidden"));
 function saveTheme(patch) {
@@ -1077,6 +1190,7 @@ $("#f").addEventListener("submit", async (e) => {
   const text = input.value.trim();
   if (!text) return;
   if (inputGated()) { updateGate(); return; }
+  if (text.startsWith("/")) pendingPrefix = null;
   let goalMode = null, sendText = null, justDone = null;
   if (text === "/help" || text.startsWith("/help ")) {
     input.value = ""; slash.style.display = "none"; $("#feats").innerHTML = "";
@@ -1112,6 +1226,7 @@ $("#f").addEventListener("submit", async (e) => {
   } else if (!text.startsWith("/") && gc0 && gc0.goal && gc0.goal.active) {
     full = goalTurnPrompt(gc0.goal, full); goalMode = "status";
   }
+  if (pendingPrefix) { full = pendingPrefix + full; pendingPrefix = null; }
   if (text === "/clear" || text.startsWith("/clear ")) {
     chat.innerHTML = "";
     const c = curConv();
@@ -1120,7 +1235,8 @@ $("#f").addEventListener("submit", async (e) => {
   }
   saveConv(text.slice(0, 30));
   const meTs = Date.now();
-  addMsg("me", text, null, timeStr(meTs)); saveMsg("me", text, { ts: meTs });
+  if (skipEcho) skipEcho = false;
+  else { addMsg("me", text, null, timeStr(meTs)); saveMsg("me", text, { ts: meTs }); }
   if (text === "/copy" || text.startsWith("/copy ")) {
     const done = (await copyText(lastAiText())) ? "복사했습니다." : "복사할 답변이 없습니다.";
     addMsg("ai", done); saveMsg("ai", done); drawConvs();
@@ -1130,10 +1246,11 @@ $("#f").addEventListener("submit", async (e) => {
   const t0 = Date.now();
   try {
     const cc0 = curConv();
-    const r = await fetch("/api/chat", { method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: full, session_id: sessionId,
-        cwd: (cc0 && cc0.cwd) || serverCwd || "" }) });
+  touchLive();
+  const r = await fetch("/api/chat", { method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: full, session_id: sessionId,
+      cwd: (cc0 && cc0.cwd) || serverCwd || "" }) });
     const j = await r.json();
     if (j.text === "__COPY__") {
       const prev = [...chat.querySelectorAll(".msg.ai")].filter((n) => n !== ph).pop();
@@ -1207,7 +1324,7 @@ $("#cwdopen").onclick = async () => {
 };
 $("#gatebtn").onclick = () => {
   const act = $("#gatebtn").dataset.act;
-  if (act === "resume") { needsResume = false; updateGate(); input.focus(); }
+  if (act === "resume") { touchLive(); updateGate(); input.focus(); }
   else openFsPicker((p) => {
     if (act === "pick-new") {
       convKey = "c" + Date.now(); sessionId = null;
@@ -1238,6 +1355,11 @@ $("#fswin").onclick = async () => {
 $("#fsgo").onclick = () => { const p = $("#fspath").value.trim(); if (p) fsLoad(p); };
 $("#rsidetoggle").onclick = () => setRside(true);
 $("#rsideopen").onclick = () => setRside(false);
+const keepnEl = $("#keepn");
+if (keepnEl) keepnEl.addEventListener("change", () => {
+  saveTheme({ keepN: Math.min(5, Math.max(1, parseInt(keepnEl.value, 10) || 3)) });
+  applyTheme();
+});
 $("#rsidegoal").addEventListener("change", (e) => {
   const box = e.target.closest("[data-gi]");
   if (!box) return;

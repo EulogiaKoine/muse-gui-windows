@@ -711,6 +711,41 @@ def delete_session(sid):
     return True, "세션 기록 삭제됨: %s" % real
 
 
+def archive_session(sid, cwd):
+    """superseded 세션 로그를 <작업 디렉터리>/.agent/sessions/ 로 옮긴다.
+
+    GUI에는 노출하지 않는 내부 보관용이다. 성공 시 (True, 메모),
+    실패 시 (False, 사유)를 돌려준다."""
+    if not isinstance(sid, str) or not SID_RE.match(sid):
+        return False, "세션 id 형식이 아닙니다."
+    if sid in running_session_ids():
+        return False, "실행 중인 세션이라 보관하지 않습니다."
+    root = os.path.realpath(sessions_root())
+    found = None
+    for dirpath, dirnames, _ in os.walk(root):
+        if sid in dirnames:
+            found = os.path.join(dirpath, sid)
+            break
+        dirnames[:] = [d for d in dirnames
+                       if d not in ("subagent", "tool-outputs")]
+    if found is None:
+        return True, "보관할 기록 없음 (이미 이동됨)."
+    base = valid_cwd(cwd) or os.getcwd()
+    dest_root = os.path.join(base, ".agent", "sessions")
+    try:
+        os.makedirs(dest_root, exist_ok=True)
+    except OSError as e:
+        return False, "보관 폴더 생성 실패: %s" % e
+    dest = os.path.join(dest_root, sid)
+    if os.path.exists(dest):
+        dest = os.path.join(dest_root, "%s-%d" % (sid, int(time.time())))
+    try:
+        shutil.move(os.path.realpath(found), dest)
+    except OSError as e:
+        return False, "이동 실패: %s" % e
+    return True, "보관됨: %s" % dest
+
+
 def dispatch_slash(message, session_id):
     """슬래시 입력 처리. (handled, session_id, text)를 돌려준다."""
     parts = message[1:].split()
@@ -1366,6 +1401,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/session/delete":
             ok, msg = delete_session(body.get("session_id") or "")
+            self._send(200, json.dumps({"ok": ok, "text": msg},
+                                      ensure_ascii=False))
+            return
+        if path == "/api/session/archive":
+            ok, msg = archive_session(body.get("session_id") or "",
+                                      body.get("cwd") or "")
             self._send(200, json.dumps({"ok": ok, "text": msg},
                                       ensure_ascii=False))
             return

@@ -172,6 +172,12 @@ form { padding: 10px 12px; display: flex; gap: 8px; position: relative; align-it
 .msg a.nolink { cursor: default; text-decoration: none; }
 .msg a.srcchip { display: inline-block; font-size: 11px; border: 1px solid var(--bd); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 1px 9px; margin-left: 6px; text-decoration: none; vertical-align: baseline; }
 .msg a.srcchip:hover { color: var(--me); border-color: var(--me); }
+.msg .medit { width: 100%; box-sizing: border-box; min-height: 44px; max-height: 9.5em; overflow-y: auto; font: inherit; background: var(--input); color: var(--text); border: 1px solid var(--me); border-radius: 8px; padding: 8px 12px; resize: none; }
+.msg .medit:focus { outline: none; }
+.msg .meditbar { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
+.msg .meditbar .optbtn { padding: 4px 14px; font-size: 12px; }
+#keepn { width: 64px; background: var(--panel); color: var(--text); border: 1px solid var(--bd); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+#keepn:focus { outline: 2px solid var(--me); outline-offset: -1px; }
 .msg a .licon svg, .msg a .plicon svg { width: 11px; height: 11px; vertical-align: -1px; }
 .msg a .licon, .msg a .plicon { margin-right: 4px; }
 .msg a.pathlink { cursor: pointer; }
