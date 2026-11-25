@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>muse-gui</title>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="%232f6fed"/><path d="M9 9h14v10H15l-5 5v-5H9z" fill="white"/></svg>'>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<aside>
+<h1>muse-gui</h1>
+<p id="args">연결 중…</p>
+<button id="newchat" type="button">새 대화</button>
+<div id="convs"></div>
+<div id="ctx" hidden>
+<button type="button" data-act="rename">이름 변경</button>
+<button type="button" data-act="del">삭제</button>
+</div>
+<div id="sidefoot"><button id="gear" type="button" title="설정" aria-label="설정"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="7" cy="17" r="2.4"/></svg></button></div>
+</aside>
+<div id="ovl" hidden><div id="modal" role="dialog" aria-label="설정">
+<h2>설정</h2>
+<h3>테마</h3>
+<div class="row" id="themes">
+<button type="button" class="optbtn" data-th="light">라이트</button><button type="button" class="optbtn" data-th="dark">다크</button>
+</div>
+<h3>강조색</h3>
+<div class="row" id="accents">
+<button type="button" class="sw" data-ac="blue" title="블루" style="background:#2f6fed"></button><button type="button" class="sw" data-ac="green" title="그린" style="background:#178a4c"></button><button type="button" class="sw" data-ac="amber" title="앰버" style="background:#b45309"></button>
+</div>
+<h3>계정</h3>
+<p id="acct">불러오는 중…</p>
+<h3>API 토큰</h3>
+<div class="row"><code id="tok" class="grow">…</code><button type="button" class="optbtn" id="tokcopy">복사</button></div>
+<button type="button" id="mclose">닫기</button>
+</div></div>
+<main>
+<header><span id="status"></span><span id="meta">연결 중…</span></header>
+<div id="lobby"><h1>muse-gui</h1><p>WSL의 muse 에이전트와 대화하세요</p><div class="chips" id="chips"></div></div>
+<div id="chat" aria-live="polite"></div>
+<footer><label>모델 <select id="model"></select></label><label>effort <select id="effort"></select></label></footer>
+<div id="dock">
+<form id="f">
+<div id="slash" role="listbox"></div>
+<textarea id="in" placeholder="메시지 입력 (Enter 전송, Shift+Enter 줄바꿈, / 자동완성)" autocomplete="off"></textarea>
+<button type="submit">전송</button>
+</form>
+<div id="plusrow"><button id="plus" type="button" title="기능 추가" aria-label="기능 추가">+</button><div id="plusmenu" hidden></div></div>
+</div>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>
