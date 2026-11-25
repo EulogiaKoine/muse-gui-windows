@@ -501,6 +501,91 @@ def daily_usage(sids):
     return [{"date": k, **v} for k, v in sorted(days.items())]
 
 
+SKILL_ID_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_:./-]*$")
+SKILL_SCOPE_MAP = {"bundled": "built-in", "user": "user",
+                   "project": "project", "plugin": "plugin"}
+
+
+def skills_list():
+    """`muse skills list` 결과를 GUI용으로 가공한다."""
+    try:
+        proc = subprocess.run(
+            ["muse", "skills", "list", "--json", "--source", "all",
+             "--workspace", os.getcwd()],
+            capture_output=True, text=True, timeout=30,
+            stdin=subprocess.DEVNULL)
+        data = json.loads(proc.stdout or "{}")
+    except (OSError, subprocess.TimeoutExpired, ValueError) as e:
+        return {"skills": [], "error": "조회 실패: %s" % e}
+    out = []
+    for s in data.get("skills", []) or []:
+        if not isinstance(s, dict):
+            continue
+        cc = s.get("context_cost") or {}
+        out.append({
+            "id": s.get("id"), "name": s.get("display_name") or s.get("name"),
+            "scope": s.get("scope"), "description": s.get("description") or "",
+            "activation": s.get("activation"),
+            "startup_tokens": cc.get("startup_estimated_tokens"),
+        })
+    return {"skills": out}
+
+
+def skill_toggle(sid, scope, enable):
+    if (not isinstance(sid, str) or not SKILL_ID_RE.match(sid)
+            or sid.startswith("-")):
+        return False, "스킬 id 형식이 아닙니다."
+    scope_arg = SKILL_SCOPE_MAP.get(scope)
+    if not scope_arg:
+        return False, "지원하지 않는 scope입니다."
+    argv = ["skills", "enable" if enable else "disable", sid,
+            "--scope", scope_arg, "--json"]
+    if scope_arg == "project":
+        argv += ["--workspace", os.getcwd()]
+    try:
+        proc = subprocess.run(["muse"] + argv, capture_output=True,
+                              text=True, timeout=30, cwd=os.getcwd(),
+                              stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return False, "실행 실패: %s" % e
+    if proc.returncode != 0:
+        err = clean_ansi(proc.stderr or "").strip()[-500:]
+        return False, "실패 (exit %d)%s" % (
+            proc.returncode, ("\n" + err) if err else "")
+    try:
+        st = (json.loads(proc.stdout or "{}").get("activation")
+              or ("on" if enable else "off"))
+    except ValueError:
+        st = "on" if enable else "off"
+    return True, st
+
+
+def skill_inspect(sid, scope):
+    if (not isinstance(sid, str) or not SKILL_ID_RE.match(sid)
+            or sid.startswith("-")):
+        return {"ok": False, "error": "스킬 id 형식이 아닙니다."}
+    scope_arg = SKILL_SCOPE_MAP.get(scope)
+    if not scope_arg:
+        return {"ok": False, "error": "지원하지 않는 scope입니다."}
+    argv = ["skills", "inspect", sid, "--scope", scope_arg, "--json"]
+    if scope_arg == "project":
+        argv += ["--workspace", os.getcwd()]
+    try:
+        proc = subprocess.run(["muse"] + argv, capture_output=True,
+                              text=True, timeout=30, cwd=os.getcwd(),
+                              stdin=subprocess.DEVNULL)
+        data = json.loads(proc.stdout or "{}")
+    except (OSError, subprocess.TimeoutExpired, ValueError) as e:
+        return {"ok": False, "error": "조회 실패: %s" % e}
+    s = (data or {}).get("skill") or {}
+    cc = s.get("context_cost") or {}
+    return {"ok": True, "id": s.get("id"), "scope": s.get("scope"),
+            "description": s.get("description") or "",
+            "activation": s.get("activation"),
+            "startup_tokens": cc.get("startup_estimated_tokens"),
+            "diagnostics": s.get("diagnostics") or []}
+
+
 def delete_session(sid):
     """실제 세션 로그 디렉터리를 삭제한다. 실행 중 세션은 거부한다."""
     if not isinstance(sid, str) or not SID_RE.match(sid):
@@ -740,6 +825,15 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/usage":
             self._send(200, json.dumps(usage_report(),
                                       ensure_ascii=False))
+        elif path == "/api/skills":
+            self._send(200, json.dumps(skills_list(),
+                                      ensure_ascii=False))
+        elif path.startswith("/api/skills/inspect"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            sid = (q.get("id") or [""])[0]
+            scope = (q.get("scope") or [""])[0]
+            self._send(200, json.dumps(skill_inspect(sid, scope),
+                                      ensure_ascii=False))
         elif path == "/api/models":
             self._send(200, json.dumps(list_models(),
                                       ensure_ascii=False))
@@ -803,6 +897,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/session/delete":
             ok, msg = delete_session(body.get("session_id") or "")
             self._send(200, json.dumps({"ok": ok, "text": msg},
+                                      ensure_ascii=False))
+            return
+        if path == "/api/skills/toggle":
+            ok, msg = skill_toggle(body.get("id") or "",
+                                   body.get("scope") or "",
+                                   bool(body.get("enable")))
+            self._send(200, json.dumps({"ok": ok, "activation": msg},
                                       ensure_ascii=False))
             return
         if path != "/api/chat":

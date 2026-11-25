@@ -21,8 +21,9 @@
 </aside>
 <div id="ovl" hidden><div id="modal" role="dialog" aria-label="설정">
 <div class="mhead"><h2>설정</h2><button type="button" class="iconbtn" id="mclose" title="닫기" aria-label="닫기"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+<div class="mbody">
 <div class="tabs" id="mtabs" role="tablist">
-<button type="button" data-tab="gen" class="sel">일반</button><button type="button" data-tab="acct">계정</button><button type="button" data-tab="usage">사용량</button>
+<button type="button" data-tab="gen" class="sel">일반</button><button type="button" data-tab="acct">계정</button><button type="button" data-tab="usage">사용량</button><button type="button" data-tab="skills">스킬</button>
 </div>
 <section data-pane="gen" class="on">
 <h3>테마</h3>
@@ -51,6 +52,12 @@
 <div id="ucards"></div>
 <div id="usagebox">불러오는 중…</div>
 </section>
+<section data-pane="skills">
+<h3>에이전트 스킬</h3>
+<p class="hint">muse CLI 스킬 목록. 토글로 활성화/비활성화를 변경한다. (대화형 세션에 적용, headless exec는 스킬 미로드)</p>
+<div id="skillbox">불러오는 중…</div>
+</section>
+</div>
 </div></div>
 <main>
 <header><span id="status"></span><span id="meta">연결 중…</span></header>

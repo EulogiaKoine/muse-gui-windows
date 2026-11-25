@@ -366,7 +366,53 @@ function saveTheme(patch) {
   localStorage.setItem("muse-gui-theme", JSON.stringify(Object.assign(t, patch)));
   applyTheme();
 }
-function showModal() { $("#ovl").hidden = false; loadAccount(); loadUsage(); }
+function showModal() { $("#ovl").hidden = false; loadAccount(); loadUsage(); loadSkills(); }
+async function loadSkills() {
+  const box = $("#skillbox");
+  box.textContent = "불러오는 중…";
+  try {
+    const r = await fetch("/api/skills"); const j = await r.json();
+    if (j.error) { box.textContent = j.error; return; }
+    if (!j.skills.length) { box.textContent = "스킬 없음"; return; }
+    box.innerHTML = "";
+    j.skills.forEach((s) => {
+      const row = document.createElement("div");
+      row.className = "skrow";
+      const head = document.createElement("div"); head.className = "skhead";
+      const dot = document.createElement("span");
+      dot.className = "skdot" + (s.activation === "on" ? " on" : "");
+      const nm = document.createElement("strong"); nm.textContent = s.name || s.id;
+      nm.title = s.id || "";
+      const sc = document.createElement("span"); sc.className = "skscope";
+      sc.textContent = s.scope || "?";
+      const tg = document.createElement("button");
+      tg.type = "button"; tg.className = "optbtn";
+      tg.style.cssText = "margin-left:auto;padding:4px 12px;font-size:12px";
+      tg.textContent = s.activation === "on" ? "끄기" : "켜기";
+      tg.onclick = async () => {
+        tg.disabled = true;
+        try {
+          const rr = await fetch("/api/skills/toggle", { method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: s.id, scope: s.scope,
+              enable: s.activation !== "on" }) });
+          const jj = await rr.json();
+          if (jj.ok) {
+            s.activation = jj.activation;
+            dot.classList.toggle("on", jj.activation === "on");
+            tg.textContent = jj.activation === "on" ? "끄기" : "켜기";
+          } else alert("스킬 전환 실패: " + (jj.activation || "?"));
+        } catch (_) {}
+        tg.disabled = false;
+      };
+      head.append(dot, nm, sc, tg);
+      const de = document.createElement("div"); de.className = "skdesc";
+      de.textContent = s.description || ""; de.title = s.description || "";
+      row.append(head, de);
+      box.appendChild(row);
+    });
+  } catch (e) { box.textContent = "불러오기 실패"; }
+}
 document.querySelectorAll("#mtabs button").forEach((b) => { b.onclick = () => {
   document.querySelectorAll("#mtabs button").forEach((x) => x.classList.toggle("sel", x === b));
   document.querySelectorAll('#modal section[data-pane]').forEach((s) => s.classList.toggle("on", s.dataset.pane === b.dataset.tab));

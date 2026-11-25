@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.26.6
+
+- viz-html·웹검색 SKILL.md 작성·설치 (user scope, TUI용).
+  단, headless exec는 스킬 미로드 실측 → GUI 강제력으로 칩 prefix 유지.
+- 설정에 스킬 탭: `GET /api/skills` 목록 + 토글, 설명 표시.
+- 설정 모달 확장(640px) + 탭 세로 배치.
+
 ## 2026.11.26.5
 
 - 사용량 탭에 시간-사용량 그래프 (Requests·Input·Output 카드 + SVG 바).
