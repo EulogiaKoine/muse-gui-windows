@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.11.26.5
+
+- 사용량 탭에 시간-사용량 그래프 (Requests·Input·Output 카드 + SVG 바).
+- 기간 토글 7d/30d/90d, svelte 참고안과 동일 구분.
+- 서버: 세션 로그 `model_completed` 일자 집계 (`/api/usage`에 `daily`).
+- 하네스에 `tests/usage.test.js` 추가 (7건).
+
 ## 2026.11.26.4
 
 - 사용량 탭에 dev.meta.ai 콘솔 바로가기 추가.

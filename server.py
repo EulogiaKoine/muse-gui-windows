@@ -436,7 +436,69 @@ def usage_report():
     except (OSError, subprocess.TimeoutExpired, ValueError):
         allowance = None
     return {"turns": turns, "models": models, "sessions": sessions,
-            "allowance": allowance}
+            "allowance": allowance,
+            "daily": daily_usage([sid for sid in data
+                                  if isinstance(data.get(sid), dict)])}
+
+
+def find_session_dirs(sids):
+    """원장 sid들의 로그 디렉터리를 한 번의 walk로 찾는다."""
+    root = os.path.realpath(sessions_root())
+    want, found = set(sids), {}
+    for dirpath, dirnames, _ in os.walk(root):
+        for d in list(dirnames):
+            if d in want:
+                found[d] = os.path.join(dirpath, d)
+                want.discard(d)
+        if not want:
+            break
+        dirnames[:] = [d for d in dirnames
+                       if d not in ("subagent", "tool-outputs")]
+    return found
+
+
+def daily_usage(sids):
+    """세션 로그를 일자별로 집계한다.
+
+    원장(usage.json)에 타임스탬프가 없어 로그가 source of truth다.
+    model_completed 1건 = 요청 1건, 토큰은 event.usage 실측.
+    recorded_at 단위 방어: µs(>1e14) / ms(>1e11) / 그 외 스킵.
+    """
+    from datetime import datetime
+    days = {}
+    for sid, d in find_session_dirs(sids).items():
+        try:
+            f = open(os.path.join(d, "session.jsonl"),
+                     encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        with f:
+            for line in f:
+                if '"model_completed"' not in line:
+                    continue
+                try:
+                    r = json.loads(line)
+                except ValueError:
+                    continue
+                ev = (r.get("payload") or {}).get("event") or {}
+                if ev.get("kind") != "model_completed":
+                    continue
+                ts = r.get("recorded_at", 0) or 0
+                sec = (ts / 1e6 if ts > 1e14
+                       else ts / 1e3 if ts > 1e11 else 0)
+                if not sec:
+                    continue
+                try:
+                    day = datetime.fromtimestamp(sec).date().isoformat()
+                except (OSError, OverflowError, ValueError):
+                    continue
+                e = days.setdefault(day, {"requests": 0,
+                                          "input": 0, "output": 0})
+                e["requests"] += 1
+                u = ev.get("usage") or {}
+                e["input"] += u.get("input_tokens", 0) or 0
+                e["output"] += u.get("output_tokens", 0) or 0
+    return [{"date": k, **v} for k, v in sorted(days.items())]
 
 
 def delete_session(sid):

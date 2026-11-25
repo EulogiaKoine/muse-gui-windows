@@ -5,3 +5,4 @@ cd "$(dirname "$0")/.."
 node --check static/app.js && echo "JS OK"
 python3 -m py_compile server.py && echo "py OK"
 node tests/render.test.js
+node tests/usage.test.js

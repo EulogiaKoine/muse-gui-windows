@@ -371,11 +371,55 @@ document.querySelectorAll("#mtabs button").forEach((b) => { b.onclick = () => {
   document.querySelectorAll("#mtabs button").forEach((x) => x.classList.toggle("sel", x === b));
   document.querySelectorAll('#modal section[data-pane]').forEach((s) => s.classList.toggle("on", s.dataset.pane === b.dataset.tab));
 }; });
+let usageRange = 7, usageDaily = [], usageFull = null;
+document.querySelectorAll("#urange button").forEach((b) => { b.onclick = () => {
+  usageRange = +b.dataset.r || 7;
+  document.querySelectorAll("#urange button").forEach((x) => x.classList.toggle("sel", x === b));
+  drawUsage();
+}; });
+function fmtNum(n) {
+  n = n || 0;
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + "k";
+  return String(n);
+}
+function barsSVG(vals) {
+  const W = 260, H = 64, max = Math.max.apply(null, vals.concat([1]));
+  let s = '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" style="width:100%;height:64px;display:block" aria-hidden="true">';
+  const bw = W / Math.max(vals.length, 1);
+  for (let i = 0; i < vals.length; i++) {
+    const h = Math.max(2, Math.round(vals[i] / max * (H - 14)));
+    s += '<rect x="' + (i * bw + 1).toFixed(1) + '" y="' + (H - h) +
+      '" width="' + Math.max(1, bw - 2).toFixed(1) + '" height="' + h + '" rx="2" fill="var(--me)" opacity="' +
+      (0.35 + 0.65 * vals[i] / max).toFixed(2) + '"/>';
+  }
+  return s + "</svg>";
+}
+function ucard(title, value, vals) {
+  return '<div class="ucard"><div class="uval">' + esc(value) + '</div><div class="ulab">' +
+    esc(title) + "</div>" + barsSVG(vals) + "</div>";
+}
+function drawUsage() {
+  const j = usageFull;
+  if (!j) return;
+  const box = $("#usagebox");
+  const data = (usageDaily || []).slice(-usageRange);
+  const tot = { requests: 0, input: 0, output: 0 };
+  data.forEach((d) => { tot.requests += d.requests || 0; tot.input += d.input || 0; tot.output += d.output || 0; });
+  let html = '<div class="ucards">' +
+    ucard("Requests", fmtNum(tot.requests), data.map((d) => d.requests || 0)) +
+    ucard("Input tokens", fmtNum(tot.input), data.map((d) => d.input || 0)) +
+    ucard("Output tokens", fmtNum(tot.output), data.map((d) => d.output || 0)) +
+    "</div>";
+  if (!data.length) html += '<p class="hint">일자별 기록 없음 (세션 로그에 model_completed 없음)</p>';
+  $("#ucards").innerHTML = html;
+}
 async function loadUsage() {
   const box = $("#usagebox");
   box.textContent = "불러오는 중…";
   try {
     const r = await fetch("/api/usage"); const j = await r.json();
+    usageFull = j; usageDaily = j.daily || [];
     const tot = { calls: 0, input: 0, output: 0 };
     Object.values(j.models || {}).forEach((m) => {
       tot.calls += m.calls || 0; tot.input += m.input || 0; tot.output += m.output || 0;
@@ -402,6 +446,7 @@ async function loadUsage() {
       html += "</table>";
     }
     box.innerHTML = html;
+    drawUsage();
   } catch (e) { box.textContent = "불러오기 실패"; }
 }
 function hideModal() { $("#ovl").hidden = true; }
