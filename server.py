@@ -44,6 +44,7 @@ UI_COMMANDS = [
     {"cmd": "/clear", "desc": "화면 지우기 (로컬 표시만)"},
     {"cmd": "/copy", "desc": "마지막 답변 클립보드 복사"},
     {"cmd": "/help", "desc": "사용 가능한 슬래시 명령 보기"},
+    {"cmd": "/goal", "desc": "목표 등록 및 진행 추적 (우측 사이드바)"},
 ]
 
 # GUI에서 의미를 살린 슬래시만 유지한다. 순수 TUI 전용 흐름
@@ -1586,6 +1587,11 @@ class Handler(BaseHTTPRequestHandler):
                                    bool(body.get("enable")))
             self._send(200, json.dumps({"ok": ok, "activation": msg},
                                       ensure_ascii=False))
+            return
+        if path == "/api/chat/stream":
+            self.handle_chat_stream(body.get("message") or "",
+                                    body.get("session_id") or None,
+                                    body.get("cwd") or "")
             return
         if path != "/api/chat":
             self._send(404, "not found")
