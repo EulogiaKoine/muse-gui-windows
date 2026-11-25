@@ -416,6 +416,51 @@ def running_session_ids():
             if isinstance(s, dict)}
 
 
+PRICES_FILE = os.path.join(BASE_DIR, "prices.json")
+
+DEFAULT_PRICES = {
+    "updated": "2026-11-26",
+    "source": "Meta Model API 공개가 정리 (third-party aggregator cross-check)",
+    "models": {
+        "muse-spark-1.3": {"input": 1.25, "output": 4.25},
+        "muse-spark-1.2": {"input": 1.25, "output": 4.25},
+        "muse-spark-1.3-contributor": {"input": 0.10, "output": 0.20},
+        "muse-spark-1.2-contributor": {"input": 0.10, "output": 0.20},
+        "muse-ember-1.0": {"input": 0.10, "output": 0.50},
+    },
+}
+
+
+def load_prices():
+    """단가 맵을 읽는다. 파일이 없거나 깨지면 내장 기본값을 돌려준다.
+
+    reasoning 토큰은 output 단가로 계산한다."""
+    try:
+        with open(PRICES_FILE, encoding="utf-8") as f:
+            d = json.load(f)
+        models = d.get("models")
+        if isinstance(models, dict) and models:
+            return {"updated": d.get("updated") or "?",
+                    "source": d.get("source") or "?",
+                    "models": models}
+    except (OSError, ValueError):
+        pass
+    return {"updated": DEFAULT_PRICES["updated"] + " (built-in)",
+            "source": DEFAULT_PRICES["source"],
+            "models": DEFAULT_PRICES["models"]}
+
+
+def model_rate(model, prices):
+    """모델의 (input, output) 단가를 돌려준다. 모르면 spark 표준으로."""
+    m = (prices.get("models") or {}).get(model) or {}
+    try:
+        pin = float(m.get("input", 1.25))
+        pout = float(m.get("output", 4.25))
+    except (TypeError, ValueError):
+        pin, pout = 1.25, 4.25
+    return pin, pout
+
+
 def usage_report():
     """로컬 원장 집계 + 구독 allowance. 실패해도 원장은 돌려준다."""
     try:
@@ -449,7 +494,7 @@ def usage_report():
     except (OSError, subprocess.TimeoutExpired, ValueError):
         allowance = None
     return {"turns": turns, "models": models, "sessions": sessions,
-            "allowance": allowance,
+            "allowance": allowance, "prices": load_prices(),
             "daily": daily_usage([sid for sid in data
                                   if isinstance(data.get(sid), dict)])}
 
@@ -505,13 +550,88 @@ def daily_usage(sids):
                     day = datetime.fromtimestamp(sec).date().isoformat()
                 except (OSError, OverflowError, ValueError):
                     continue
-                e = days.setdefault(day, {"requests": 0,
-                                          "input": 0, "output": 0})
+                e = days.setdefault(day, {"requests": 0, "input": 0,
+                                          "output": 0, "reasoning": 0,
+                                          "models": {}})
                 e["requests"] += 1
                 u = ev.get("usage") or {}
-                e["input"] += u.get("input_tokens", 0) or 0
-                e["output"] += u.get("output_tokens", 0) or 0
+                iu = u.get("input_tokens", 0) or 0
+                ou = u.get("output_tokens", 0) or 0
+                ru = u.get("reasoning_tokens", 0) or 0
+                e["input"] += iu
+                e["output"] += ou
+                e["reasoning"] += ru
+                name = (ev.get("model") or ev.get("model_id") or
+                        (ev.get("model_info") or {}).get("id") or "unknown")
+                m = e["models"].setdefault(
+                    name, {"requests": 0, "input": 0, "output": 0,
+                           "reasoning": 0})
+                m["requests"] += 1
+                m["input"] += iu
+                m["output"] += ou
+                m["reasoning"] += ru
     return [{"date": k, **v} for k, v in sorted(days.items())]
+
+
+PRICES_PROMPT = (
+    "Use web search to verify current Muse model API pricing first. "
+    "Return ONLY a JSON object, no prose, no fences: "
+    "{\"models\": {\"<model-id>\": {\"input\": <USD per 1M input tokens>, "
+    "\"output\": <USD per 1M output tokens>}}} "
+    "with current Muse model API pricing "
+    "(models like muse-spark-1.3, muse-spark-1.3-contributor, "
+    "muse-spark-1.2, muse-spark-1.2-contributor, muse-ember-1.0) "
+    "as of today. If unsure about a model, omit it.")
+
+
+def _parse_price_map(text):
+    t = (text or "").strip()
+    if "```" in t:
+        t = re.sub(r"^```[a-zA-Z]*\n|```$", "", t.strip(),
+                   flags=re.MULTILINE).strip()
+    d = json.loads(t)
+    models = d.get("models")
+    if not isinstance(models, dict) or not models:
+        raise ValueError("no models")
+    out = {}
+    for name, v in models.items():
+        if not isinstance(name, str) or not name or not isinstance(v, dict):
+            continue
+        try:
+            pin = float(v["input"])
+            pout = float(v["output"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if pin < 0 or pout < 0:
+            continue
+        out[name] = {"input": pin, "output": pout}
+    if not out:
+        raise ValueError("no valid entries")
+    return out
+
+
+def refresh_prices():
+    """임시 에이전트 세션으로 웹 검색해 단가 맵을 갱신한다.
+
+    성공 시 (True, 요약), 실패 시 (False, 사유)."""
+    from datetime import date as _date
+    sid, text, _workdir = run_muse_exec(PRICES_PROMPT)
+    try:
+        fresh = _parse_price_map(text)
+    except (ValueError, AttributeError) as e:
+        return False, "단가 파싱 실패 (%s). 기존 단가를 유지합니다." % e
+    cur = load_prices()
+    merged = dict(cur.get("models") or {})
+    merged.update(fresh)
+    payload = {"updated": _date.today().isoformat(),
+               "source": "agent refresh (%s)" % (sid or "adhoc"),
+               "models": merged}
+    try:
+        with open(PRICES_FILE, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=1)
+    except OSError as e:
+        return False, "저장 실패: %s" % e
+    return True, "%d개 모델 단가 갱신됨 (%s)." % (len(fresh), payload["updated"])
 
 
 SKILL_ID_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_:./-]*$")
@@ -1543,6 +1663,12 @@ class Handler(BaseHTTPRequestHandler):
             ok, msg = delete_session(body.get("session_id") or "")
             self._send(200, json.dumps({"ok": ok, "text": msg},
                                       ensure_ascii=False))
+            return
+        if path == "/api/prices/refresh":
+            ok, text = refresh_prices()
+            self._send(200, json.dumps(
+                {"ok": ok, "text" if ok else "error": text},
+                ensure_ascii=False))
             return
         if path == "/api/session/archive":
             ok, msg = archive_session(body.get("session_id") or "",
