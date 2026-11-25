@@ -140,11 +140,11 @@ function renderText(src) {
   };
   const flushTable = () => {
     if (!table) return;
-    out += "<table>";
+    out += '<div class="tblwrap"><table>';
     table.rows.forEach((r, i) => {
       out += "<tr>" + r.map((c) => (i === 0 ? "<th>" + inline(c) + "</th>" : "<td>" + inline(c) + "</td>")).join("") + "</tr>";
     });
-    out += "</table>"; table = null;
+    out += "</table></div>"; table = null;
   };
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
@@ -188,6 +188,22 @@ function renderText(src) {
   out = out.replace(/\u0000(\d+)\u0000/g, (m, n) => stash[+n] || "");
   return out;
 }
+function tblCellMD(c) { return String(c == null ? "" : c).replace(/\|/g, "\\|").replace(/\s+/g, " ").trim(); }
+function tblToMD(rows) {
+  const rs = (rows || []).map((r) => (r || []).map(tblCellMD));
+  if (!rs.length) return "";
+  const w = Math.max.apply(null, rs.map((r) => r.length).concat([1]));
+  const norm = rs.map((r) => { const c = r.slice(); while (c.length < w) c.push(""); return c; });
+  return norm.map((r, i) => "| " + r.join(" | ") + " |" +
+    (i === 0 ? "\n|" + r.map(() => " --- ").join("|") + "|" : "")).join("\n");
+}
+function tblToCSV(rows) {
+  const q = (c) => {
+    const s = String(c == null ? "" : c).replace(/\s+/g, " ").trim();
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  return ((rows || []).map((r) => (r || []).map(q).join(","))).join("\n");
+}
 function timeStr(ts) {
   if (!ts) return "";
   const d = new Date(ts);
@@ -204,8 +220,16 @@ function addMsg(who, text, think, foot, withActs) {
   }
   else html += '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + '</button><button type="button" data-edit title="수정 후 다시 전송">✎</button></div>';
   if (foot) html += '<div class="meta">' + esc(foot) + "</div>";
+  if (who === "me" && text.length >= 200) {
+    d.classList.add("folded");
+    const ai = html.indexOf('<div class="acts">');
+    const content = ai >= 0 ? html.slice(0, ai) : html;
+    const rest = ai >= 0 ? html.slice(ai) : "";
+    html = '<div class="mfold">' + content + '<div class="foldfade"></div></div>' + rest +
+      '<button type="button" class="foldbtn" data-fold title="펼치기/접기">' + ICON_CHEVD + "</button>";
+  }
   d.innerHTML = html;
-  decorateCode(d); decorateMath(d);
+  decorateCode(d); decorateMath(d); decorateTables(d);
   chat.appendChild(d); chat.scrollTop = chat.scrollHeight;
   return d;
 }
@@ -236,6 +260,35 @@ function decorateCode(el) {
     pre.prepend(b);
   });
 }
+function decorateTables(el) {
+  el.querySelectorAll(".tblwrap").forEach((w) => {
+    const tbl = w.querySelector("table");
+    if (!tbl || w.querySelector("[data-tblcopy]")) return;
+    const rows = [...tbl.rows].map((tr) =>
+      [...tr.cells].map((td) => td.textContent));
+    const b = document.createElement("button");
+    b.type = "button"; b.setAttribute("data-tblcopy", ""); b.title = "표 복사"; b.innerHTML = ICON_COPY;
+    const menu = document.createElement("div");
+    menu.className = "tblmenu"; menu.hidden = true;
+    [["md", "마크다운"], ["csv", "CSV"]].forEach(([fmt, label]) => {
+      const o = document.createElement("button");
+      o.type = "button"; o.textContent = label;
+      o.onclick = async (e) => {
+        e.stopPropagation(); menu.hidden = true;
+        flashCopy(b, fmt === "md" ? tblToMD(rows) : tblToCSV(rows));
+      };
+      menu.appendChild(o);
+    });
+    b.onclick = (e) => {
+      e.stopPropagation();
+      document.querySelectorAll(".tblmenu").forEach((m) => { if (m !== menu) m.hidden = true; });
+      menu.hidden = !menu.hidden;
+    };
+    const box = document.createElement("div");
+    box.className = "tblcopy"; box.append(b, menu);
+    w.appendChild(box);
+  });
+}
 function footFor(m) {
   const t = timeStr(m.ts);
   if (!t && !m.el) return "";
@@ -247,6 +300,24 @@ function lastAiText() {
   return nodes[nodes.length - 1].dataset.raw || "";
 }
 const ICON_COPY = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const ICON_CHEVD = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+const ICON_CHEVU = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>';
+const ICON_SIDEL = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>';
+const ICON_SIDER = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+function applySide(hidden) {
+  document.body.classList.toggle("side-hidden", !!hidden);
+  const t = $("#sidetoggle");
+  if (!t) return;
+  if (hidden) {
+    document.querySelector("main header").prepend(t);
+    t.innerHTML = ICON_SIDER; t.title = "사이드바 펼치기"; t.setAttribute("aria-label", "사이드바 펼치기");
+  } else {
+    const head = $("#sidehead");
+    if (head) head.appendChild(t);
+    t.innerHTML = ICON_SIDEL; t.title = "사이드바 접기"; t.setAttribute("aria-label", "사이드바 접기");
+  }
+}
+function setSide(hidden) { applySide(hidden); saveTheme({ side: !!hidden }); }
 async function copyText(t) {
   if (!t) return false;
   try { await navigator.clipboard.writeText(t); return true; }
@@ -264,6 +335,13 @@ async function flashCopy(btn, text) {
   setTimeout(() => { btn.innerHTML = old; }, 1200);
 }
 chat.addEventListener("click", async (e) => {
+  const fb = e.target.closest("[data-fold]");
+  if (fb) {
+    const m = fb.closest(".msg");
+    const open = m.classList.toggle("open");
+    fb.innerHTML = open ? ICON_CHEVU : ICON_CHEVD;
+    return;
+  }
   const ed = e.target.closest("[data-edit]");
   if (ed) {
     const msgEl = ed.closest(".msg");
@@ -306,22 +384,37 @@ function openConv(k) {
 }
 function drawConvs() {
   const box = $("#convs"); box.innerHTML = "";
-  convs.forEach((c) => {
+  convs.slice().sort((a, b) => ((b.pin ? 1 : 0) - (a.pin ? 1 : 0))).forEach((c) => {
+    const row = document.createElement("div");
+    row.className = "conv" + (c.pin ? " pinned" : "");
     const b = document.createElement("button");
     b.textContent = c.t + (c.msgs.length ? " (" + c.msgs.length + ")" : "");
-    b.type = "button"; b.dataset.k = c.k;
+    b.type = "button"; b.className = "ctitle"; b.dataset.k = c.k;
     b.title = (c.sid ? c.sid.slice(0, 8) + " · " : "") + c.msgs.length + "개 메시지";
     if (c.k === convKey) b.classList.add("active");
     b.onclick = () => openConv(c.k);
-    b.oncontextmenu = (e) => showCtx(e, c.k);
-    box.appendChild(b);
+    row.appendChild(b);
+    if (c.pin) {
+      const p = document.createElement("span");
+      p.className = "pinbadge"; p.textContent = "📌"; p.title = "상단 고정됨";
+      row.appendChild(p);
+    }
+    const dots = document.createElement("button");
+    dots.type = "button"; dots.className = "cdots"; dots.textContent = "⋮"; dots.title = "메뉴";
+    dots.onclick = (e) => { e.stopPropagation(); showCtx(e, c.k); };
+    row.appendChild(dots);
+    box.appendChild(row);
   });
 }
 function showCtx(e, k) {
   e.preventDefault();
+  const c = convs.find((x) => x.k === k);
   const ctx = $("#ctx");
   ctx.dataset.k = k; ctx.style.display = "block";
-  ctx.style.left = e.clientX + "px"; ctx.style.top = e.clientY + "px";
+  const pinBtn = ctx.querySelector('[data-act="pin"]');
+  if (pinBtn) pinBtn.textContent = c && c.pin ? "고정 해제" : "상단 고정";
+  ctx.style.left = Math.min(e.clientX, window.innerWidth - 160) + "px";
+  ctx.style.top = Math.min(e.clientY, window.innerHeight - 140) + "px";
 }
 function hideCtx() { $("#ctx").style.display = "none"; }
 document.addEventListener("click", hideCtx);
@@ -331,7 +424,9 @@ $("#ctx").addEventListener("click", (e) => {
   if (!act) return;
   const c = convs.find((x) => x.k === $("#ctx").dataset.k);
   if (!c) return;
-  if (act.dataset.act === "rename") {
+  if (act.dataset.act === "pin") {
+    c.pin = !c.pin; persistConvs(); drawConvs();
+  } else if (act.dataset.act === "rename") {
     const t = prompt("새 이름", c.t);
     if (t && t.trim()) { c.t = t.trim().slice(0, 60); persistConvs(); drawConvs(); }
   } else if (confirm('"' + c.t + '" 대화와 muse 세션 기록을 함께 삭제할까요?\n(실행 중인 세션은 삭제되지 않습니다)')) {
@@ -363,7 +458,9 @@ function applyTheme() {
     b.classList.toggle("sel", b.dataset.th === th));
   document.querySelectorAll("#accents .sw").forEach((b) =>
     b.classList.toggle("sel", b.dataset.ac === ac));
+  applySide(!!t.side);
 }
+$("#sidetoggle").onclick = () => setSide(!document.body.classList.contains("side-hidden"));
 function saveTheme(patch) {
   const t = loadTheme();
   localStorage.setItem("muse-gui-theme", JSON.stringify(Object.assign(t, patch)));
@@ -660,7 +757,7 @@ $("#f").addEventListener("submit", async (e) => {
       sessionId = j.session_id || sessionId;
       ph.dataset.raw = j.text || "(빈 응답)";
       ph.innerHTML = renderText(ph.dataset.raw) + '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>";
-      decorateCode(ph); decorateMath(ph);
+      decorateCode(ph); decorateMath(ph); decorateTables(ph);
     }
     if (!j.new_session) {
       const el = ((Date.now() - t0) / 1000).toFixed(1);
@@ -673,7 +770,7 @@ $("#f").addEventListener("submit", async (e) => {
   } catch (err) {
     ph.dataset.raw = "전송 실패: " + err;
     ph.innerHTML = renderText(ph.dataset.raw);
-    decorateCode(ph); decorateMath(ph);
+    decorateCode(ph); decorateMath(ph); decorateTables(ph);
     saveMsg("ai", ph.dataset.raw);
   }
 });

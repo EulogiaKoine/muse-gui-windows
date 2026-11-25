@@ -9,11 +9,12 @@
 </head>
 <body>
 <aside>
-<h1>muse-gui</h1>
+<div id="sidehead"><h1>muse-gui</h1><button id="sidetoggle" type="button" title="사이드바 접기" aria-label="사이드바 접기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button></div>
 <p id="args">연결 중…</p>
 <button id="newchat" type="button">새 대화</button>
 <div id="convs"></div>
 <div id="ctx" hidden>
+<button type="button" data-act="pin">상단 고정</button>
 <button type="button" data-act="rename">이름 변경</button>
 <button type="button" data-act="del">삭제</button>
 </div>

@@ -15,7 +15,7 @@ if (start < 0 || end < 0 || end < start) {
 const sandbox = {};
 require("vm").createContext(sandbox);
 require("vm").runInContext(
-  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc };",
+  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV };",
   sandbox);
 const R = sandbox.__R;
 let pass = 0, fail = 0;
@@ -56,5 +56,10 @@ h = R.renderText("값은 $x^2$ 이다");
 t("math keeps raw tex", h.includes('data-tex="x^2"'), h.slice(0, 300));
 h = R.renderText("$$\\frac{a}{b}$$");
 t("display math raw", h.includes("data-tex=") && h.includes("math-block"), h.slice(0, 300));
+h = R.renderText("| a | b |\n|---|---|\n| 1 | 2 |");
+t("table wrap", h.includes('class="tblwrap"><table>') && h.includes("<th>a</th>") && h.includes("<td>2</td>"), h.slice(0, 300));
+t("tbl md", R.tblToMD([["a", "b"], ["1", "2"]]) === "| a | b |\n| --- | --- |\n| 1 | 2 |", JSON.stringify(R.tblToMD([["a", "b"], ["1", "2"]])));
+t("tbl md ragged", R.tblToMD([["a"], ["1", "2", "3"]]).split("\n").length === 3, "");
+t("tbl csv quote", R.tblToCSV([["x,y", 'z"q'], ["a", "b"]]) === '"x,y","z""q"\na,b', JSON.stringify(R.tblToCSV([["x,y", 'z"q']])));
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
