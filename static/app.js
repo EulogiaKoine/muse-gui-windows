@@ -26,7 +26,8 @@ function esc(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>
 function escAttr(s) { return esc(String(s)).replace(/"/g, "&quot;"); }
 const GREEK = { alpha:"α", beta:"β", gamma:"γ", delta:"δ", epsilon:"ε", varepsilon:"ε", zeta:"ζ", eta:"η", theta:"θ", iota:"ι", kappa:"κ", lambda:"λ", mu:"μ", nu:"ν", xi:"ξ", pi:"π", rho:"ρ", sigma:"σ", tau:"τ", phi:"φ", varphi:"φ", chi:"χ", psi:"ψ", omega:"ω", times:"×", div:"÷", pm:"±", cdot:"·", leq:"≤", geq:"≥", neq:"≠", approx:"≈", equiv:"≡", infty:"∞", to:"→", rightarrow:"→", leftarrow:"←", sum:"∑", prod:"∏", int:"∫", partial:"∂", ldots:"…", ell:"ℓ", circ:"∘" };
 function renderMath(tex, display) {
-  let t = esc(tex.trim());
+  const raw = tex.trim();
+  let t = esc(raw);
   t = t.replace(/\\text\{([^{}]*)\}/g, "$1");
   t = t.replace(/\\d?frac\{([^{}]*)\}\{([^{}]*)\}/g, '<span class="frac"><span class="num">$1</span><span class="den">$2</span></span>');
   t = t.replace(/\\sqrt\{([^{}]*)\}/g, '√<span class="rad">$1</span>');
@@ -34,7 +35,8 @@ function renderMath(tex, display) {
   t = t.replace(/_(\{([^{}]*)\}|([^\s&;]))/g, (m, g, braced, ch) => "<sub>" + (braced || ch || "") + "</sub>");
   t = t.replace(/\\([a-zA-Z]+)/g, (m, w) => GREEK[w] || m);
   if (display) t = t.replace(/\\\\/g, "<br>");
-  return display ? '<span class="math math-block">' + t + "</span>" : '<span class="math">' + t + "</span>";
+  const tag = display ? "math math-block" : "math";
+  return '<span class="' + tag + '" data-tex="' + escAttr(raw) + '">' + t + "</span>";
 }
 const HL_KW = {
   py: "False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield",
@@ -200,9 +202,22 @@ function addMsg(who, text, think, foot) {
   else html += '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + '</button><button type="button" data-edit title="수정 후 다시 전송">✎</button></div>';
   if (foot) html += '<div class="meta">' + esc(foot) + "</div>";
   d.innerHTML = html;
-  decorateCode(d);
+  decorateCode(d); decorateMath(d);
   chat.appendChild(d); chat.scrollTop = chat.scrollHeight;
   return d;
+}
+function decorateMath(el) {
+  el.querySelectorAll(".math[data-tex]").forEach((m) => {
+    if (m.querySelector("[data-mathcopy]")) return;
+    const b = document.createElement("button");
+    b.type = "button"; b.setAttribute("data-mathcopy", "");
+    b.title = "수식 복사"; b.innerHTML = ICON_COPY;
+    b.onclick = async (e) => {
+      e.stopPropagation();
+      flashCopy(b, m.dataset.tex || "");
+    };
+    m.appendChild(b);
+  });
 }
 function decorateCode(el) {
   el.querySelectorAll("pre").forEach((pre) => {
@@ -499,7 +514,7 @@ $("#f").addEventListener("submit", async (e) => {
       sessionId = j.session_id || sessionId;
       ph.dataset.raw = j.text || "(빈 응답)";
       ph.innerHTML = renderText(ph.dataset.raw) + '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>";
-      decorateCode(ph);
+      decorateCode(ph); decorateMath(ph);
     }
     if (!j.new_session) {
       const el = ((Date.now() - t0) / 1000).toFixed(1);
@@ -512,7 +527,7 @@ $("#f").addEventListener("submit", async (e) => {
   } catch (err) {
     ph.dataset.raw = "전송 실패: " + err;
     ph.innerHTML = renderText(ph.dataset.raw);
-    decorateCode(ph);
+    decorateCode(ph); decorateMath(ph);
     saveMsg("ai", ph.dataset.raw);
   }
 });
@@ -545,12 +560,16 @@ $("#tokcopy").onclick = async (e) => {
 };
 input.addEventListener("input", () => {
   input.style.height = "auto";
-  input.style.height = Math.min(input.scrollHeight, Math.floor(window.innerHeight * 0.3)) + "px";
+  input.style.height = Math.min(input.scrollHeight, 132) + "px"; // 기본 44px의 3배까지
 });
 function setMode() {
   const lobby = !chat.children.length;
   document.querySelector("main").classList.toggle("lobby", lobby);
 }
+const FEAT_ICONS = {
+  viz: '<span class="ficon"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>',
+  web: '<span class="ficon"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>'
+};
 const FEATS = {
   viz: { chip: "시각화", prefix: "[시각화 요청] 답변에 인터랙티브 시각화가 필요하면 설명과 함께 아래 형식 코드블록을 포함하라.\n```viz-html\n(외부 CDN 없이 동작하는 단일 HTML 문서. <script> 사용 가능. sandbox라서 same-origin 접근·팝업·다운로드 불가)\n```\n높이는 ```viz-html:높이 로 지정(기본 360). 시각화가 필요 없으면 생략해도 된다." },
   web: { chip: "웹 검색", prefix: "[웹 검색 필수] 아래 요청에 답하기 전에 반드시 웹 검색을 수행하고 검색 결과와 함께 답하라. 검색 없이 알던 내용으로 답하지 마라. 사용한 검색어와 핵심 근거를 밝혀라." }
@@ -564,7 +583,7 @@ function addFeat(id) {
   if (!FEATS[id] || document.querySelector('#feats [data-f="' + id + '"]')) return;
   const s = document.createElement("span");
   s.className = "fchip"; s.dataset.f = id;
-  s.textContent = FEATS[id].chip + " ";
+  s.innerHTML = (FEAT_ICONS[id] || "") + "<span>" + esc(FEATS[id].chip) + "</span> ";
   const x = document.createElement("button");
   x.type = "button"; x.textContent = "×"; x.title = "제거";
   x.onclick = (e) => { e.stopPropagation(); s.remove(); input.focus(); };
@@ -580,7 +599,13 @@ function renderPlusMenu() {
   DOCK_FEATURES.forEach((f) => {
     const b = document.createElement("button");
     b.type = "button"; b.disabled = !f.ready;
-    b.innerHTML = esc(f.label) + "<small>" + esc(f.ready ? f.desc : f.desc + " (추후 추가)") + "</small>";
+    const wrap = document.createElement("span");
+    const lab = document.createElement("span"); lab.textContent = f.label;
+    const sm = document.createElement("small");
+    sm.textContent = f.ready ? f.desc : f.desc + " (추후 추가)";
+    wrap.appendChild(lab); wrap.appendChild(sm);
+    b.innerHTML = FEAT_ICONS[f.feat] || "";
+    b.appendChild(wrap);
     if (f.ready) b.onclick = (e) => { e.stopPropagation(); addFeat(f.feat); input.focus(); menu.hidden = true; };
     menu.appendChild(b);
   });
