@@ -1171,6 +1171,14 @@ def run_muse_exec(prompt, session_id=None, cwd=None):
     작업 공간을 유지하므로 --workspace를 붙이지 않는다.
     (sid, text, workdir)를 돌려준다."""
     workdir = valid_cwd(cwd) or os.getcwd()
+    # 에이전트 내부 파일 저장소: <작업 디렉터리>/.agent (없으면 생성)
+    for _d in (os.path.join(workdir, ".agent"),
+               os.path.join(workdir, ".agent", "tmp"),
+               os.path.join(workdir, ".agent", "memory")):
+        try:
+            os.makedirs(_d, exist_ok=True)
+        except OSError:
+            pass
     cmd = ["muse", "exec", "--json"] + MUSE_ARGS
     # --model/--reasoning-effort는 meta·local에서만 유효하므로
     # echo 등 다른 프로바이더에서는 붙이지 않는다.
