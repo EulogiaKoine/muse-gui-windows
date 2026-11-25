@@ -88,7 +88,7 @@
 <div id="chat" aria-live="polite"></div>
 <form id="f">
 <div id="slash" role="listbox"></div>
-<div id="inwrap"><textarea id="in" placeholder="메시지 입력 (Ctrl+Enter 전송, Enter 줄바꿈, / 자동완성)" autocomplete="off"></textarea><div id="feats"></div></div>
+<div id="inwrap"><div id="inbox"><textarea id="in" placeholder="메시지 입력 (Enter 줄바꿈, / 자동완성)" autocomplete="off"></textarea><span id="sendhint" title="Ctrl+Enter로 전송">Ctrl + Enter</span></div><div id="feats"></div></div>
 <button type="submit" title="전송 (Ctrl+Enter)" aria-label="전송"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
 <div id="inputgate" hidden><div id="gatebox"><div id="gateenv"></div><p id="gatemsg"></p><button id="gatebtn" type="button" class="optbtn"></button></div></div>
 </form>

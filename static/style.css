@@ -209,6 +209,10 @@ form button[type="submit"]:active { transform: scale(.96); }
 .guide ol { margin: 8px 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
 #inwrap textarea { flex: none; width: 100%; }
 #inwrap { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+#inbox { position: relative; display: flex; }
+#inbox textarea { flex: 1; }
+#sendhint { position: absolute; right: 12px; bottom: 8px; font-size: 11px; color: var(--muted); opacity: .55; pointer-events: none; }
+#inbox:focus-within #sendhint { opacity: .8; }
 #feats { display: flex; gap: 6px; flex-wrap: wrap; }
 #feats:empty { display: none; }
 .fchip { display: inline-flex; align-items: center; gap: 6px; background: var(--hover); border: 1px solid var(--me); color: var(--text); border-radius: 999px; padding: 3px 6px 3px 12px; font-size: 12px; }
