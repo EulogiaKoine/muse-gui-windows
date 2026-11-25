@@ -391,10 +391,20 @@ function inputGated() {
   if (c.sid && resumedKey !== c.k) return { msg: "세션 " + c.sid.slice(0, 8) + " · " + c.cwd + " — 이 디렉터리에서 내부 프로세스로 이어가려면 버튼을 누르세요.", btn: "이 세션 이어가기(내부 프로세스 재개)", act: "resume" };
   return null;
 }
+let serverPlatform = "";
 function updateGate() {
   const g = inputGated();
   $("#inputgate").hidden = !g;
-  if (g) { $("#gatemsg").textContent = g.msg; $("#gatebtn").textContent = g.btn; $("#gatebtn").dataset.act = g.act; }
+  if (!g) return;
+  $("#inputgate").classList.toggle("soft", g.act !== "resume");
+  $("#gatemsg").textContent = g.msg; $("#gatebtn").textContent = g.btn; $("#gatebtn").dataset.act = g.act;
+  $("#gateenv").innerHTML = (g.act === "resume" || !serverPlatform) ? "" :
+    '<span class="oschip">' + esc(serverPlatform) + "</span><span>" + esc(serverCwd || "") + "</span>";
+}
+function updateOsChip() {
+  const c = $("#oschip");
+  if (serverPlatform) { c.hidden = false; c.textContent = serverPlatform; }
+  else c.hidden = true;
 }
 function openConv(k) {
   const c = convs.find((x) => x.k === k);
@@ -408,22 +418,26 @@ function openConv(k) {
   drawConvs(); updateGate();
 }
 let fsCb = null, fsCur = "", fsParent = null, fsEntries = [];
-function openFsPicker(cb) {
+async function openFsPicker(cb) {
   fsCb = cb; $("#fsfilter").value = ""; $("#fsovl").hidden = false;
-  fsRoots(); fsLoad(serverCwd || "/");
-}
-function hideFsPicker() { $("#fsovl").hidden = true; fsCb = null; }
-async function fsRoots() {
+  let start = serverCwd || "/";
   try {
     const r = await fetch("/api/fs/roots"); const j = await r.json();
-    const box = $("#fsroots"); box.innerHTML = "";
-    (j.roots || []).forEach((rt) => {
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "optbtn"; b.textContent = rt.label;
-      b.title = rt.path; b.onclick = () => fsLoad(rt.path);
-      box.appendChild(b);
-    });
+    renderRoots(j.roots || []);
+    const c = (j.roots || []).find((x) => x.path === "/mnt/c");
+    if (c) start = c.path;
   } catch (e) {}
+  fsLoad(start);
+}
+function hideFsPicker() { $("#fsovl").hidden = true; fsCb = null; }
+function renderRoots(roots) {
+  const box = $("#fsroots"); box.innerHTML = "";
+  roots.forEach((rt) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "optbtn"; b.textContent = rt.label;
+    b.title = rt.path; b.onclick = () => fsLoad(rt.path);
+    box.appendChild(b);
+  });
 }
 async function fsLoad(p) {
   const box = $("#fslist"); box.innerHTML = '<div class="fempty">불러오는 중…</div>';
@@ -535,15 +549,35 @@ function loadTheme() {
   try { return JSON.parse(localStorage.getItem("muse-gui-theme") || "{}"); }
   catch (e) { return {}; }
 }
+const PALETTES = [
+  { id: "blue", label: "기본 블루", desc: "muse-gui 기본", dot: "#2f6fed" },
+  { id: "green", label: "그린", desc: "그린 악센트", dot: "#178a4c" },
+  { id: "amber", label: "앰버", desc: "앰버 악센트", dot: "#b45309" },
+  { id: "github", label: "GitHub", desc: "Primer 참조 · 라이트/다크 전체 적용", dot: "#0969da" },
+  { id: "obsidian", label: "Obsidian", desc: "기본 테마 참조 · 바이올렛 악센트", dot: "#7c3aed" },
+];
+function renderPalettes(cur) {
+  const box = $("#accents"); if (!box) return;
+  box.innerHTML = "";
+  PALETTES.forEach((p) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "pal" + (p.id === cur ? " sel" : "");
+    b.innerHTML = '<span class="paldot" style="background:' + p.dot + '"></span>' +
+      '<span class="paltext"><span class="palname">' + esc(p.label) + "</span>" +
+      '<small>' + esc(p.desc) + "</small></span>";
+    b.onclick = () => saveTheme({ accent: p.id });
+    box.appendChild(b);
+  });
+}
 function applyTheme() {
   const t = loadTheme();
-  const th = t.theme || "light", ac = t.accent || "blue";
+  const th = t.theme || "light";
+  const ac = PALETTES.some((p) => p.id === t.accent) ? t.accent : "blue";
   document.documentElement.dataset.theme = th;
   document.documentElement.dataset.accent = ac;
   document.querySelectorAll("#themes .optbtn").forEach((b) =>
     b.classList.toggle("sel", b.dataset.th === th));
-  document.querySelectorAll("#accents .sw").forEach((b) =>
-    b.classList.toggle("sel", b.dataset.ac === ac));
+  renderPalettes(ac);
   applySide(!!t.side);
 }
 $("#sidetoggle").onclick = () => setSide(!document.body.classList.contains("side-hidden"));
@@ -713,20 +747,28 @@ async function loadUsage() {
     html += "<p>구독: " + esc(al.allowance ? JSON.stringify(al.allowance) : (al.reason || al.hint || "조회 실패")) + "</p>";
     const names = Object.keys(j.models || {});
     if (names.length) {
-      html += '<table class="usg"><tr><th>모델</th><th>호출</th><th>in</th><th>out</th></tr>';
+      const maxv = Math.max.apply(null, names.map((n) =>
+        (j.models[n].input || 0) + (j.models[n].output || 0)).concat([1]));
+      html += '<div class="usgrows">';
       names.forEach((n) => {
         const m = j.models[n];
-        html += "<tr><td>" + esc(n) + "</td><td>" + m.calls + "</td><td>" + m.input + "</td><td>" + m.output + "</td></tr>";
+        const totv = (m.input || 0) + (m.output || 0);
+        const w = Math.max(2, Math.round(totv / maxv * 100));
+        html += '<div class="usgrow"><div class="usgbase"><span class="usgname">' +
+          esc(n) + '</span><span class="usgnum">' + m.calls + "회 · in " +
+          m.input + " / out " + m.output + "</span></div>" +
+          '<div class="usgbar"><i style="width:' + w + '%"></i></div></div>';
       });
-      html += "</table>";
+      html += "</div>";
     }
     const ss = (j.sessions || []).slice(0, 20);
     if (ss.length) {
-      html += '<table class="usg"><tr><th>세션</th><th>턴</th></tr>';
+      html += '<div class="sidchips">';
       ss.forEach((s) => {
-        html += "<tr><td>" + esc(String(s.sid).slice(0, 8)) + "</td><td>" + s.turns + "</td></tr>";
+        html += '<span class="sidchip" title="' + esc(String(s.sid)) + '">' +
+          esc(String(s.sid).slice(0, 8)) + " · " + s.turns + "턴</span>";
       });
-      html += "</table>";
+      html += "</div>";
     }
     box.innerHTML = html;
     drawUsage();
@@ -736,10 +778,14 @@ function hideModal() { $("#ovl").hidden = true; }
 async function loadAccount() {
   try {
     const r = await fetch("/api/account"); const j = await r.json();
-    if (!j.ok) { $("#acct").textContent = "로그인 정보 없음"; $("#tok").textContent = "없음"; return; }
-    $("#acct").innerHTML = esc(j.name) + "<br>" + esc(j.email) + "<br>" +
-      esc(j.provider) + " · " + esc(j.mechanism) +
-      " · 구독 " + (j.subs_active ? "활성" : "없음");
+    if (!j.ok) { $("#acct").innerHTML = '<p class="hint">로그인 정보 없음</p>'; $("#tok").textContent = "없음"; return; }
+    const dot = j.subs_active ? '<span class="skdot on"></span>' : '<span class="skdot"></span>';
+    $("#acct").innerHTML = '<div class="ucards acct4">' +
+      '<div class="ucard"><div class="uval small">' + esc(j.name) + '</div><div class="ulab">이름</div></div>' +
+      '<div class="ucard"><div class="uval small">' + esc(j.email) + '</div><div class="ulab">이메일</div></div>' +
+      '<div class="ucard"><div class="uval small">' + esc(j.provider) + " · " + esc(j.mechanism) + '</div><div class="ulab">제공자</div></div>' +
+      '<div class="ucard"><div class="uval">' + dot + " " + (j.subs_active ? "활성" : "없음") + '</div><div class="ulab">구독</div></div>' +
+      "</div>";
     $("#tok").textContent = j.token_masked;
   } catch (e) { $("#acct").textContent = "불러오기 실패"; }
 }
@@ -764,6 +810,7 @@ async function refreshInfo() {
   try {
     const r = await fetch("/api/info"); const j = await r.json();
     serverCwd = j.cwd || "";
+    serverPlatform = j.platform || ""; updateOsChip();
     $("#meta").textContent = j.version + " · " + (j.muse_args.join(" ") || "서버 경로") + " · " + j.cwd;
     if (!convKey) $("#cwd").textContent = serverCwd;
     $("#args").textContent = "muse args: " + (j.muse_args.join(" ") || "(없음)");
@@ -913,6 +960,7 @@ $("#fswin").onclick = async () => {
   finally { b.disabled = false; b.textContent = old; }
 };
 $("#fsgo").onclick = () => { const p = $("#fspath").value.trim(); if (p) fsLoad(p); };
+$("#fspath").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#fsgo").click(); } });
 $("#fsfilter").addEventListener("input", renderFsList);
 $("#fsup").onclick = () => { if (fsParent) fsLoad(fsParent); };
 $("#fsovl").addEventListener("click", (e) => { if (e.target === $("#fsovl")) hideFsPicker(); });
@@ -932,7 +980,6 @@ $("#gear").onclick = showModal;
 $("#mclose").onclick = hideModal;
 $("#ovl").addEventListener("click", (e) => { if (e.target === $("#ovl")) hideModal(); });
 document.querySelectorAll("#themes .optbtn").forEach((b) => { b.onclick = () => saveTheme({ theme: b.dataset.th }); });
-document.querySelectorAll("#accents .sw").forEach((b) => { b.onclick = () => saveTheme({ accent: b.dataset.ac }); });
 $("#tokcopy").onclick = async (e) => {
   const b = e.currentTarget;
   try {

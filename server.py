@@ -872,7 +872,8 @@ def fs_roots():
     roots, seen = [], set()
     home = os.path.expanduser("~")
     if os.path.isdir(home):
-        roots.append({"path": home, "label": "홈"})
+        roots.append({"path": home,
+                      "label": "wsl root" if _is_wsl() else "홈"})
         seen.add(os.path.realpath(home))
     if os.path.isdir("/mnt"):
         try:
@@ -924,6 +925,102 @@ def fs_list(path):
 
 FS_PICK_TIMEOUT = 180
 
+PICK_NATIVE_CS = """
+using System;
+using System.Runtime.InteropServices;
+
+public enum SIGDN : uint
+{
+    FILESYSPATH = 0x80058000
+}
+
+[ComImport]
+[Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IShellItem
+{
+    void BindToHandler(IntPtr pbc, ref Guid bhid, ref Guid riid, out IntPtr ppv);
+    void GetParent(out IShellItem ppsi);
+    void GetDisplayName(SIGDN sigdnName, [MarshalAs(UnmanagedType.LPWStr)] out string ppszName);
+    void GetAttributes(uint sfgaoMask, out uint psfgaoAttribs);
+    int Compare(IShellItem psi, uint hint, out int piOrder);
+}
+
+[ComImport]
+[Guid("DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7")]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IFileOpenDialog
+{
+    [PreserveSig] int Show(IntPtr hwndOwner);
+    void SetFileTypes(uint cFileTypes, IntPtr rgFilterSpec);
+    void SetFileTypeIndex(uint iFileType);
+    void GetFileTypeIndex(out uint piFileType);
+    void Advise(IntPtr pfne, out uint pdwCookie);
+    void Unadvise(uint dwCookie);
+    void SetOptions(uint fos);
+    void GetOptions(out uint pfos);
+    void SetDefaultFolder(IShellItem psi);
+    void SetFolder(IShellItem psi);
+    void GetFolder(out IShellItem ppsi);
+    void GetCurrentSelection(out IShellItem ppsi);
+    void SetFileName([MarshalAs(UnmanagedType.LPWStr)] string pszName);
+    void GetFileName([MarshalAs(UnmanagedType.LPWStr)] out string pszName);
+    void SetTitle([MarshalAs(UnmanagedType.LPWStr)] string pszTitle);
+    void SetOkButtonLabel([MarshalAs(UnmanagedType.LPWStr)] string pszText);
+    void SetFileNameLabel([MarshalAs(UnmanagedType.LPWStr)] string pszLabel);
+    void AddPlace(IShellItem psi, int fdap);
+    void SetDefaultExtension([MarshalAs(UnmanagedType.LPWStr)] string pszDefaultExtension);
+    void Close(int hr);
+    void SetClientGuid(ref Guid guid);
+    void ClearClientData();
+    void SetFilter(IntPtr pFilter);
+    IShellItem GetResult();
+    void GetResults(out IntPtr ppenum);
+    void GetSelectedItems(out IntPtr ppsai);
+}
+
+public static class ModernPicker
+{
+    [DllImport("ole32.dll")]
+    private static extern int CoCreateInstance(ref Guid rclsid, IntPtr pUnkOuter, uint dwClsContext, ref Guid riid, [MarshalAs(UnmanagedType.IUnknown)] out object ppv);
+
+    public static string PickFolder(string title)
+    {
+        Guid clsid = new Guid("DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7");
+        Guid iid = new Guid("DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7");
+        object unk;
+        int hr = CoCreateInstance(ref clsid, IntPtr.Zero, 1, ref iid, out unk);
+        if (hr != 0 || unk == null) throw new COMException("CoCreateInstance failed", hr);
+        IFileOpenDialog dlg = (IFileOpenDialog)unk;
+        uint opts;
+        dlg.GetOptions(out opts);
+        dlg.SetOptions(opts | 0x20u | 0x40u | 0x800u);
+        dlg.SetTitle(title);
+        if (dlg.Show(IntPtr.Zero) != 0) return null;
+        IShellItem item = dlg.GetResult();
+        string path;
+        item.GetDisplayName(SIGDN.FILESYSPATH, out path);
+        return path;
+    }
+}
+"""
+
+PICK_NATIVE_PS = (
+    "$cs = @\"\n" + PICK_NATIVE_CS + "\n\"@\n"
+    + "[Console]::OutputEncoding = [Text.UTF8Encoding]::UTF8;\n"
+    + "try {\n"
+    + "  Add-Type -TypeDefinition $cs -ErrorAction Stop | Out-Null\n"
+    + "  $r = [ModernPicker]::PickFolder('muse-gui 작업 디렉터리 선택')\n"
+    + "  if ($r) { $r } else { exit 2 }\n"
+    + "} catch {\n"
+    + "  Add-Type -AssemblyName System.Windows.Forms\n"
+    + "  $d = New-Object System.Windows.Forms.FolderBrowserDialog\n"
+    + "  $d.Description = 'muse-gui 작업 디렉터리 선택'\n"
+    + "  $d.ShowNewFolderButton = $true\n"
+    + "  if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK)\n"
+    + "  { $d.SelectedPath } else { exit 2 }\n"
+    + "}\n")
+
 
 def pick_native_folder():
     """Windows 기본 폴더 선택 대화상자를 띄우고 고른 경로를 돌려준다.
@@ -932,18 +1029,11 @@ def pick_native_folder():
     취소·실패 시 (False, 사유)."""
     if not shutil.which("powershell.exe"):
         return False, "powershell.exe를 찾지 못했습니다."
-    script = (
-        "[Console]::OutputEncoding = [Text.UTF8Encoding]::UTF8; "
-        "Add-Type -AssemblyName System.Windows.Forms; "
-        "$d = New-Object System.Windows.Forms.FolderBrowserDialog; "
-        "$d.Description = 'muse-gui 작업 디렉터리 선택'; "
-        "$d.ShowNewFolderButton = $true; "
-        "if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) "
-        "{ $d.SelectedPath } else { exit 2 }")
     try:
         proc = subprocess.Popen(
-            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
-             "-Command", script],
+            ["powershell.exe", "-NoProfile", "-STA",
+             "-ExecutionPolicy", "Bypass",
+             "-Command", PICK_NATIVE_PS],
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL, text=True)
     except OSError as e:
@@ -974,13 +1064,27 @@ def pick_native_folder():
     return True, {"path": wp, "winpath": win}
 
 
-def open_folder(path):
-    """OS 파일 관리자로 폴더 열기. 성공 시 (True, ''), 실패 시 (False, 사유)."""
+def _is_wsl():
     try:
         with open("/proc/version") as f:
-            is_wsl = "microsoft" in f.read().lower()
+            return "microsoft" in f.read().lower()
     except OSError:
-        is_wsl = False
+        return False
+
+
+def platform_label():
+    if _is_wsl():
+        return "wsl(linux)"
+    if sys.platform == "darwin":
+        return "macOS"
+    if sys.platform.startswith("win"):
+        return "windows"
+    return sys.platform
+
+
+def open_folder(path):
+    """OS 파일 관리자로 폴더 열기. 성공 시 (True, ''), 실패 시 (False, 사유)."""
+    is_wsl = _is_wsl()
     if is_wsl:
         try:
             wp = subprocess.run(["wslpath", "-w", path], capture_output=True,
@@ -1120,6 +1224,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps({
                 "version": ver, "gui": GUI_VERSION, "port": PORT,
                 "muse_args": MUSE_ARGS, "cwd": os.getcwd(),
+                "platform": platform_label(),
                 "model": STATE.get("model"), "effort": STATE.get("effort"),
             }, ensure_ascii=False))
         elif path == "/api/slash":
