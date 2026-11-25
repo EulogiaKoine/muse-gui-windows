@@ -242,7 +242,7 @@ function routeId(path) {
   return m ? m[1] : null;
 }
 function goalFence(text, name) {
-  const m = String(text).match(new RegExp("```" + name + "\\s*([\\s\\S]*?)```"));
+  const m = String(text).match(new RegExp("```goal[\\W_]*" + name + "[^\\n`{\\[]*\\n?([\\s\\S]*?)```", "i"));
   if (!m) return { clean: String(text), data: null };
   let data = null;
   try { data = JSON.parse(m[1]); } catch (e) { data = null; }
@@ -471,12 +471,12 @@ function saveMsg(who, text, meta) {
   if (sessionId) c.sid = sessionId;
   persistConvs();
 }
-let resumedKey = null; // 이번 화면 표시 중 이어가기를 허용한 대화
+let needsResume = false; // 저장된 세션으로 재진입했는지 (이어가기 동의 필요 여부)
 function inputGated() {
   const c = curConv();
   if (!c) return { msg: "새 대화를 시작하려면 작업 디렉터리를 먼저 선택하세요.", btn: "작업 디렉터리 선택", act: "pick-new" };
   if (!c.cwd) return { msg: "이 대화의 작업 디렉터리를 선택해야 입력할 수 있습니다.", btn: "작업 디렉터리 선택", act: "pick" };
-  if (c.sid && resumedKey !== c.k) return { msg: "세션 " + c.sid.slice(0, 8) + " · " + c.cwd + " — 이 디렉터리에서 내부 프로세스로 이어가려면 버튼을 누르세요.", btn: "이 세션 이어가기(내부 프로세스 재개)", act: "resume" };
+  if (c.sid && needsResume) return { msg: "세션 " + c.sid.slice(0, 8) + " · " + c.cwd + " — 이 디렉터리에서 내부 프로세스로 이어가려면 버튼을 누르세요.", btn: "이 세션 이어가기(내부 프로세스 재개)", act: "resume" };
   return null;
 }
 let serverPlatform = "";
@@ -497,7 +497,7 @@ function updateOsChip() {
 function openConv(k) {
   const c = convs.find((x) => x.k === k);
   if (!c) return;
-  convKey = c.k; sessionId = c.sid || null; resumedKey = null;
+  convKey = c.k; sessionId = c.sid || null; needsResume = !!c.sid;
   $("#cwd").textContent = c.cwd || serverCwd || "";
   chat.innerHTML = "";
   c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m)));
@@ -741,7 +741,7 @@ $("#ctx").addEventListener("click", (e) => {
   } else if (confirm('"' + c.t + '" 대화와 muse 세션 기록을 함께 삭제할까요?\n(실행 중인 세션은 삭제되지 않습니다)')) {
     const sid = c.sid || null;
     convs = convs.filter((x) => x.k !== c.k);
-    if (convKey === c.k) { convKey = null; sessionId = null; resumedKey = null; chat.innerHTML = ""; }
+    if (convKey === c.k) { convKey = null; sessionId = null; chat.innerHTML = ""; }
     persistConvs(); drawConvs(); updateGate(); drawRside();
     if (sid) {
       fetch("/api/session/delete", { method: "POST",
@@ -1133,17 +1133,20 @@ $("#f").addEventListener("submit", async (e) => {
       const prev = [...chat.querySelectorAll(".msg.ai")].filter((n) => n !== ph).pop();
       ph.dataset.raw = await copyText(prev ? prev.dataset.raw || "" : "");
       ph.innerHTML = esc(ph.dataset.raw);
-    } else if (j.new_session) { sessionId = null; convKey = null; resumedKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); }
+    } else if (j.new_session) { sessionId = null; convKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); }
     else {
       sessionId = j.session_id || sessionId;
       if (goalMode) {
-        const gf = goalFence(j.text || "", goalMode === "plan" ? "goal-plan" : "goal-status");
+        const gf = goalFence(j.text || "", goalMode);
         const gcc = curConv();
         if (gcc && gcc.goal) {
           const was = gcc.goal.items.filter((x) => x.done).length;
           if (goalMode === "plan" && gf.data) gcc.goal.items = normGoalItems(gf.data);
-          if (goalMode === "status" && gf.data && Array.isArray(gf.data.done))
-            gf.data.done.forEach((i) => { if (gcc.goal.items[i]) gcc.goal.items[i].done = true; });
+          if (goalMode === "status" && gf.data) {
+            if (gf.data.done === "all") gcc.goal.items.forEach((x) => { x.done = true; });
+            else if (Array.isArray(gf.data.done))
+              gf.data.done.forEach((i) => { if (gcc.goal.items[i]) gcc.goal.items[i].done = true; });
+          }
           const t = gcc.goal.items.length;
           const d = gcc.goal.items.filter((x) => x.done).length;
           const wasDone = t > 0 && was >= t;
@@ -1182,7 +1185,7 @@ $("#f").addEventListener("submit", async (e) => {
     saveMsg("ai", ph.dataset.raw);
   }
 });
-$("#newchat").onclick = () => { sessionId = null; convKey = null; resumedKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); input.focus(); };
+$("#newchat").onclick = () => { sessionId = null; convKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); input.focus(); };
 $("#cwdopen").onclick = async () => {
   const p = (($("#cwd") && $("#cwd").textContent) || "").trim() || serverCwd || "";
   if (!p) return;
@@ -1196,10 +1199,10 @@ $("#cwdopen").onclick = async () => {
 };
 $("#gatebtn").onclick = () => {
   const act = $("#gatebtn").dataset.act;
-  if (act === "resume") { resumedKey = convKey; updateGate(); input.focus(); }
+  if (act === "resume") { needsResume = false; updateGate(); input.focus(); }
   else openFsPicker((p) => {
     if (act === "pick-new") {
-      convKey = "c" + Date.now(); sessionId = null; resumedKey = null;
+      convKey = "c" + Date.now(); sessionId = null;
       convs.unshift({ k: convKey, t: "새 대화", sid: null, cwd: p, msgs: [] });
       persistConvs(); drawConvs(); openConv(convKey); input.focus();
     } else {
