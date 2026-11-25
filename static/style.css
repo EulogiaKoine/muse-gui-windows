@@ -32,7 +32,7 @@ aside button:hover { border-color: var(--me); }
 #sidetoggle:hover { border-color: var(--me); color: var(--me); }
 main header #sidetoggle { margin-right: 2px; }
 body.side-hidden aside { display: none; }
-#convs { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+#convs { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding-top: 8px; }
 #convs button { text-align: left; border-color: transparent; background: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #convs button:hover { background: var(--hover); border-color: transparent; }
 #convs button.active { border-color: var(--me); background: var(--hover); }
@@ -40,12 +40,14 @@ body.side-hidden aside { display: none; }
 #convs .ctitle { flex: 1; min-width: 0; }
 #convs .cdots { flex: none; border: 0; color: var(--muted); border-radius: 6px; padding: 6px 9px; font-size: 14px; line-height: 1; opacity: .55; }
 #convs .cdots:hover { opacity: 1; color: var(--text); }
-.pinbadge { position: absolute; top: -7px; right: 24px; font-size: 11px; pointer-events: none; }
+.pinbadge { position: absolute; top: -7px; right: 24px; font-size: 11px; pointer-events: none; z-index: 5; }
 #sidefoot { margin-top: auto; display: flex; justify-content: flex-start; }
 #gear { border: 1px solid var(--bd); border-radius: 8px; background: var(--bg); padding: 6px 8px; cursor: pointer; line-height: 0; }
 #gear:hover { border-color: var(--me); }
 main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 header { border-bottom: 1px solid var(--bd); padding: 8px 14px; font-size: 13px; display: flex; gap: 8px; align-items: center; }
+#cwd { margin-left: auto; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#newchat { display: inline-flex; align-items: center; gap: 6px; }
 #status { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
 #status.ok { background: var(--ok); } #status.err { background: var(--err); }
 #chat { flex: 1; overflow-y: auto; padding: 18px 18px 8px; display: flex; flex-direction: column; gap: 12px; }

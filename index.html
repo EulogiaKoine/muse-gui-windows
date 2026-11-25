@@ -11,7 +11,7 @@
 <aside>
 <div id="sidehead"><h1>muse-gui</h1><button id="sidetoggle" type="button" title="사이드바 접기" aria-label="사이드바 접기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button></div>
 <p id="args">연결 중…</p>
-<button id="newchat" type="button">새 대화</button>
+<button id="newchat" type="button"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>New Chat</span></button>
 <div id="convs"></div>
 <div id="ctx" hidden>
 <button type="button" data-act="pin">상단 고정</button>
@@ -68,7 +68,7 @@
 </div>
 </div></div>
 <main>
-<header><span id="status"></span><span id="meta">연결 중…</span></header>
+<header><span id="status"></span><span id="meta">연결 중…</span><span id="cwd" title="작업 디렉터리"></span></header>
 <div id="lobby"><h1>muse-gui</h1><p>WSL의 muse 에이전트와 대화하세요</p><div class="chips" id="chips"></div></div>
 <div id="chat" aria-live="polite"></div>
 <form id="f">

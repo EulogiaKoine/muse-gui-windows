@@ -204,6 +204,10 @@ function tblToCSV(rows) {
   };
   return ((rows || []).map((r) => (r || []).map(q).join(","))).join("\n");
 }
+function routeId(path) {
+  const m = String(path || "").match(/^\/([A-Za-z0-9][A-Za-z0-9-]*)\/?$/);
+  return m ? m[1] : null;
+}
 function timeStr(ts) {
   if (!ts) return "";
   const d = new Date(ts);
@@ -359,11 +363,15 @@ chat.addEventListener("click", async (e) => {
   flashCopy(b, b.closest(".msg").dataset.raw || "");
 });
 function curConv() { return convs.find((c) => c.k === convKey) || null; }
+let serverCwd = "";
+function setRoute(p) {
+  try { history.replaceState(null, "", p); } catch (e) {}
+}
 function saveConv(title) {
   convKey = convKey || ("c" + Date.now());
   const ex = curConv();
   if (ex) { if (title) ex.t = title; }
-  else convs.unshift({ k: convKey, t: title || "새 대화", sid: null, msgs: [] });
+  else convs.unshift({ k: convKey, t: title || "새 대화", sid: null, cwd: serverCwd, msgs: [] });
   persistConvs(); drawConvs();
 }
 function saveMsg(who, text, meta) {
@@ -378,8 +386,11 @@ function openConv(k) {
   const c = convs.find((x) => x.k === k);
   if (!c) return;
   convKey = c.k; sessionId = c.sid || null;
+  $("#cwd").textContent = c.cwd || serverCwd || "";
   chat.innerHTML = "";
   c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m)));
+  chat.scrollTop = chat.scrollHeight;
+  setRoute("/" + (c.sid || c.k));
   drawConvs();
 }
 function drawConvs() {
@@ -677,7 +688,9 @@ async function refreshPrefs() {
 async function refreshInfo() {
   try {
     const r = await fetch("/api/info"); const j = await r.json();
+    serverCwd = j.cwd || "";
     $("#meta").textContent = j.version + " · " + (j.muse_args.join(" ") || "기본 옵션") + " · " + j.cwd;
+    if (!convKey) $("#cwd").textContent = serverCwd;
     $("#args").textContent = "muse args: " + (j.muse_args.join(" ") || "(없음)");
     $("#status").className = "ok";
   } catch (e) { $("#status").className = "err"; $("#meta").textContent = "서버 연결 실패"; }
@@ -752,7 +765,7 @@ $("#f").addEventListener("submit", async (e) => {
       const prev = [...chat.querySelectorAll(".msg.ai")].filter((n) => n !== ph).pop();
       ph.dataset.raw = await copyText(prev ? prev.dataset.raw || "" : "");
       ph.innerHTML = esc(ph.dataset.raw);
-    } else if (j.new_session) { sessionId = null; convKey = null; chat.innerHTML = ""; }
+    } else if (j.new_session) { sessionId = null; convKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); }
     else {
       sessionId = j.session_id || sessionId;
       ph.dataset.raw = j.text || "(빈 응답)";
@@ -774,7 +787,7 @@ $("#f").addEventListener("submit", async (e) => {
     saveMsg("ai", ph.dataset.raw);
   }
 });
-$("#newchat").onclick = () => { sessionId = null; convKey = null; chat.innerHTML = ""; input.focus(); };
+$("#newchat").onclick = () => { sessionId = null; convKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); input.focus(); };
 $("#model").addEventListener("change", async (e) => {
   await fetch("/api/prefs", { method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -873,3 +886,9 @@ new MutationObserver(setMode).observe(chat, { childList: true });
 applyTheme();
 renderChips();
 drawConvs(); refreshInfo(); refreshPrefs(); setMode();
+(function () {
+  const rid = routeId(location.pathname);
+  if (!rid) return;
+  const c = convs.find((x) => x.k === rid || x.sid === rid);
+  if (c) openConv(c.k);
+})();

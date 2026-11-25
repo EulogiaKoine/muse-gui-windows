@@ -15,7 +15,7 @@ if (start < 0 || end < 0 || end < start) {
 const sandbox = {};
 require("vm").createContext(sandbox);
 require("vm").runInContext(
-  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV };",
+  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId };",
   sandbox);
 const R = sandbox.__R;
 let pass = 0, fail = 0;
@@ -61,5 +61,10 @@ t("table wrap", h.includes('class="tblwrap"><table>') && h.includes("<th>a</th>"
 t("tbl md", R.tblToMD([["a", "b"], ["1", "2"]]) === "| a | b |\n| --- | --- |\n| 1 | 2 |", JSON.stringify(R.tblToMD([["a", "b"], ["1", "2"]])));
 t("tbl md ragged", R.tblToMD([["a"], ["1", "2", "3"]]).split("\n").length === 3, "");
 t("tbl csv quote", R.tblToCSV([["x,y", 'z"q'], ["a", "b"]]) === '"x,y","z""q"\na,b', JSON.stringify(R.tblToCSV([["x,y", 'z"q']])));
+t("route sid", R.routeId("/01a213b6-d13d-7b82-95de-6973543146ac") === "01a213b6-d13d-7b82-95de-6973543146ac", "");
+t("route conv", R.routeId("/c1795627200000/") === "c1795627200000", "");
+t("route root", R.routeId("/") === null, "");
+t("route static", R.routeId("/static/app.js") === null, "");
+t("route api", R.routeId("/api/info") === null, "");
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

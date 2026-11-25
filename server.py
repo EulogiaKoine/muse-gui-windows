@@ -945,6 +945,17 @@ class Handler(BaseHTTPRequestHandler):
                     "subs_active": bool(m.get("subs_active")),
                     "token_masked": mask_token(m.get("api_key")),
                 }, ensure_ascii=False))
+        elif re.match(r"^/[A-Za-z0-9][A-Za-z0-9-]*$", path):
+            # SPA 폴백: 세션 id 라우팅(/<id>). index.html 서빙.
+            try:
+                with open(INDEX_FILE, "rb") as f:
+                    data = f.read()
+            except OSError:
+                self._send(500, "index.html 없음")
+                return
+            data = data.replace(b"__GUI_VERSION__",
+                                GUI_VERSION.encode("ascii"))
+            self._send(200, data, "text/html; charset=utf-8")
         else:
             self._send(404, "not found")
 
