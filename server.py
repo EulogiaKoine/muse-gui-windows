@@ -1082,77 +1082,58 @@ def platform_label():
     return sys.platform
 
 
-def is_unc_path(path):
-    """Windows 네트워크 경로(\\\\server\\share)인지."""
-    return isinstance(path, str) and path.startswith("\\\\")
-
-
-def to_wsl_path(path):
-    """Windows식 경로(C:\\..)면 wslpath -u로 WSL 경로로 바꾼다."""
-    if not isinstance(path, str) or not path:
-        return None
-    if re.match(r"^[A-Za-z]:[\\/]", path):
-        try:
-            wp = subprocess.run(["wslpath", "-u", path], capture_output=True,
-                                text=True, timeout=10).stdout.strip()
-        except (OSError, subprocess.TimeoutExpired):
-            wp = ""
-        return wp or None
-    if path.startswith("~"):
-        return os.path.expanduser(path)
-    return path
-
-
-def valid_path(path):
-    """존재하는 경로(파일·디렉터리)면 실경로, 아니면 None."""
-    w = to_wsl_path(path)
-    if not w or len(w) > 4096:
-        return None
-    real = os.path.realpath(w)
-    if not os.path.exists(real):
-        return None
-    return real
-
-
-def fs_stat(path):
-    """경로 존재 여부와 종류를 돌려준다."""
-    if is_unc_path(path):
-        return {"ok": True, "path": path, "isdir": True, "unc": True}
-    real = valid_path(path)
-    if not real:
-        return {"ok": False, "error": "경로를 찾지 못했습니다."}
-    return {"ok": True, "path": real, "isdir": os.path.isdir(real)}
+def is_openable_path(path):
+    """실행 가능한 경로 문자열 형식인지 (존재 여부는 검사하지 않는다)."""
+    if not isinstance(path, str) or not path or len(path) > 4096:
+        return False
+    if re.search(r"[\x00-\x1f]", path):
+        return False
+    return bool(re.match(
+        r"^(?:[A-Za-z]:[\\/]|\\\\\\\\|/(?!/)|~(?:/|$)|\\./|\\.\\./)", path))
 
 
 def open_folder(path):
-    """OS 파일 관리자로 폴더 열기. 성공 시 (True, ''), 실패 시 (False, 사유)."""
-    if is_unc_path(path):
-        if _is_wsl() and shutil.which("explorer.exe"):
+    """OS 기본 연결로 경로 열기. 폴더→탐색기, 파일→기본 앱.
+
+    존재 여부는 검사하지 않고 OS에 위임한다. 성공 시 (True, ''),
+    실패 시 (False, 사유)."""
+    if not is_openable_path(path):
+        return False, "올바른 경로 형식이 아닙니다."
+    if _is_wsl():
+        # Windows 경로는 그대로, WSL 경로는 변환 후 Start-Process에 위임.
+        # 폴더는 탐색기로, 파일은 기본 앱으로 열린다. 없는 경로는 OS가
+        # 즉시 오류를 낸다.
+        if re.match(r"^[A-Za-z]:[\\/]", path) or path.startswith("\\\\"):
+            win = path
+        else:
+            p = os.path.expanduser(path)
+            if not os.path.isabs(p):
+                p = os.path.join(os.getcwd(), p)
             try:
-                subprocess.Popen(["explorer.exe", path],
-                                 stdout=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL,
-                                 stdin=subprocess.DEVNULL)
-                return True, ""
-            except OSError as e:
-                return False, "explorer.exe 실행 실패: %s" % e
-        return False, "UNC 경로는 Windows 탐색기에서만 열 수 있습니다."
-    is_wsl = _is_wsl()
-    if is_wsl:
+                win = subprocess.run(
+                    ["wslpath", "-w", p], capture_output=True,
+                    text=True, timeout=10).stdout.strip()
+            except (OSError, subprocess.TimeoutExpired):
+                win = ""
+            if not win:
+                return False, "Windows 경로 변환 실패: %s" % path
+        script = ("Start-Process -FilePath '%s' -ErrorAction Stop"
+                  % win.replace("'", "''"))
         try:
-            wp = subprocess.run(["wslpath", "-w", path], capture_output=True,
-                                text=True, timeout=10).stdout.strip()
-        except (OSError, subprocess.TimeoutExpired):
-            wp = ""
-        if wp and shutil.which("explorer.exe"):
-            try:
-                subprocess.Popen(["explorer.exe", wp],
-                                 stdout=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL,
-                                 stdin=subprocess.DEVNULL)
-                return True, ""
-            except OSError as e:
-                return False, "explorer.exe 실행 실패: %s" % e
+            proc = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-Command", script],
+                capture_output=True, text=True, timeout=30,
+                stdin=subprocess.DEVNULL)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            return False, "실행 실패: %s" % e
+        if proc.returncode != 0:
+            lines = [l.strip() for l in
+                     clean_ansi(proc.stderr or "").strip().splitlines()
+                     if l.strip()]
+            first = lines[0] if lines else ""
+            msg = re.sub(r"^[\w-]+ : ", "", first)[-300:] or "알 수 없는 오류"
+            return False, "열기 실패: %s" % msg
+        return True, ""
     opener = "open" if sys.platform == "darwin" else "xdg-open"
     if not shutil.which(opener):
         return False, "폴더 열기 도구를 찾지 못했습니다 (%s 없음)." % opener
@@ -1323,10 +1304,6 @@ class Handler(BaseHTTPRequestHandler):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             self._send(200, json.dumps(
                 fs_list((q.get("path") or [""])[0]), ensure_ascii=False))
-        elif path.startswith("/api/fs/stat"):
-            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            self._send(200, json.dumps(
-                fs_stat((q.get("path") or [""])[0]), ensure_ascii=False))
         elif path == "/api/account":
             m = read_auth_meta()
             if not m:
@@ -1403,17 +1380,7 @@ class Handler(BaseHTTPRequestHandler):
                     {"ok": False, "error": res}, ensure_ascii=False))
             return
         if path == "/api/open-folder":
-            raw = body.get("path") or ""
-            if is_unc_path(raw):
-                ok, msg = open_folder(raw)
-            else:
-                p = valid_path(raw)
-                if not p:
-                    self._send(200, json.dumps(
-                        {"ok": False, "error": "경로를 찾지 못했습니다."},
-                        ensure_ascii=False))
-                    return
-                ok, msg = open_folder(p)
+            ok, msg = open_folder(body.get("path") or "")
             self._send(200, json.dumps(
                 {"ok": ok, "error": None if ok else msg},
                 ensure_ascii=False))

@@ -29,7 +29,6 @@ function esc(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>
 function escAttr(s) { return esc(String(s)).replace(/"/g, "&quot;"); }
 const ICON_LINK = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 const ICON_FOLDER = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
-const ICON_FILE = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
 const GREEK = { alpha:"α", beta:"β", gamma:"γ", delta:"δ", epsilon:"ε", varepsilon:"ε", zeta:"ζ", eta:"η", theta:"θ", iota:"ι", kappa:"κ", lambda:"λ", mu:"μ", nu:"ν", xi:"ξ", pi:"π", rho:"ρ", sigma:"σ", tau:"τ", phi:"φ", varphi:"φ", chi:"χ", psi:"ψ", omega:"ω", times:"×", div:"÷", pm:"±", cdot:"·", leq:"≤", geq:"≥", neq:"≠", approx:"≈", equiv:"≡", infty:"∞", to:"→", rightarrow:"→", leftarrow:"←", sum:"∑", prod:"∏", int:"∫", partial:"∂", ldots:"…", ell:"ℓ", circ:"∘" };
 function renderMath(tex, display) {
   const raw = tex.trim();
@@ -304,7 +303,6 @@ function addMsg(who, text, think, foot, withActs) {
   chat.appendChild(d); chat.scrollTop = chat.scrollHeight;
   return d;
 }
-const pathStatCache = new Map();
 function resolveLinkPath(p) {
   p = (p || "").trim();
   if (!p) return "";
@@ -313,27 +311,13 @@ function resolveLinkPath(p) {
   if (p.startsWith("./")) p = p.slice(2);
   return base ? base + "/" + p : p;
 }
-async function decoratePaths(root) {
-  const els = [...root.querySelectorAll("a.pathlink:not([data-done])")];
-  if (!els.length) return;
-  await Promise.all(els.map(async (a) => {
+function decoratePaths(root) {
+  root.querySelectorAll("a.pathlink:not([data-done])").forEach((a) => {
     a.dataset.done = "1";
     const abs = resolveLinkPath(a.dataset.path);
     if (!abs) return;
     a.dataset.abs = abs; a.title = abs;
-    let st = pathStatCache.get(abs);
-    if (st === undefined) {
-      try {
-        const r = await fetch("/api/fs/stat?path=" + encodeURIComponent(abs));
-        st = await r.json();
-      } catch (e) { st = null; }
-      pathStatCache.set(abs, st);
-    }
-    if (st && st.ok && !st.isdir) {
-      const ic = a.querySelector(".plicon");
-      if (ic) ic.innerHTML = ICON_FILE;
-    }
-  }));
+  });
 }
 async function openPathLink(a) {
   const abs = a.dataset.abs || resolveLinkPath(a.dataset.path);
