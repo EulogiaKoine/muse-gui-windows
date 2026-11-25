@@ -123,8 +123,17 @@ function renderText(src) {
       (icon ? '<span class="licon">' + ICON_LINK + "</span>" : "") + label + "</a>");
     const nolink = (label) => keep('<a class="nolink">' + label + "</a>");
     const isHttp = (u) => /^(https?:\/\/)/.test(u);
-    const isLocalPath = (u) => /^\/(?!\/)/.test(u) || /^[A-Za-z]:[\\/]/.test(u) ||
-      /^\.\.?(\/|$)/.test(u) || /^~(\/|$)/.test(u);
+    const isUncPath = (u) => u.slice(0, 2) === "\\\\" && u.length > 2 && !/\s/.test(u[2]);
+    const isFsPath = (u) => /^\/(?!\/)(?:mnt|home|tmp|etc|usr|var|opt)\//.test(u) ||
+      /^[A-Za-z]:[\\/]/.test(u) || /^\.\.?(\/|$)/.test(u) ||
+      /^~(\/|$)/.test(u) || isUncPath(u);
+    const mkPathlink = (label, raw) => {
+      const t = raw.match(/[.,;:!?]+$/);
+      const core = t ? raw.slice(0, -t[0].length) : raw;
+      if (!core) return null;
+      return keep('<a class="pathlink" data-path="' + escAttr(core) + '">' +
+        '<span class="plicon">' + ICON_FOLDER + "</span>" + label + "</a>") + (t ? t[0] : "");
+    };
     const autolink = (m, pre, raw, scheme) => {
       const t = raw.match(/[.,;:!?]+$/);
       const core = t ? raw.slice(0, -t[0].length) : raw;
@@ -135,16 +144,24 @@ function renderText(src) {
     };
     x = x.replace(/!\[([^\]]*)\]\((https?:[^)\s]+)\)/g, (m, alt, url) =>
       keep('<a href="' + url + '">' + alt + " (이미지)</a>"));
-    x = x.replace(/\[([^\]]+)\]\(([^)\s]*)\)/g, (m, label, url) => {
+    x = x.replace(/\[([^\]]+)\]\s*\(((?:[^()\s]|\([^()]*\))*)\)/g, (m, label, url) => {
       if (/^출처:/.test(label) && isHttp(url))
         return keep('<a class="srcchip" href="' + url + '" target="_blank" rel="noopener">' +
           '<span class="licon">' + ICON_LINK + "</span>" + label.replace(/^출처:\s*/, "") + "</a>");
       if (isHttp(url)) return link(label, url, true);
       if (/^(mailto:|#|\/\/)/.test(url)) return link(label, url, false);
-      if (isLocalPath(url)) return keep('<a class="pathlink" data-path="' + escAttr(url) + '">' +
-        '<span class="plicon">' + ICON_FOLDER + "</span>" + label + "</a>");
+      if (url && isFsPath(url)) {
+        const pl = mkPathlink(label, url);
+        if (pl) return pl;
+      }
+      if (/^\/(?!\/)/.test(url)) return link(label, url, false);
       return nolink(label);
     });
+    x = x.replace(/(^|[\s(>"'])((?:\/(?:mnt|home|tmp|etc|usr|var|opt)\/[^\s<>"')\]]+|[A-Za-z]:[\\/][^\s<>"')\]]+|~\/[^\s<>"')\]]+|\\\\[^\s<>"')\]]+))/g,
+      (m, pre, raw) => {
+        const pl = mkPathlink(raw, raw);
+        return pl ? pre + pl : m;
+      });
     x = x.replace(/&lt;(https?:\/\/[^<>\s]+?)&gt;/g, (m, raw) => {
       const safe = raw.replace(/&(?!amp;|lt;|gt;|quot;)/g, "&amp;");
       return link(safe, safe, true);
@@ -286,7 +303,7 @@ const pathStatCache = new Map();
 function resolveLinkPath(p) {
   p = (p || "").trim();
   if (!p) return "";
-  if (/^[A-Za-z]:[\\/]/.test(p) || p[0] === "/" || p[0] === "~") return p;
+  if (/^[A-Za-z]:[\\/]/.test(p) || p[0] === "/" || p[0] === "~" || p.startsWith("\\\\")) return p;
   const base = ((curConv() && curConv().cwd) || serverCwd || "").replace(/\/+$/, "");
   if (p.startsWith("./")) p = p.slice(2);
   return base ? base + "/" + p : p;
@@ -674,8 +691,8 @@ function renderGoal() {
   html += '<div class="goalbar"><i style="width:' + pct + '%"></i></div>' +
     '<div class="goalcount">' + done + "/" + tot + " · " + pct + "%" + (g.active ? "" : " · 완료") + "</div>";
   html += '<div class="goalitems">';
-  g.items.forEach((it) => {
-    html += '<label class="goalitem' + (it.done ? " done" : "") + '"><input type="checkbox" disabled' +
+  g.items.forEach((it, i) => {
+    html += '<label class="goalitem' + (it.done ? " done" : "") + '"><input type="checkbox" data-gi="' + i + '"' +
       (it.done ? " checked" : "") + "><span>" + esc(it.t) + "</span></label>";
   });
   box.innerHTML = html + "</div>";
@@ -1143,9 +1160,11 @@ $("#f").addEventListener("submit", async (e) => {
           const was = gcc.goal.items.filter((x) => x.done).length;
           if (goalMode === "plan" && gf.data) gcc.goal.items = normGoalItems(gf.data);
           if (goalMode === "status" && gf.data) {
-            if (gf.data.done === "all") gcc.goal.items.forEach((x) => { x.done = true; });
-            else if (Array.isArray(gf.data.done))
-              gf.data.done.forEach((i) => { if (gcc.goal.items[i]) gcc.goal.items[i].done = true; });
+            const dn = gf.data.done ?? gf.data.completed ?? gf.data.finished;
+            if (dn === "all" || dn === "complete" || dn === "done")
+              gcc.goal.items.forEach((x) => { x.done = true; });
+            else if (Array.isArray(dn))
+              dn.forEach((i) => { const n = Number(i); if (Number.isInteger(n) && gcc.goal.items[n]) gcc.goal.items[n].done = true; });
           }
           const t = gcc.goal.items.length;
           const d = gcc.goal.items.filter((x) => x.done).length;
@@ -1230,6 +1249,22 @@ $("#fswin").onclick = async () => {
 $("#fsgo").onclick = () => { const p = $("#fspath").value.trim(); if (p) fsLoad(p); };
 $("#rsidetoggle").onclick = () => setRside(true);
 $("#rsideopen").onclick = () => setRside(false);
+$("#rsidegoal").addEventListener("change", (e) => {
+  const box = e.target.closest("[data-gi]");
+  if (!box) return;
+  const c = curConv();
+  if (!c || !c.goal) return;
+  const it = c.goal.items[+box.dataset.gi];
+  if (!it) return;
+  it.done = !!box.checked;
+  const t = c.goal.items.length, d = c.goal.items.filter((x) => x.done).length;
+  if (t && d >= t && c.goal.active) {
+    c.goal.active = false;
+    addMsg("ai", "🏁 목표 달성: " + c.goal.objective);
+    saveMsg("ai", "🏁 목표 달성: " + c.goal.objective, { ts: Date.now() });
+  }
+  persistConvs(); drawConvs(); drawRside();
+});
 $("#fspath").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#fsgo").click(); } });
 $("#fsfilter").addEventListener("input", renderFsList);
 $("#fsup").onclick = () => { if (fsParent) fsLoad(fsParent); };

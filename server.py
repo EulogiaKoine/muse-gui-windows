@@ -1082,11 +1082,33 @@ def platform_label():
     return sys.platform
 
 
+def is_unc_path(path):
+    """Windows 네트워크 경로(\\\\server\\share)인지."""
+    return isinstance(path, str) and path.startswith("\\\\")
+
+
+def to_wsl_path(path):
+    """Windows식 경로(C:\\..)면 wslpath -u로 WSL 경로로 바꾼다."""
+    if not isinstance(path, str) or not path:
+        return None
+    if re.match(r"^[A-Za-z]:[\\/]", path):
+        try:
+            wp = subprocess.run(["wslpath", "-u", path], capture_output=True,
+                                text=True, timeout=10).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            wp = ""
+        return wp or None
+    if path.startswith("~"):
+        return os.path.expanduser(path)
+    return path
+
+
 def valid_path(path):
     """존재하는 경로(파일·디렉터리)면 실경로, 아니면 None."""
-    if not isinstance(path, str) or not path or len(path) > 4096:
+    w = to_wsl_path(path)
+    if not w or len(w) > 4096:
         return None
-    real = os.path.realpath(os.path.expanduser(path))
+    real = os.path.realpath(w)
     if not os.path.exists(real):
         return None
     return real
@@ -1094,6 +1116,8 @@ def valid_path(path):
 
 def fs_stat(path):
     """경로 존재 여부와 종류를 돌려준다."""
+    if is_unc_path(path):
+        return {"ok": True, "path": path, "isdir": True, "unc": True}
     real = valid_path(path)
     if not real:
         return {"ok": False, "error": "경로를 찾지 못했습니다."}
@@ -1102,6 +1126,17 @@ def fs_stat(path):
 
 def open_folder(path):
     """OS 파일 관리자로 폴더 열기. 성공 시 (True, ''), 실패 시 (False, 사유)."""
+    if is_unc_path(path):
+        if _is_wsl() and shutil.which("explorer.exe"):
+            try:
+                subprocess.Popen(["explorer.exe", path],
+                                 stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL,
+                                 stdin=subprocess.DEVNULL)
+                return True, ""
+            except OSError as e:
+                return False, "explorer.exe 실행 실패: %s" % e
+        return False, "UNC 경로는 Windows 탐색기에서만 열 수 있습니다."
     is_wsl = _is_wsl()
     if is_wsl:
         try:
@@ -1360,13 +1395,17 @@ class Handler(BaseHTTPRequestHandler):
                     {"ok": False, "error": res}, ensure_ascii=False))
             return
         if path == "/api/open-folder":
-            p = valid_path(body.get("path") or "")
-            if not p:
-                self._send(200, json.dumps(
-                    {"ok": False, "error": "경로를 찾지 못했습니다."},
-                    ensure_ascii=False))
-                return
-            ok, msg = open_folder(p)
+            raw = body.get("path") or ""
+            if is_unc_path(raw):
+                ok, msg = open_folder(raw)
+            else:
+                p = valid_path(raw)
+                if not p:
+                    self._send(200, json.dumps(
+                        {"ok": False, "error": "경로를 찾지 못했습니다."},
+                        ensure_ascii=False))
+                    return
+                ok, msg = open_folder(p)
             self._send(200, json.dumps(
                 {"ok": ok, "error": None if ok else msg},
                 ensure_ascii=False))
