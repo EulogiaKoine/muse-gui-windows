@@ -540,33 +540,68 @@ function drawConvs() {
     box.appendChild(row);
   });
 }
-const RSIDE_TABS = [{ id: "goal", label: "목표" }, { id: "help", label: "도움말" }];
-let rsideTab = "goal";
+// 우측 탭 규칙: 기본적으로 탭은 존재하지 않는다. goal 탭은 대화에 목표가
+// 생길 때, help 탭은 /help 실행 때 생긴다. 앞으로 추가될 탭도 같은 규칙:
+// 존재 조건 + 렌더 함수 + closable 여부를 아래에 등록한다.
+const RSIDE_TABS = {
+  goal: { label: "목표", render: () => renderGoal() },
+  help: { label: "도움말", render: () => renderHelp(), closable: true, onClose: () => { helpOpen = false; } },
+};
+let rsideTab = null;
+let helpOpen = false;
+let rsideHold = false; // 사용자가 직접 접은 상태 (자동 펼치기 억제)
+function availTabs() {
+  const t = [];
+  if (curConv() && curConv().goal) t.push("goal");
+  if (helpOpen) t.push("help");
+  return t;
+}
 function renderRsideTabs() {
   const box = $("#rsidetabs"); if (!box) return;
   box.innerHTML = "";
-  RSIDE_TABS.forEach((t) => {
+  availTabs().forEach((id) => {
+    const t = RSIDE_TABS[id];
     const b = document.createElement("button");
-    b.type = "button"; b.textContent = t.label; b.setAttribute("role", "tab");
-    if (t.id === rsideTab) b.classList.add("sel");
-    b.onclick = () => { rsideTab = t.id; drawRside(); };
+    b.type = "button"; b.setAttribute("role", "tab");
+    const lab = document.createElement("span"); lab.textContent = t.label;
+    b.appendChild(lab);
+    if (id === rsideTab) b.classList.add("sel");
+    b.onclick = () => { rsideTab = id; drawRside(); };
+    if (t.closable) {
+      const x = document.createElement("span");
+      x.className = "tx"; x.textContent = "×"; x.title = "탭 닫기";
+      x.onclick = (e) => { e.stopPropagation(); closeRsideTab(id); };
+      b.appendChild(x);
+    }
     box.appendChild(b);
   });
   document.querySelectorAll("#rside section[data-rpane]").forEach((s) => { s.hidden = s.dataset.rpane !== rsideTab; });
+}
+function closeRsideTab(id) {
+  const t = RSIDE_TABS[id];
+  if (t && t.onClose) t.onClose();
+  else if (id === "help") helpOpen = false;
+  drawRside();
 }
 function applyRside(hidden) {
   document.body.classList.toggle("rside-hidden", !!hidden);
   const b = $("#rsideopen"); if (b) b.hidden = !hidden;
 }
-function setRside(hidden) { applyRside(hidden); saveTheme({ rside: !!hidden }); }
+function setRside(hidden) { rsideHold = !!hidden; applyRside(hidden); saveTheme({ rside: !!hidden }); }
 function openRside(tab) {
+  if (tab === "help") helpOpen = true;
   if (tab) rsideTab = tab;
-  if (document.body.classList.contains("rside-hidden")) applyRside(false);
+  rsideHold = false;
   drawRside();
 }
 function drawRside() {
+  const tabs = availTabs();
   renderRsideTabs();
-  if (rsideTab === "goal") renderGoal(); else renderHelp();
+  if (!tabs.length) { applyRside(true); return; }
+  if (!tabs.includes(rsideTab)) rsideTab = tabs[0];
+  if (document.body.classList.contains("rside-hidden") && !rsideHold) applyRside(false);
+  renderRsideTabs();
+  RSIDE_TABS[rsideTab].render();
 }
 function renderGoal() {
   const box = $("#rsidegoal"); if (!box) return;
@@ -696,7 +731,7 @@ function applyTheme() {
     b.classList.toggle("sel", b.dataset.th === th));
   renderPalettes(ac);
   applySide(!!t.side);
-  applyRside(!!t.rside);
+  applyRside(t.rside !== false);
 }
 $("#sidetoggle").onclick = () => setSide(!document.body.classList.contains("side-hidden"));
 function saveTheme(patch) {
@@ -929,14 +964,15 @@ async function refreshInfo() {
     const r = await fetch("/api/info"); const j = await r.json();
     serverCwd = j.cwd || "";
     serverPlatform = j.platform || ""; updateOsChip();
-    $("#meta").textContent = j.version + " · " + (j.muse_args.join(" ") || "서버 경로") + " · " + j.cwd;
+    $("#srvinfo").textContent = j.version + " · " + (j.muse_args.join(" ") || "서버 경로") + " · " + j.cwd;
+    $("#srvinfo").title = "서버 실행 정보\n" + j.cwd;
     if (!convKey) $("#cwd").textContent = serverCwd;
     $("#args").textContent = "muse args: " + (j.muse_args.join(" ") || "(없음)");
     $("#status").className = "ok";
-  } catch (e) { $("#status").className = "err"; $("#meta").textContent = "서버 연결 실패"; }
+  } catch (e) { $("#status").className = "err"; $("#srvinfo").textContent = "서버 연결 실패"; }
   try {
     const r = await fetch("/api/slash"); slashList = await r.json();
-    if (typeof rsideTab !== "undefined" && rsideTab === "help") renderHelp();
+    if (helpOpen) renderHelp();
   } catch (e) { slashList = []; }
 }
 function drawSlash(filter) {
@@ -989,7 +1025,12 @@ $("#f").addEventListener("submit", async (e) => {
     const obj = text.slice(5).trim();
     input.value = ""; slash.style.display = "none"; $("#feats").innerHTML = "";
     input.style.height = "auto"; input.style.overflowY = "hidden";
-    if (!obj) { openRside("goal"); return; }
+    if (!obj) {
+      const cc0 = curConv();
+      if (cc0 && cc0.goal) openRside("goal");
+      else addMsg("ai", "진행 중인 목표가 없습니다. `/goal 목표 내용` 으로 시작하세요.");
+      return;
+    }
     sendText = goalSetPrompt(obj); goalMode = "plan";
     justDone = null;
   }
@@ -1003,7 +1044,7 @@ $("#f").addEventListener("submit", async (e) => {
     full = sendText;
     if (gc0) {
       gc0.goal = { objective: text.slice(5).trim(), items: [], active: true };
-      persistConvs(); drawConvs();
+      persistConvs(); drawConvs(); openRside("goal");
     }
   } else if (!text.startsWith("/") && gc0 && gc0.goal && gc0.goal.active) {
     full = goalTurnPrompt(gc0.goal, full); goalMode = "status";

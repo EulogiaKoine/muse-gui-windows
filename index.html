@@ -18,7 +18,7 @@
 <button type="button" data-act="rename">이름 변경</button>
 <button type="button" data-act="del">삭제</button>
 </div>
-<div id="sidefoot"><button id="gear" type="button" title="설정" aria-label="설정"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="7" cy="17" r="2.4"/></svg></button></div>
+<div id="sidefoot"><button id="gear" type="button" title="설정" aria-label="설정"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="7" cy="17" r="2.4"/></svg></button><span id="srvinfo" title="서버 실행 정보">연결 중…</span></div>
 </aside>
 <div id="fsovl" hidden><div id="fsmodal" role="dialog" aria-label="작업 디렉터리 선택">
 <div class="mhead"><h2>작업 디렉터리 선택</h2><button type="button" class="iconbtn" id="fsclose" title="닫기" aria-label="닫기"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
@@ -83,7 +83,7 @@
 </div>
 </div></div>
 <main>
-<header><span id="status"></span><span id="meta">연결 중…</span><span id="cwdwrap"><span id="oschip" class="oschip" hidden></span><span id="cwdlabel">작업 경로</span><span id="cwd" title="작업 디렉터리"></span><button id="cwdopen" type="button" title="폴더 열기" aria-label="폴더 열기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button></span><button id="rsideopen" type="button" title="사이드바 펼치기" aria-label="사이드바 펼치기" hidden><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></header>
+<header><span id="status"></span><span id="cwdwrap"><span id="oschip" class="oschip" hidden></span><span id="cwdlabel">작업 경로</span><span id="cwd" title="작업 디렉터리"></span><button id="cwdopen" type="button" title="폴더 열기" aria-label="폴더 열기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button></span><button id="rsideopen" type="button" title="사이드바 펼치기" aria-label="사이드바 펼치기" hidden><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></header>
 <div id="lobby"><h1>muse-gui</h1><p>WSL의 muse 에이전트와 대화하세요</p><div class="chips" id="chips"></div></div>
 <div id="chat" aria-live="polite"></div>
 <form id="f">
@@ -92,13 +92,13 @@
 <button type="submit" title="전송 (Ctrl+Enter)" aria-label="전송"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
 <div id="inputgate" hidden><div id="gatebox"><div id="gateenv"></div><p id="gatemsg"></p><button id="gatebtn" type="button" class="optbtn"></button></div></div>
 </form>
+<footer><button id="plus" type="button" title="기능 추가" aria-label="기능 추가">+</button><div id="plusmenu" hidden></div><label>모델 <select id="model"></select></label><label>effort <select id="effort"></select></label></footer>
+</main>
 <aside id="rside">
 <div id="rsidehead"><div id="rsidetabs" role="tablist"></div><button id="rsidetoggle" type="button" title="사이드바 접기" aria-label="사이드바 접기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></div>
 <section id="rsidegoal" data-rpane="goal"></section>
 <section id="rsidehelp" data-rpane="help" hidden></section>
 </aside>
-<footer><button id="plus" type="button" title="기능 추가" aria-label="기능 추가">+</button><div id="plusmenu" hidden></div><label>모델 <select id="model"></select></label><label>effort <select id="effort"></select></label></footer>
-</main>
 <script src="/static/app.js?v=__GUI_VERSION__"></script>
 </body>
 </html>
