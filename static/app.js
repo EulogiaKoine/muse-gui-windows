@@ -13,6 +13,7 @@ function loadConvs() {
         goal: c.goal && c.goal.objective ? { objective: c.goal.objective,
           items: normGoalItems(c.goal.items), active: !!c.goal.active } : null,
         at: c.at || (msgs.length && msgs[msgs.length - 1].ts) || 0,
+        scroll: typeof c.scroll === "number" ? c.scroll : null,
         msgs };
     });
   } catch (e) { return []; }
@@ -607,14 +608,22 @@ function updateOsChip() {
   if (serverPlatform) { c.hidden = false; c.textContent = serverPlatform; }
   else c.hidden = true;
 }
+let scrollSaveT = null;
+function saveScroll() {
+  const c = curConv();
+  if (!c) return;
+  c.scroll = chat.scrollTop;
+  persistConvs();
+}
 function openConv(k) {
   const c = convs.find((x) => x.k === k);
   if (!c) return;
+  saveScroll();
   convKey = c.k; sessionId = c.sid || null;
   $("#cwd").textContent = c.cwd || serverCwd || "";
   chat.innerHTML = "";
   c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m)));
-  chat.scrollTop = chat.scrollHeight;
+  chat.scrollTop = (typeof c.scroll === "number") ? c.scroll : chat.scrollHeight;
   setRoute("/" + (c.sid || c.k));
   drawConvs(); updateGate(); drawRside();
 }
@@ -1310,7 +1319,7 @@ $("#f").addEventListener("submit", async (e) => {
     saveMsg("ai", ph.dataset.raw);
   }
 });
-$("#newchat").onclick = () => { sessionId = null; convKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); input.focus(); };
+$("#newchat").onclick = () => { saveScroll(); sessionId = null; convKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); input.focus(); };
 $("#cwdopen").onclick = async () => {
   const p = (($("#cwd") && $("#cwd").textContent) || "").trim() || serverCwd || "";
   if (!p) return;
@@ -1412,6 +1421,11 @@ function autoGrow() {
   input.style.overflowY = h > 132 ? "auto" : "hidden";
 }
 input.addEventListener("input", autoGrow);
+chat.addEventListener("scroll", () => {
+  clearTimeout(scrollSaveT);
+  scrollSaveT = setTimeout(saveScroll, 300);
+});
+window.addEventListener("beforeunload", saveScroll);
 function setMode() {
   const lobby = !chat.children.length;
   document.querySelector("main").classList.toggle("lobby", lobby);
