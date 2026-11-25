@@ -168,8 +168,12 @@ form { padding: 10px 12px; display: flex; gap: 8px; position: relative; align-it
 .tblmenu button:hover { background: var(--hover); }
 .msg th, .msg td { border: 1px solid var(--bd); padding: 4px 8px; }
 .msg code { background: var(--code-tint); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
-.msg a { color: var(--me); }
-.msg a.nolink { cursor: default; text-decoration: none; }
+.msg a { color: var(--me); text-decoration: none; }
+.msg a:hover { text-decoration: underline; }
+.msg a:visited { color: var(--muted); color: color-mix(in srgb, var(--me) 70%, var(--muted)); }
+.msg a.nolink { cursor: default; }
+.msg a.nolink:hover { text-decoration: none; }
+.msg a.srcchip:hover { text-decoration: none; }
 .msg a.srcchip { display: inline-block; font-size: 11px; border: 1px solid var(--bd); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 1px 9px; margin-left: 6px; text-decoration: none; vertical-align: baseline; }
 .msg a.srcchip:hover { color: var(--me); border-color: var(--me); }
 .msg .medit { width: 100%; box-sizing: border-box; min-height: 44px; max-height: 9.5em; overflow-y: auto; font: inherit; background: var(--input); color: var(--text); border: 1px solid var(--me); border-radius: 8px; padding: 8px 12px; resize: none; }
