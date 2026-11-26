@@ -501,20 +501,30 @@ let editingEl = null
 let pendingPrefix = null
 let skipEcho = false
 let activeStreamAbort = null
+let sendBusy = false
+function paintSendTitle() {
+  const btn = document.querySelector("#f button[type=submit]")
+  if (!btn) return
+  if (sendBusy) {
+    btn.title = t("send.stopTitle")
+    btn.setAttribute("aria-label", t("send.stop"))
+  } else {
+    btn.title = t("send.title")
+    btn.setAttribute("aria-label", t("send.send"))
+  }
+}
 function setSendStop(on) {
+  sendBusy = !!on
   const btn = document.querySelector("#f button[type=submit]")
   if (!btn) return
   if (on) {
     if (btn.dataset.orig === undefined) btn.dataset.orig = btn.innerHTML
     btn.innerHTML = "■"
-    btn.title = "중단 (클릭)"
-    btn.setAttribute("aria-label", "중단")
   } else if (btn.dataset.orig !== undefined) {
     btn.innerHTML = btn.dataset.orig
     delete btn.dataset.orig
-    btn.title = "전송 (Ctrl+Enter)"
-    btn.setAttribute("aria-label", "전송")
   }
+  paintSendTitle()
 }
 function startEdit(msgEl) {
   if (!msgEl) return
@@ -633,6 +643,102 @@ function lastAiText() {
 }
 const ICON_COPY = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
 const ICON_RETRY = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>'
+const STR = {
+  ko: {
+    "lobby.sub": "WSL의 muse 에이전트와 대화하세요",
+    "input.ph": "메시지 입력 (Enter 줄바꿈, / 자동완성)",
+    "send.hintTitle": "Ctrl+Enter로 전송",
+    "send.title": "전송 (Ctrl+Enter)",
+    "send.send": "전송",
+    "send.stopTitle": "중단 (클릭)",
+    "send.stop": "중단",
+    "foot.model": "모델",
+    "foot.effort": "effort",
+    "plus.title": "기능 추가",
+    "yolo.onTitle": "yolo 켜짐 (끄려면 클릭)",
+    "yolo.offTitle": "yolo 꺼짐 (켜려면 클릭)",
+    "gate.pickNew": "새 대화를 시작하려면 작업 디렉터리를 먼저 선택하세요.",
+    "gate.pickBtn": "작업 디렉터리 선택",
+    "gate.pick": "이 대화의 작업 디렉터리를 선택해야 입력할 수 있습니다.",
+    "gate.resumePre": "세션 ",
+    "gate.resumePost": " — 이 디렉터리에서 내부 프로세스로 이어가려면 버튼을 누르세요.",
+    "gate.resumeBtn": "이 세션 이어가기(내부 프로세스 재개)",
+    "rside.empty": "열린 탭이 없습니다",
+    "rside.emptyHint": "/goal · /help 로 탭을 여세요",
+    "cwd.label": "작업 경로",
+    "goal.emptyHtml": "진행 중인 목표가 없습니다.<br><code>/goal 목표 내용</code> 으로 시작하세요.",
+    "chip.struct": "이 폴더 구조 설명해줘",
+    "chip.viz": "viz-html 예시 보여줘",
+    "lang.title": "언어 전환 (한국어/English)"
+  },
+  en: {
+    "lobby.sub": "Chat with the muse agent on WSL",
+    "input.ph": "Type a message (Enter newline, / autocomplete)",
+    "send.hintTitle": "Send with Ctrl+Enter",
+    "send.title": "Send (Ctrl+Enter)",
+    "send.send": "Send",
+    "send.stopTitle": "Stop (click)",
+    "send.stop": "Stop",
+    "foot.model": "model",
+    "foot.effort": "effort",
+    "plus.title": "Add features",
+    "yolo.onTitle": "yolo is on (click to turn off)",
+    "yolo.offTitle": "yolo is off (click to turn on)",
+    "gate.pickNew": "Select a working directory to start a new chat.",
+    "gate.pickBtn": "Select directory",
+    "gate.pick": "Select this conversation's working directory to type here.",
+    "gate.resumePre": "Session ",
+    "gate.resumePost": " — press the button to resume it in-process here.",
+    "gate.resumeBtn": "Resume session (in-process)",
+    "rside.empty": "No open tabs",
+    "rside.emptyHint": "Open tabs with /goal · /help",
+    "cwd.label": "Work dir",
+    "goal.emptyHtml": "No active goal.<br>Start with <code>/goal your goal</code>.",
+    "chip.struct": "Explain this folder structure",
+    "chip.viz": "Show a viz-html example",
+    "lang.title": "Switch language (한국어/English)"
+  }
+}
+let langCur = "ko"
+function t(k) {
+  const d = STR[langCur] || {}
+  if (d[k] !== undefined) return d[k]
+  const ko = STR.ko || {}
+  return ko[k] !== undefined ? ko[k] : k
+}
+function setText(sel, s) {
+  const el = document.querySelector(sel)
+  if (el) el.textContent = s
+}
+function applyLang(l, save) {
+  if (l !== "ko" && l !== "en") l = "ko"
+  langCur = l
+  if (save !== false) {
+    try { saveTheme({ lang: l }) } catch (e) {}
+  }
+  setText("#lobbysub", t("lobby.sub"))
+  const inp = $("#in")
+  if (inp) inp.placeholder = t("input.ph")
+  const hint = $("#sendhint")
+  if (hint) hint.title = t("send.hintTitle")
+  paintSendTitle()
+  setText("#lab-model", t("foot.model"))
+  setText("#lab-effort", t("foot.effort"))
+  const plus = $("#plus")
+  if (plus) { plus.title = t("plus.title"); plus.setAttribute("aria-label", t("plus.title")) }
+  setText("#cwdlabel", t("cwd.label"))
+  setText("#rsideempty1", t("rside.empty"))
+  setText("#rsideempty2", t("rside.emptyHint"))
+  const lang = $("#lang")
+  if (lang) {
+    lang.textContent = langCur === "ko" ? "한" : "EN"
+    lang.title = t("lang.title")
+  }
+  paintYolo()
+  renderChips()
+  updateGate()
+  drawRside()
+}
 const ICON_CHEVD = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'
 const ICON_CHEVU = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>'
 const ICON_SIDEL = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'
@@ -1057,9 +1163,9 @@ function touchLive() {
 }
 function inputGated() {
   const c = curConv()
-  if (!c) return { msg: "새 대화를 시작하려면 작업 디렉터리를 먼저 선택하세요.", btn: "작업 디렉터리 선택", act: "pick-new" }
-  if (!c.cwd) return { msg: "이 대화의 작업 디렉터리를 선택해야 입력할 수 있습니다.", btn: "작업 디렉터리 선택", act: "pick" }
-  if (c.sid && !liveSessions.includes(c.k)) return { msg: "세션 " + c.sid.slice(0, 8) + " · " + c.cwd + " — 이 디렉터리에서 내부 프로세스로 이어가려면 버튼을 누르세요.", btn: "이 세션 이어가기(내부 프로세스 재개)", act: "resume" }
+  if (!c) return { msg: t("gate.pickNew"), btn: t("gate.pickBtn"), act: "pick-new" }
+  if (!c.cwd) return { msg: t("gate.pick"), btn: t("gate.pickBtn"), act: "pick" }
+  if (c.sid && !liveSessions.includes(c.k)) return { msg: t("gate.resumePre") + c.sid.slice(0, 8) + " · " + c.cwd + t("gate.resumePost"), btn: t("gate.resumeBtn"), act: "resume" }
   return null
 }
 let serverPlatform = ""
@@ -1327,7 +1433,7 @@ function renderGoal() {
   const c = curConv()
   const g = c && c.goal
   if (!g) {
-    box.innerHTML = '<h3>goal</h3><p class="hint">진행 중인 목표가 없습니다.<br><code>/goal 목표 내용</code> 으로 시작하세요.</p>'
+    box.innerHTML = '<h3>goal</h3><p class="hint">' + t("goal.emptyHtml") + "</p>"
     return
   }
   const done = g.items.filter((x) => x.done).length, tot = g.items.length
@@ -1959,7 +2065,9 @@ function paintYolo() {
   if (!b) return
   b.classList.toggle("on", yoloOn)
   b.setAttribute("aria-pressed", yoloOn ? "true" : "false")
-  b.title = yoloOn ? "yolo 켜짐 (끄려면 클릭)" : "yolo 꺼짐 (켜려면 클릭)"
+  const mark = b.querySelector(".ycheck")
+  if (mark) mark.textContent = yoloOn ? "☑" : "☐"
+  b.title = yoloOn ? t("yolo.onTitle") : t("yolo.offTitle")
 }
 async function refreshPrefs() {
   try {
@@ -2428,6 +2536,9 @@ $("#effort").addEventListener("change", async (e) => {
     body: JSON.stringify({ effort: e.target.value }) })
   refreshPrefs()
 })
+$("#lang").addEventListener("click", () => {
+  applyLang(langCur === "ko" ? "en" : "ko")
+})
 $("#yolo").addEventListener("click", async () => {
   const next = !yoloOn
   yoloOn = next
@@ -2541,11 +2652,13 @@ $("#plus").onclick = (e) => {
 document.addEventListener("click", (e) => {
   if (!e.target.closest("footer")) $("#plusmenu").hidden = true
 })
-const CHIPS = ["이 폴더 구조 설명해줘", "/usage", "viz-html 예시 보여줘"]
+function chipList() {
+  return [t("chip.struct"), "/usage", t("chip.viz")]
+}
 function renderChips() {
   const box = $("#chips")
   box.innerHTML = ""
-  CHIPS.forEach((c) => {
+  chipList().forEach((c) => {
     const b = document.createElement("button")
     b.type = "button"
     b.textContent = c
@@ -2558,6 +2671,7 @@ function renderChips() {
 }
 new MutationObserver(setMode).observe(chat, { childList: true })
 applyTheme()
+try { langCur = loadTheme().lang === "en" ? "en" : "ko" } catch (e) { langCur = "ko" }
 renderChips()
 drawConvs()
 refreshInfo()
@@ -2565,6 +2679,7 @@ refreshPrefs()
 setMode()
 updateGate()
 drawRside();
+applyLang(langCur, false)
 (function () {
   const rid = routeId(location.pathname)
   if (!rid) return

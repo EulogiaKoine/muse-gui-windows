@@ -128,25 +128,23 @@ def format_session_usage(sid):
     if not sid or sid not in USAGE or not USAGE[sid]["turns"]:
         return "```\n[사용량 없음] 이 세션의 모델 턴이 없습니다.\n```"
     entry = USAGE[sid]
-    w = 44
-    bar = "+" + "-" * (w - 1) + "+"
 
-    def row(t):
-        return "| " + t.ljust(w - 3) + "|"
+    def cell(v):
+        return str(v).replace("|", "\\|")
 
     tot_in = sum(m["input"] for m in entry["models"].values())
     tot_out = sum(m["output"] for m in entry["models"].values())
-    lines = [bar, row("세션 사용량 (%d 턴, 토큰 기준)" % entry["turns"]), bar]
+    tot_r = sum(m["reasoning"] for m in entry["models"].values())
+    lines = ["세션 사용량 (%d 턴, 토큰 기준)" % entry["turns"], "",
+             "| 모델 | 호출 | 입력 | 출력 | 추론 |",
+             "|---|---|---|---|---|"]
     for name, a in entry["models"].items():
-        lines.append(row(name[:w - 3]))
-        lines.append(row("  calls %d | in %d | out %d | r %d"
-                         % (a["calls"], a["input"], a["output"],
-                            a["reasoning"])))
-    lines += [bar,
-              row("합계 in %d / out %d" % (tot_in, tot_out)),
-              row("비용: 가격 소스 없음 (토큰만 표시)"),
-              bar]
-    return "```\n" + "\n".join(lines) + "\n```"
+        lines.append("| %s | %d | %d | %d | %d |"
+                     % (cell(name), a["calls"], a["input"], a["output"],
+                        a["reasoning"]))
+    lines += ["| 합계 | - | %d | %d | %d |" % (tot_in, tot_out, tot_r), "",
+              "비용: 가격 소스 없음 (토큰만 표시)"]
+    return "\n".join(lines)
 
 
 # GUI 부가가치가 있는 것만 직접 매핑(기본값·JSON 가공·안내문).

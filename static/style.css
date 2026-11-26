@@ -189,6 +189,9 @@ footer select:focus { outline: 2px solid var(--me); outline-offset: -1px; }
 #yolo { border: 1px solid var(--bd); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 13px; }
 #yolo:hover { border-color: var(--me); }
 #yolo.on { border-color: var(--me); color: var(--me); }
+#yolo .ycheck { margin-right: 2px; }
+#lang { border: 1px solid var(--bd); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 13px; min-width: 44px; }
+#lang:hover { border-color: var(--me); color: var(--me); }
 form { padding: 10px 12px; display: flex; gap: 8px; position: relative; align-items: flex-start; }
 .msg h1, .msg h2, .msg h3, .msg h4 { margin: 8px 0 4px; font-size: 1.05em; color: var(--hd, var(--text)); }
 .msg h1, .msg h2 { border-bottom: 1px solid var(--hdbd, var(--bd)); padding-bottom: 4px; }
