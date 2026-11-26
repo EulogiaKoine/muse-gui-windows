@@ -176,6 +176,8 @@ form {
   justify-content: flex-end;
   max-width: 78ch;
   overflow-x: auto;
+  overflow-y: hidden;
+  min-height: 60px;
   padding: 4px 2px;
   align-items: center;
 }

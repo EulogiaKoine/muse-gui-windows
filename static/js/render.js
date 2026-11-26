@@ -420,6 +420,12 @@ function renderMathLegacy(tex, display) {
     '<span class="' + tag + '" data-tex="' + escAttr(raw) + '">' + t + "</span>"
   )
 }
+// 수식 복사 버튼용: 붙여넣으면 그대로 렌더되도록 구분자로 감싼다.
+// 블록=$$…$$, 인라인=$…$.
+function mathCopyText(tex, display) {
+  const raw = String(tex == null ? "" : tex).trim()
+  return display ? "$$\n" + raw + "\n$$" : "$" + raw + "$"
+}
 const HL_KW = {
   py: "False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield",
   js: "await async break case catch class const continue debugger default delete do else export extends false finally for from function get if import in instanceof let new null of return set static super switch this throw true try typeof var void while with yield",

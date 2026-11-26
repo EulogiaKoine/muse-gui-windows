@@ -176,7 +176,10 @@ function decorateMath(el) {
     b.innerHTML = ICON_COPY
     b.onclick = async (e) => {
       e.stopPropagation()
-      flashCopy(b, m.dataset.tex || "")
+      flashCopy(
+        b,
+        mathCopyText(m.dataset.tex || "", m.classList.contains("math-block")),
+      )
     }
     m.appendChild(b)
   })
