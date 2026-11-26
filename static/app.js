@@ -1053,7 +1053,7 @@ function toggleThoughtDetail(tg) {
   }
   if (!det || !(det.classList.contains("tsubbody") || det.classList.contains("tdetail") || det.classList.contains("tbody"))) return
   det.hidden = !det.hidden
-  if (mark) mark.textContent = det.hidden ? "›" : "∨"
+  if (mark) mark.classList.toggle("open", !det.hidden)
   const box = tg.closest(".thoughts")
   if (box) syncThoughtHead(box)
 }
