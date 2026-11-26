@@ -318,10 +318,11 @@ function sealAiTurn(ph, t0, fr) {
     saveMsg("ai", "🏁 목표 달성: " + fr.justDone, { ts: Date.now() })
   }
 }
-async function postChatStream(message, sid, cwd, signal, onRun) {
+async function postChatStream(message, sid, cwd, signal, onRun, atts) {
   const r = await fetch("/api/chat/stream", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, session_id: sid, cwd }),
+    body: JSON.stringify({ message, session_id: sid, cwd,
+      attachments: atts || [] }),
     signal: signal || undefined })
   if (!r.ok || !r.body) throw new Error("HTTP " + r.status)
   const reader = r.body.getReader()
@@ -347,7 +348,7 @@ async function postChatStream(message, sid, cwd, signal, onRun) {
   if (!gotDone || !doneJ) throw new Error("스트림이 끝나기 전에 연결이 끊어졌습니다.")
   return doneJ
 }
-async function runStreamTurn(full, sid, cwd, ph, t0, goalMode) {
+async function runStreamTurn(full, sid, cwd, ph, t0, goalMode, atts) {
   const tbox = document.createElement("div")
   tbox.className = "thoughts"
   const thead = document.createElement("div")
@@ -370,7 +371,8 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode) {
   activeStreamAbort = ctl
   setSendStop(true)
   try {
-    const j = await postChatStream(full, sid, cwd, ctl.signal, (ev) => updateThought(tbox, tstate, ev))
+    const j = await postChatStream(full, sid, cwd, ctl.signal, (ev) => updateThought(tbox, tstate, ev), atts)
+    if (atts && atts.length) clearAtts()
     const fr = finishAiTurn(j, ph, goalMode)
     sealAiTurn(ph, t0, fr)
   } catch (err) {
@@ -460,10 +462,13 @@ $("#f").addEventListener("submit", async (e) => {
     }
     return
   }
+  const isSlashCmd = text.startsWith("/") && sendText === null
+  const atts = isSlashCmd ? [] : pendingAtts.slice()
+  const echoSuffix = atts.length ? "\n[첨부: " + atts.map((a) => a.name).join(", ") + "]" : ""
   saveConv(text.slice(0, 30))
   const meTs = Date.now()
   if (skipEcho) skipEcho = false
-  else { addMsg("me", text, null, timeStr(meTs)); saveMsg("me", text, { ts: meTs }); }
+  else { addMsg("me", text + echoSuffix, null, timeStr(meTs)); saveMsg("me", text + echoSuffix, { ts: meTs }); }
   if (text === "/copy" || text.startsWith("/copy ")) {
     const done = (await copyText(lastAiText())) ? "복사했습니다." : "복사할 답변이 없습니다."
     addMsg("ai", done)
@@ -480,8 +485,10 @@ $("#f").addEventListener("submit", async (e) => {
     if (text.startsWith("/") && sendText === null) {
       const r = await fetch("/api/chat", { method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: full, session_id: sessionId, cwd }) })
+        body: JSON.stringify({ message: full, session_id: sessionId, cwd,
+          attachments: atts }) })
       const j = await r.json()
+      if (atts.length) clearAtts()
       if (j.text === "__COPY__") {
         const prev = [...chat.querySelectorAll(".msg.ai")].filter((n) => n !== ph).pop()
         ph.dataset.raw = await copyText(prev ? prev.dataset.raw || "" : "")
@@ -495,7 +502,7 @@ $("#f").addEventListener("submit", async (e) => {
       refreshPrefs()
       chat.scrollTop = chat.scrollHeight
     } else {
-      await runStreamTurn(full, sessionId, cwd, ph, t0, goalMode)
+      await runStreamTurn(full, sessionId, cwd, ph, t0, goalMode, atts)
       drawConvs()
       refreshPrefs()
       chat.scrollTop = chat.scrollHeight

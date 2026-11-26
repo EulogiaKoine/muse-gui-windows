@@ -98,12 +98,12 @@
 </div>
 </div></div>
 <main>
-<header><span id="status"></span><span id="cwdwrap"><span id="oschip" class="oschip" hidden></span><span id="cwdlabel">작업 경로</span><span id="cwd" title="작업 디렉터리 — 클릭하면 탐색기로 열기"></span></span><button id="rsideopen" type="button" title="사이드바 펼치기" aria-label="사이드바 펼치기" hidden><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button></header>
+<header><span id="status"></span><span id="cwdwrap"><span id="oschip" class="oschip" hidden></span><span id="cwdlabel">작업 경로</span><span id="cwd" title="작업 디렉터리 — 클릭하면 탐색기로 열기"></span></span><button id="filesbtn" type="button">파일</button><button id="rsideopen" type="button" title="사이드바 펼치기" aria-label="사이드바 펼치기" hidden><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button></header>
 <div id="lobby"><h1>muse-gui</h1><p id="lobbysub">WSL의 muse 에이전트와 대화하세요</p><div class="chips" id="chips"></div></div>
 <div id="chat" aria-live="polite"></div>
 <form id="f">
 <div id="slash" role="listbox"></div>
-<div id="inwrap"><div id="inbox"><textarea id="in" placeholder="메시지 입력 (Enter 줄바꿈, / 자동완성)" autocomplete="off"></textarea><span id="sendhint" title="Ctrl+Enter로 전송">Ctrl + Enter</span></div><div id="feats"></div></div>
+<div id="inwrap"><div id="attachbar" hidden></div><div id="inbox"><textarea id="in" placeholder="메시지 입력 (Enter 줄바꿈, / 자동완성)" autocomplete="off"></textarea><span id="sendhint" title="Ctrl+Enter로 전송">Ctrl + Enter</span></div><div id="feats"></div></div>
 <button type="submit" title="전송 (Ctrl+Enter)" aria-label="전송"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
 <div id="inputgate" hidden><div id="gatebox"><div id="gateenv"></div><p id="gatemsg"></p><button id="gatebtn" type="button" class="optbtn"></button></div></div>
 </form>
@@ -113,6 +113,7 @@
 <div id="rsidehead"><button id="rsidetoggle" type="button" title="사이드바 접기" aria-label="사이드바 접기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button><div id="rsidetabs" role="tablist"></div></div>
 <section id="rsidegoal" data-rpane="goal"></section>
 <section id="rsidehelp" data-rpane="help" hidden></section>
+<section id="rsidefiles" data-rpane="files" hidden></section>
 <section id="rsideempty" data-rpane="empty" hidden><div class="emptybox"><p id="rsideempty1">열린 탭이 없습니다</p><p class="hint" id="rsideempty2">/goal · /help 로 탭을 여세요</p></div></section>
 </aside>
 <script src="/static/js/util.js?v=__GUI_VERSION__"></script>

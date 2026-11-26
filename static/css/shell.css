@@ -24,6 +24,21 @@ body.rside-hidden #rside { display: none; }
 #rsidetoggle:hover, #rsideopen:hover { border-color: var(--me); color: var(--me); }
 #rsideopen { margin-left: auto; }
 #rsideopen[hidden] { display: none; }
+#filesbtn { border: 1px solid var(--bd); background: var(--bg); border-radius: 8px; padding: 4px 10px; cursor: pointer; color: var(--muted); font-size: 12px; flex: none; }
+#filesbtn:hover { border-color: var(--me); color: var(--me); }
+.fgroup { border: 1px solid var(--bd); border-radius: 8px; margin-bottom: 6px; background: var(--bg); }
+.fgroup summary { cursor: pointer; padding: 7px 10px; font-weight: 600; display: flex; align-items: center; gap: 6px; list-style: none; }
+.fgroup summary::-webkit-details-marker { display: none; }
+.fgroup summary::before { content: "›"; color: var(--muted); transition: transform .12s; }
+.fgroup[open] summary::before { transform: rotate(90deg); }
+.fgroup .ficon { display: inline-flex; color: var(--me); }
+.fgroup .fcount { margin-left: auto; font-weight: 400; color: var(--muted); font-size: 12px; }
+.fgroup .hint { padding: 0 10px 8px; }
+.flist { list-style: none; margin: 0; padding: 0 10px 8px; display: flex; flex-direction: column; gap: 4px; }
+.flist li { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.flist a { color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flist a:hover { color: var(--me); text-decoration: underline; }
+.fsize { margin-left: auto; flex: none; font-size: 11px; color: var(--muted); }
 #rside section[data-rpane] { flex: 1; min-height: 0; overflow-y: auto; font-size: 13px; }
 #rside section[data-rpane][hidden] { display: none; }
 #rsideempty { display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; }

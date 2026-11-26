@@ -48,6 +48,10 @@ const STR = {
     "conv.adopted": "가져온 세션",
     "conv.saveTrim": "저장 공간이 부족해 이전 대화의 세부 기록 일부를 줄여서 저장했습니다.",
     "conv.saveFail": "저장 공간이 부족해 대화를 저장하지 못했습니다. 오래된 대화를 삭제해 주세요.",
+    "files.btn": "파일",
+    "files.loading": "불러오는 중…",
+    "files.fail": "파일 목록을 불러오지 못했습니다.",
+    "files.empty": "파일 없음",
     "th.fulllog": "전체 로그 보기",
     "th.loading": "불러오는 중…",
     "th.cut": "잘림",
@@ -98,6 +102,10 @@ const STR = {
     "conv.adopted": "Adopted session",
     "conv.saveTrim": "Storage is low; older detail logs were trimmed when saving.",
     "conv.saveFail": "Storage full; conversations could not be saved. Please delete old conversations.",
+    "files.btn": "Files",
+    "files.loading": "Loading…",
+    "files.fail": "Could not load the file list.",
+    "files.empty": "No files",
     "th.fulllog": "View full log",
     "th.loading": "Loading…",
     "th.cut": "cut",
@@ -133,6 +141,7 @@ function applyLang(l, save) {
   setText("#cwdlabel", t("cwd.label"))
   setText("#rsideempty1", t("rside.empty"))
   setText("#rsideempty2", t("rside.emptyHint"))
+  setText("#filesbtn", t("files.btn"))
   setText("#langhead", t("settings.language"))
   document.querySelectorAll("#langrow [data-lang]").forEach((b) => {
     b.classList.toggle("sel", b.dataset.lang === langCur)

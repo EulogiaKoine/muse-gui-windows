@@ -20,13 +20,15 @@ function applySide(hidden) {
 }
 function setSide(hidden) { applySide(hidden); saveTheme({ side: !!hidden }); }
 // 우측 탭 규칙: 기본적으로 탭은 존재하지 않는다. goal 탭은 대화에 목표가
-// 생길 때, help 탭은 /help 실행 때 생긴다. 앞으로 추가될 탭도 같은 규칙:
-// 존재 조건 + 렌더 함수 + closable 여부를 아래에 등록한다.
+// 생길 때, help 탭은 /help 실행 때 생긴다. files 탭은 헤더 '파일' 버튼이
+// 있으므로 항상 있다. 앞으로 추가될 탭도 같은 규칙: 존재 조건 + 렌더 함수
+// + closable 여부를 아래에 등록한다.
 const RSIDE_TABS = {
   goal: { label: "goal", render: () => renderGoal() },
   help: { label: "help", render: () => renderHelp(), closable: true, onClose: () => {
     helpOpen = false
   } },
+  files: { label: "files", render: () => renderFiles() },
 }
 let rsideTab = null
 let helpOpen = false
@@ -36,6 +38,7 @@ function availTabs() {
   const t = []
   if (curConv() && curConv().goal) t.push("goal")
   if (helpOpen) t.push("help")
+  t.push("files")
   return t
 }
 function renderRsideTabs() {
@@ -141,6 +144,49 @@ function renderHelp() {
     html += "</div>"
   })
   if (!(slashList || []).length) html += '<p class="hint">불러오는 중…</p>'
+  box.innerHTML = html
+}
+const FOLDER_ICON = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+function fmtSize(n) {
+  n = +n || 0
+  if (n < 1024) return n + " B"
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB"
+  return (n / 1024 / 1024).toFixed(1) + " MB"
+}
+async function renderFiles() {
+  const box = $("#rsidefiles")
+  if (!box) return
+  const c = (typeof curConv === "function") ? curConv() : null
+  const cwd = (c && c.cwd) || ((typeof serverCwd !== "undefined") ? serverCwd : "") || ""
+  box.innerHTML = "<h3>files</h3><p class='hint'>" + esc(t("files.loading")) + "</p>"
+  let j = null
+  try {
+    const r = await fetch("/api/agent-files?cwd=" + encodeURIComponent(cwd))
+    j = await r.json()
+  } catch (e) { j = null }
+  if (!j || !j.ok) {
+    box.innerHTML = "<h3>files</h3><p class='hint'>" + esc(t("files.fail")) + "</p>"
+    return
+  }
+  const base = j.cwd || cwd
+  let html = "<h3>files</h3>"
+  j.groups.forEach((g, gi) => {
+    html += "<details class='fgroup'" + (gi === 0 ? " open" : "") + "><summary><span class='ficon'>" +
+      FOLDER_ICON + "</span>" + esc(g.label) + " <span class='fcount'>" + g.files.length + "</span></summary>"
+    if (!g.files.length) {
+      html += "<p class='hint'>" + esc(t("files.empty")) + "</p>"
+    } else {
+      html += "<ul class='flist'>"
+      g.files.forEach((f) => {
+        const u = "/api/file?cwd=" + encodeURIComponent(base) + "&path=" + encodeURIComponent(f.path)
+        const img = /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name)
+        html += "<li><a href='" + escAttr(u) + "' target='_blank' rel='noreferrer'>" +
+          (img ? "🖼 " : "📄 ") + esc(f.name) + "</a> <span class='fsize'>" + esc(fmtSize(f.size)) + "</span></li>"
+      })
+      html += "</ul>"
+    }
+    html += "</details>"
+  })
   box.innerHTML = html
 }
 function goalSetPrompt(obj) {

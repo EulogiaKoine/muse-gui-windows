@@ -1363,7 +1363,8 @@ def prepare_workdir(cwd):
     # 에이전트 내부 파일 저장소: <작업 디렉터리>/.agent (없으면 생성)
     for _d in (os.path.join(workdir, ".agent"),
                os.path.join(workdir, ".agent", "tmp"),
-               os.path.join(workdir, ".agent", "memory")):
+               os.path.join(workdir, ".agent", "memory"),
+               os.path.join(workdir, ".agent", "attachments")):
         try:
             os.makedirs(_d, exist_ok=True)
         except OSError:
@@ -1371,7 +1372,125 @@ def prepare_workdir(cwd):
     return workdir
 
 
-def build_muse_cmd(prompt, session_id, workdir):
+ATTACH_SUBDIR = os.path.join(".agent", "attachments")
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+MAX_FILE_BYTES = 15 * 1024 * 1024
+
+
+def safe_attach_name(name):
+    """업로드 파일명을 .agent/attachments 안에 둘 수 있게 정리한다."""
+    base = (os.path.basename(name or "").strip() or "upload.bin")
+    if base in (".", ".."):
+        base = "upload.bin"
+    return base[:120] or "upload.bin"
+
+
+def save_upload(workdir, fname, data):
+    """첨부 바이트를 저장하고 (workdir 상대경로, 크기)를 돌려준다."""
+    d = os.path.join(workdir, ATTACH_SUBDIR)
+    os.makedirs(d, exist_ok=True)
+    name = safe_attach_name(fname)
+    stem, dot, ext = name.rpartition(".")
+    cand = name
+    i = 0
+    while os.path.exists(os.path.join(d, cand)):
+        i += 1
+        cand = ("%s-%d.%s" % (stem or "file", i, ext)
+                if dot else "%s-%d" % (name, i))
+    with open(os.path.join(d, cand), "wb") as f:
+        f.write(data)
+    rel = os.path.join(ATTACH_SUBDIR, cand)
+    return rel, os.path.getsize(os.path.join(d, cand))
+
+
+def parse_multipart(body, ctype):
+    """multipart/form-data를 stdlib email로 나눈다. (필드, 파일 목록)."""
+    from email.parser import BytesParser
+    from email import policy
+    head = ("Content-Type: " + (ctype or "")
+            + "\r\nMIME-Version: 1.0\r\n\r\n").encode("latin-1")
+    try:
+        msg = BytesParser(policy=policy.default).parsebytes(
+            head + (body or b""))
+    except Exception:
+        return {}, []
+    if not msg.is_multipart():
+        return {}, []
+    fields, files = {}, []
+    for part in msg.iter_parts():
+        name = part.get_param("name", header="content-disposition")
+        filename = part.get_filename()
+        payload = part.get_payload(decode=True) or b""
+        if filename:
+            files.append({"field": name, "filename": filename,
+                          "content_type": part.get_content_type(),
+                          "data": payload})
+        elif name:
+            try:
+                fields[name] = payload.decode("utf-8")
+            except UnicodeDecodeError:
+                fields[name] = ""
+    return fields, files
+
+
+def split_attachments(workdir, atts):
+    """첨부 목록을 (이미지 절대경로, 본문 참조줄)로 나눈다.
+
+    .agent/attachments 밖을 가리키는 항목은 버린다."""
+    root = os.path.realpath(os.path.join(workdir, ATTACH_SUBDIR))
+    imgs, refs = [], []
+    for a in (atts or []):
+        if not isinstance(a, dict):
+            continue
+        rel = (a.get("path") or "").replace("\\", "/")
+        if not rel.startswith(".agent/attachments/"):
+            continue
+        ap = os.path.realpath(os.path.join(workdir, rel))
+        try:
+            inside = os.path.commonpath([root, ap]) == root
+        except ValueError:
+            inside = False
+        if not inside or not os.path.isfile(ap):
+            continue
+        name = a.get("name") or os.path.basename(ap)
+        refs.append("- %s (%s)" % (name, rel))
+        mime = (a.get("mime") or "")
+        if (mime.startswith("image/")
+                or os.path.splitext(ap)[1].lower() in IMAGE_EXTS):
+            imgs.append(ap)
+    return imgs, refs
+
+
+def agent_file_groups(workdir):
+    """files 탭용: .agent 공개 하위 폴더별 파일 묶음."""
+    groups = [("attachments", "첨부파일"), ("memory", "메모리"),
+              ("sessions", "이전 세션 로그"), ("tmp", "임시 파일")]
+    out = []
+    for sub, label in groups:
+        d = os.path.join(workdir, ".agent", sub)
+        files = []
+        try:
+            names = sorted(os.listdir(d))
+        except OSError:
+            names = []
+        for nm in names:
+            p = os.path.join(d, nm)
+            try:
+                if not os.path.isfile(p):
+                    continue
+                st = os.stat(p)
+            except OSError:
+                continue
+            files.append({"name": nm,
+                          "path": ".agent/%s/%s" % (sub, nm),
+                          "size": st.st_size,
+                          "mtime": int(st.st_mtime)})
+        out.append({"id": sub, "label": label, "files": files})
+    return out
+
+
+def build_muse_cmd(prompt, session_id, workdir, images=()):
     """`muse exec` 호출 argv를 만든다."""
     cmd = ["muse", "exec", "--json"] + MUSE_ARGS
     # --yolo는 기본 켜짐이다. GUI 토글로 끄면 그 턴부터 제외한다.
@@ -1399,6 +1518,8 @@ def build_muse_cmd(prompt, session_id, workdir):
     elif not flag_value(MUSE_ARGS, "--workspace"):
         # 새 세션만 대화별 작업 디렉터리로 시작한다.
         cmd += ["--workspace", workdir]
+    for p in (images or ()):
+        cmd += ["--image", p]
     cmd.append(prompt)
     return cmd
 
@@ -1428,14 +1549,18 @@ def process_exec_event(ev, state):
         record_usage(state["sid"], payload)
 
 
-def run_muse_exec(prompt, session_id=None, cwd=None):
+def run_muse_exec(prompt, session_id=None, cwd=None, attachments=None):
     """Run `muse exec --json` and collect the assistant text.
 
     cwd: 새 세션의 작업 디렉터리. 이어쓰기(session_id 있음)는 세션 고유
     작업 공간을 유지하므로 --workspace를 붙이지 않는다.
-    (sid, text, workdir)를 돌려준다."""
+    attachments: [{path, name, mime}] — 이미지는 --image로, 전체는
+    본문 참조로 전달한다. (sid, text, workdir)를 돌려준다."""
     workdir = prepare_workdir(cwd)
-    cmd = build_muse_cmd(prompt, session_id, workdir)
+    imgs, refs = split_attachments(workdir, attachments)
+    if refs:
+        prompt = prompt + "\n\n[첨부파일]\n" + "\n".join(refs)
+    cmd = build_muse_cmd(prompt, session_id, workdir, imgs)
     try:
         proc = subprocess.run(
             cmd, capture_output=True, text=True, timeout=600, cwd=workdir
@@ -1486,7 +1611,8 @@ class Handler(BaseHTTPRequestHandler):
                 ConnectionAbortedError):
             return False
 
-    def handle_chat_stream(self, message, session_id, cwd):
+    def handle_chat_stream(self, message, session_id, cwd,
+                           attachments=None):
         """`muse exec` JSONL을 SSE로 중계한다.
 
         run 원본 이벤트를 그대로 흘리고, 종료 시 done으로 집계 결과
@@ -1496,7 +1622,10 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, json.dumps({"ok": False, "error": "empty"}))
             return
         workdir = prepare_workdir(cwd)
-        cmd = build_muse_cmd(message, session_id, workdir)
+        imgs, refs = split_attachments(workdir, attachments)
+        if refs:
+            message = message + "\n\n[첨부파일]\n" + "\n".join(refs)
+        cmd = build_muse_cmd(message, session_id, workdir, imgs)
         try:
             errf = tempfile.TemporaryFile(mode="w+")
         except OSError:
@@ -1674,6 +1803,44 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_chat_stream((q.get("message") or [""])[0],
                                     (q.get("session_id") or [""])[0] or None,
                                     (q.get("cwd") or [""])[0])
+        elif path == "/api/agent-files":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            workdir = prepare_workdir((q.get("cwd") or [""])[0])
+            self._send(200, json.dumps(
+                {"ok": True, "groups": agent_file_groups(workdir),
+                 "cwd": workdir}, ensure_ascii=False))
+        elif path == "/api/file":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            workdir = prepare_workdir((q.get("cwd") or [""])[0])
+            rel = ((q.get("path") or [""])[0] or "").replace("\\", "/")
+            root = os.path.realpath(os.path.join(workdir, ".agent"))
+            ap = os.path.realpath(os.path.join(workdir, rel))
+            ok = rel.startswith(".agent/") and ap != root
+            try:
+                ok = ok and os.path.commonpath([root, ap]) == root
+            except ValueError:
+                ok = False
+            if not ok or not os.path.isfile(ap):
+                self._send(404, "not found")
+                return
+            try:
+                if os.path.getsize(ap) > MAX_FILE_BYTES:
+                    self._send(413, "too large")
+                    return
+                with open(ap, "rb") as f:
+                    data = f.read()
+            except OSError:
+                self._send(404, "not found")
+                return
+            ext = os.path.splitext(ap)[1].lower()
+            if ext in IMAGE_EXTS:
+                ctype = ("image/jpeg" if ext in (".jpg", ".jpeg")
+                         else "image/" + ext[1:])
+            elif ext in (".md", ".txt", ".log", ".json"):
+                ctype = "text/plain; charset=utf-8"
+            else:
+                ctype = "application/octet-stream"
+            self._send(200, data, ctype)
         elif path == "/api/fs/roots":
             self._send(200, json.dumps(fs_roots(), ensure_ascii=False))
         elif path.startswith("/api/fs/list"):
@@ -1700,12 +1867,51 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._send(404, "not found")
 
+    def handle_upload(self, length):
+        """multipart 파일을 .agent/attachments에 저장한다."""
+        if length <= 0 or length > 64 * 1024 * 1024:
+            self._send(400, json.dumps({"ok": False,
+                                        "error": "bad upload size"}))
+            return
+        try:
+            raw = self.rfile.read(length)
+        except OSError:
+            self._send(400, json.dumps({"ok": False, "error": "read fail"}))
+            return
+        fields, files = parse_multipart(
+            raw, self.headers.get("Content-Type", ""))
+        if not files:
+            self._send(400, json.dumps({"ok": False, "error": "no files"}))
+            return
+        workdir = prepare_workdir(fields.get("cwd") or "")
+        saved = []
+        for f in files:
+            if len(f["data"]) > MAX_UPLOAD_BYTES:
+                self._send(413, json.dumps(
+                    {"ok": False, "error": "too large: " + f["filename"]},
+                    ensure_ascii=False))
+                return
+            try:
+                rel, size = save_upload(workdir, f["filename"], f["data"])
+            except OSError:
+                self._send(500, json.dumps({"ok": False,
+                                            "error": "save fail"}))
+                return
+            saved.append({"path": rel.replace(os.sep, "/"),
+                          "name": os.path.basename(rel),
+                          "size": size, "mime": f["content_type"]})
+        self._send(200, json.dumps({"ok": True, "files": saved,
+                                    "cwd": workdir}, ensure_ascii=False))
+
     def do_POST(self):
         path = urllib.parse.urlparse(self.path).path
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
             length = 0
+        if path == "/api/upload":
+            self.handle_upload(length)
+            return
         try:
             body = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -1806,7 +2012,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/chat/stream":
             self.handle_chat_stream(body.get("message") or "",
                                     body.get("session_id") or None,
-                                    body.get("cwd") or "")
+                                    body.get("cwd") or "",
+                                    body.get("attachments"))
             return
         if path != "/api/chat":
             self._send(404, "not found")
@@ -1828,7 +2035,8 @@ class Handler(BaseHTTPRequestHandler):
                                            ensure_ascii=False))
             return
         sid, text, workdir = run_muse_exec(message, session_id,
-                                               body.get("cwd"))
+                                               body.get("cwd"),
+                                               body.get("attachments"))
         ws = session_workspace(sid) or workdir
         self._send(200, json.dumps({"ok": True, "text": text,
                                     "session_id": sid, "cwd": ws},

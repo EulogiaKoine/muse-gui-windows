@@ -88,6 +88,13 @@ form button[type="submit"]:active { transform: scale(.96); }
 #inbox:focus-within #sendhint { opacity: .8; }
 #feats { display: flex; gap: 6px; flex-wrap: wrap; }
 #feats:empty { display: none; }
+#attachbar { display: flex; gap: 6px; flex-wrap: wrap; }
+#attachbar[hidden] { display: none; }
+.achip { display: inline-flex; align-items: center; gap: 6px; background: var(--hover); border: 1px solid var(--bd); color: var(--text); border-radius: 999px; padding: 3px 6px 3px 12px; font-size: 12px; max-width: 100%; }
+.achip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.achip button { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 2px; font-size: 14px; line-height: 1; }
+.achip button:hover { color: var(--err); }
+main.dragover #chat { outline: 2px dashed var(--me); outline-offset: -6px; border-radius: 10px; }
 .fchip { display: inline-flex; align-items: center; gap: 6px; background: var(--hover); border: 1px solid var(--me); color: var(--text); border-radius: 999px; padding: 3px 6px 3px 12px; font-size: 12px; }
 .fchip button { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 2px; font-size: 14px; line-height: 1; }
 .fchip button:hover { color: var(--err); }
