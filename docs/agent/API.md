@@ -118,6 +118,7 @@
 | `notifyCompletion(title, body)` | 백그라운드 탭일 때만 브라우저 알림 |
 | `finishAiTurn(j, ph, goalMode)` / `sealAiTurn` | 턴 종료: 기록·추론 확정·헤더 요약·알림 |
 | `postChatStream` / `runStreamTurn` | SSE 스트리밍 수신→`updateThought` 전달→완료 처리. `atts` 받으면 `attachments` 동봉 후 `clearAtts()` |
+| `goalPending()` / `goalAutoChain` | goal 미완료면 `status` 턴 자동 계속(상한 6회, 중단·실패 시 정지). 수동 전송 시 계수 초기화 |
 | 전송 핸들러 일체 | 게이트 확인→슬래시 분기→스트림/단발 전송. `pick-new`는 conv 없을 때만 생성 |
 
 ## composer.js — 입력창
@@ -127,8 +128,11 @@
 `chipList`/`renderChips`(칩), yolo 토글 표시, 키보드 핸들러.
 첨부(`pendingAtts`): `openPicker`/`uploadFiles`(전송 전 `downscaleImage`로
 JPEG q0.85/1568px 축소, GIF 원본), `renderAttachBar`/`clearAtts`/
-`attEchoSuffix`/`attCwd`, main DnD+paste 핸들러. 서버 `POST /api/upload`
+`attCwd`, main DnD+paste 핸들러. 서버 `POST /api/upload`
 → `.agent/attachments/` 저장; 전송 시 `attachments` 동봉.
+말풍선 칩(message.js): `attRowHtml`(말풍선 위 `.attrow`, 이미지 썸네일),
+`agentFileUrl`/`openAgentFile`(`POST /api/file/open`로 OS 기본 앱 실행).
+편집모드 첨부 제거 후 저장 시 `branchFromMessage`가 남은 첨부로 재전송.
 
 ## usage.js — 사용량 (테스트 대상)
 
@@ -155,7 +159,7 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 
 ---
 
-## 전체 함수 색인 (기계 생성, 149개)
+## 전체 함수 색인 (기계 생성, 153개)
 
 모듈별 전체 목록. 동작 설명은 위 섹션을 본다. 새 함수를 추가하면
 여기에도 한 줄을 추가한다(수동 동기화).
@@ -199,6 +203,9 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 
 ### message.js
 - `addMsg()`
+- `agentFileUrl()`
+- `async openAgentFile()`
+- `attRowHtml()`
 - `resolveLinkPath()`
 - `decoratePaths()`
 - `async openPathLink()`
@@ -270,6 +277,8 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 - `sealAiTurn()`
 - `async postChatStream()`
 - `async runStreamTurn()`
+- `goalPending()`
+- `async goalAutoChain()`
 
 ### composer.js
 - `drawSlash()`
@@ -286,7 +295,6 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 - `async uploadFiles()`
 - `renderAttachBar()`
 - `clearAtts()`
-- `attEchoSuffix()`
 
 ### usage.js
 - `fmtNum()`
