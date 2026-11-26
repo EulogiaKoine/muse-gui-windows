@@ -140,6 +140,10 @@ main.dragover #chat { outline: 2px dashed var(--me); outline-offset: -6px; borde
 .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; font-size: .9em; }
 .frac .num { border-bottom: 1px solid currentColor; padding: 0 .25em; }
 .frac .den { padding: 0 .25em; }
+.math .mline { text-decoration: overline; }
+.math .mline.under { text-decoration: underline; }
+.math .nroot { font-size: .75em; vertical-align: super; }
+.math .boxed { border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; }
 .rad { border-top: 1px solid currentColor; padding: 0 .15em; }
 .callout { border: 1px solid var(--callout-bd); border-left: 4px solid var(--me); border-radius: 8px; padding: 8px 12px; margin: 8px 0; background: var(--panel); }
 .callout .callout-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
