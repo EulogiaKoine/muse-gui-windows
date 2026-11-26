@@ -708,6 +708,21 @@ const STR = {
     "goal.emptyHtml": "진행 중인 목표가 없습니다.<br><code>/goal 목표 내용</code> 으로 시작하세요.",
     "chip.struct": "이 폴더 구조 설명해줘",
     "chip.viz": "viz-html 예시 보여줘",
+    "th.thinking": "생각 중",
+    "th.termwork": "터미널 작업",
+    "th.preparing": "준비 중…",
+    "th.none": "별도 추론 과정 없음",
+    "th.working": "작업 중…",
+    "th.output": "출력",
+    "th.failed": " · 실패",
+    "th.exit": " · 종료 ",
+    "th.task": "작업",
+    "th.type.reason": "추론",
+    "th.type.terminal": "터미널 명령",
+    "th.type.web": "웹 검색",
+    "th.type.file": "파일 작업",
+    "th.type.system": "시스템",
+    "th.type.tool": "도구",
   },
   en: {
     "lobby.sub": "Chat with the muse agent on WSL",
@@ -734,6 +749,21 @@ const STR = {
     "goal.emptyHtml": "No active goal.<br>Start with <code>/goal your goal</code>.",
     "chip.struct": "Explain this folder structure",
     "chip.viz": "Show a viz-html example",
+    "th.thinking": "Thinking",
+    "th.termwork": "Terminal work",
+    "th.preparing": "Preparing…",
+    "th.none": "No reasoning steps",
+    "th.working": "Working…",
+    "th.output": "Output",
+    "th.failed": " · failed",
+    "th.exit": " · exit ",
+    "th.task": "Task",
+    "th.type.reason": "Reasoning",
+    "th.type.terminal": "Terminal",
+    "th.type.web": "Web",
+    "th.type.file": "Files",
+    "th.type.system": "System",
+    "th.type.tool": "Tool",
   }
 }
 let langCur = "ko"
@@ -832,19 +862,18 @@ async function flashCopy(btn, text) {
     btn.innerHTML = old
   }, 1200)
 }
-const THOUGHT_LABEL = { reason: "추론", terminal: "터미널 명령", web: "웹 검색", file: "파일 작업", system: "시스템", tool: "도구" }
 function thoughtIcon(type) {
   return { reason: ICON_TREASON, terminal: ICON_TERM, web: ICON_TWEB, file: ICON_TFILE, system: ICON_TSYS, tool: ICON_TSYS }[type] || ICON_TSYS
 }
 function setRowSummary(r, text) {
-  const s = truncStr(text, 140) || "작업 중…"
+  const s = truncStr(text, 140) || t("th.working")
   r.sum.textContent = s
   r.el.dataset.sum = s
 }
 function staticRowNote(r, type, tstate) {
   if (type !== "reason" && type !== "system") return
   if (r.det.children.length) return
-  const label = type === "reason" ? "생각 중" : "터미널 작업"
+  const label = type === "reason" ? t("th.thinking") : t("th.termwork")
   setRowSummary(r, label)
   addThoughtLog(r, label, label)
   tstate.last = label
@@ -862,7 +891,7 @@ function ensureThoughtRow(tbox, tstate, tid, type, summary) {
   ic.innerHTML = thoughtIcon(type)
   const lab = document.createElement("span")
   lab.className = "ttype"
-  lab.textContent = THOUGHT_LABEL[type] || "작업"
+  lab.textContent = t("th.type." + type)
   const spin = document.createElement("span")
   spin.className = "tspin"
   const sum = document.createElement("span")
@@ -901,7 +930,7 @@ function syncThoughtHead(tbox) {
   })
   if (m === 0) return
   if (d >= m) st.headSum.textContent = thoughtSummary(langCur === "en", counts)
-  else st.headSum.textContent = truncStr(st.last || "준비 중…", 140)
+  else st.headSum.textContent = truncStr(st.last || t("th.preparing"), 140)
   if (st.headSpin) st.headSpin.style.display = d >= m ? "none" : ""
 }
 function updateThoughtHead(tstate) {
@@ -958,7 +987,7 @@ function updateThought(tbox, tstate, ev) {
     tstate.rows.forEach((r) => {
       if (!r.idem || r.idem.indexOf(cid) < 0) return
       if (!oc || oc === "success") return
-      setRowSummary(r, (r.el.dataset.sum || "") + " · 실패")
+      setRowSummary(r, (r.el.dataset.sum || "") + t("th.failed"))
       const head = "tool_result · " + oc
       const raw = ((facts.tool_name ? "[" + facts.tool_name + "] " : "") + (p.text || "")).slice(0, 10000) || head
       addThoughtLog(r, head, raw)
@@ -975,14 +1004,14 @@ function updateThought(tbox, tstate, ev) {
   if (ek === "proposed") {
     const tk = te.task_kind || ""
     const type = thoughtKind(tk, "")
-    const r0 = ensureThoughtRow(tbox, tstate, tid, type, tk || "작업")
+    const r0 = ensureThoughtRow(tbox, tstate, tid, type, tk || t("th.task"))
     staticRowNote(r0, type, tstate)
     return
   }
   let r = tstate.rows.get(tid)
   if (!r) {
     const type0 = thoughtKind("", te.operation || "")
-    r = ensureThoughtRow(tbox, tstate, tid, type0, te.operation || "작업")
+    r = ensureThoughtRow(tbox, tstate, tid, type0, te.operation || t("th.task"))
     staticRowNote(r, type0, tstate)
   }
   if (ek === "accepted" || ek === "scheduled" || ek === "started") return
@@ -1006,15 +1035,15 @@ function updateThought(tbox, tstate, ev) {
       if (o && typeof o === "object") {
         const cmd = o.command || o.tool || ""
         const desc = o.description || o.desc || ""
-        sum = (desc || cmd || "출력") +
-          (o.exit_code !== undefined && o.exit_code !== null ? " · 종료 " + o.exit_code : "")
+        sum = (desc || cmd || t("th.output")) +
+          (o.exit_code !== undefined && o.exit_code !== null ? t("th.exit") + o.exit_code : "")
         if (r.type === "terminal" && typeof o.output === "string") body = (cmd ? "$ " + cmd + "\n" : "") + o.output
       }
     } catch (e) {}
     if (r.type === "file") body = diffOnly(body)
     if (sum) setRowSummary(r, sum)
-    tstate.last = sum || "출력"
-    addThoughtLog(r, sum || "output", body)
+    tstate.last = sum || t("th.output")
+    addThoughtLog(r, sum || t("th.output"), body)
     updateThoughtHead(tstate)
     return
   }
@@ -1055,7 +1084,7 @@ function markThoughtsDone(tbox) {
     r.done = true
   })
   if (st.rows.size === 0 && st.headSum) {
-    st.headSum.textContent = "별도 추론 과정 없음"
+    st.headSum.textContent = t("th.none")
     if (st.headSpin) st.headSpin.style.display = "none"
   }
   syncThoughtHead(tbox)
@@ -1065,7 +1094,7 @@ function renderThoughtsStatic(thoughts) {
   if (!items.length) return ""
   let rows = ""
   items.forEach((t) => {
-    const lab = t.k || "tool"
+    const lab = t("th.type." + (t.k || "tool"))
     const subs = Array.isArray(t.d) ? t.d : []
     let det = ""
     if (subs.length) {
@@ -2360,7 +2389,7 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode) {
   const thead = document.createElement("div")
   thead.className = "thead"
   thead.innerHTML = '<span class="tspin"></span><span class="ttype" hidden>통합</span>' +
-    '<span class="tsum">준비 중…</span>' +
+    '<span class="tsum">' + esc(t("th.preparing")) + "</span>" +
     '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button>'
   const tbody = document.createElement("div")
   tbody.className = "tbody"
