@@ -384,6 +384,9 @@ function diffOnly(s) {
   const i = lines.findIndex((ln) => /^(diff --git|--- |@@ )/.test(ln))
   return (i < 0 ? full : lines.slice(i).join("\n")).slice(0, 10000)
 }
+function shouldNotifyCompletion(permission, hidden) {
+  return permission === "granted" && !!hidden
+}
 function timeStr(ts) {
   if (!ts) return ""
   const d = new Date(ts)
@@ -2209,6 +2212,17 @@ input.addEventListener("keydown", (e) => {
     $("#f").requestSubmit()
   }
 })
+function notifyCompletion(title, body) {
+  try {
+    if (typeof Notification === "undefined") return false
+    if (!shouldNotifyCompletion(Notification.permission, document.hidden)) return false
+    const n = new Notification(title, { body: truncStr(body || "", 140) })
+    n.onclick = () => {
+      try { window.focus(); n.close(); } catch (e) {}
+    };
+    return true
+  } catch (e) { return false }
+}
 function finishAiTurn(j, ph, goalMode) {
   sessionId = j.session_id || sessionId
   let justDone = null, th = null
@@ -2256,6 +2270,7 @@ function finishAiTurn(j, ph, goalMode) {
   }
   ph.dataset.raw = j.text || "(빈 응답)"
   ph.innerHTML = renderText(ph.dataset.raw) + '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>"
+  notifyCompletion("muse-gui · 응답 완료", ph.dataset.raw)
   if (tbox) ph.prepend(tbox)
   decorateCode(ph)
   decorateMath(ph)
@@ -2340,6 +2355,12 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode) {
 }
 $("#f").addEventListener("submit", async (e) => {
   e.preventDefault()
+  try {
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      const pr = Notification.requestPermission()
+      if (pr && pr.catch) pr.catch(() => {})
+    }
+  } catch (err) {}
   if (activeStreamAbort) { try { activeStreamAbort.abort(); } catch (err) {} return; }
   const text = input.value.trim()
   if (!text) return
