@@ -135,7 +135,7 @@ t("truncStr", R.truncStr("abcdef", 3) === "abc…" && R.truncStr("ab", 3) === "a
 t("convToMd", (() => { const md = R.convToMd({ t: "T", sid: "s1abcd", cwd: "/w", msgs: [
   { who: "me", text: "질문", ts: 1000 },
   { who: "ai", text: "답\n```goal-plan\n[{\"t\":\"a\"}]\n```\n끝", ts: 2000 }] })
-  return md.includes("## 사용자") && md.includes("## 어시스턴트") && md.includes("질문") && !md.includes("goal-plan")
+  return md.includes("## User") && md.includes("## Assistant") && md.includes("질문") && !md.includes("goal-plan")
   })(), "")
 t("diff add", R.diffLineClass("+foo") === "td-add", "")
 t("diff del", R.diffLineClass("-foo") === "td-del", "")

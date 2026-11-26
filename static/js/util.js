@@ -49,7 +49,7 @@ function convToMd(c) {
     t = goalFence(t, "status").clean
     t = t.replace(/[ \t]+$/gm, "").replace(/\n{3,}/g, "\n\n").trim()
     if (!t) return
-    lines.push(m.who === "me" ? "## 사용자" : "## 어시스턴트", "")
+    lines.push(m.who === "me" ? "## User" : "## Assistant", "")
     // timeStr is outside the test slice; guarded call (always present in browser)
     if (m.ts && typeof timeStr === "function") {
       const when = timeStr(m.ts)
