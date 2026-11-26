@@ -1,7 +1,7 @@
 "use strict"
 const $ = (s) => document.querySelector(s)
 const chat = $("#chat"), input = $("#in"), slash = $("#slash")
-let slashList = [], slashIdx = 0, sessionId = null, convKey = null
+let slashList = [], slashIdx = 0, sessionId = null, convKey = null, userFreshStart = false
 const MAX_MSGS = 200
 function loadConvs() {
   try {
@@ -2652,7 +2652,7 @@ $("#f").addEventListener("submit", async (e) => {
         const prev = [...chat.querySelectorAll(".msg.ai")].filter((n) => n !== ph).pop()
         ph.dataset.raw = await copyText(prev ? prev.dataset.raw || "" : "")
         ph.innerHTML = esc(ph.dataset.raw)
-      } else if (j.new_session) { sessionId = null; convKey = null; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); }
+      } else if (j.new_session) { sessionId = null; convKey = null; userFreshStart = true; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); }
       else {
         const fr = finishAiTurn(j, ph, goalMode)
         sealAiTurn(ph, t0, fr)
@@ -2722,6 +2722,7 @@ $("#newchat").onclick = () => {
   saveScroll()
   sessionId = null
   convKey = null
+  userFreshStart = true
   chat.innerHTML = ""
   $("#cwd").textContent = serverCwd
   setRoute("/")
@@ -3009,6 +3010,7 @@ applyLang(langCur, false)
   if (!/^[0-9a-fA-F-]{36}$/.test(rid)) return
   fetch("/api/session_workspace?session_id=" + encodeURIComponent(rid)).then((r) => r.json()).then((j) => {
     if (!j.ok || !j.cwd) return
+    if (userFreshStart || convKey !== null || chat.children.length > 0) return
     if (convs.some((x) => x.sid === rid)) return
     convKey = "c" + Date.now()
     sessionId = rid
