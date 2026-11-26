@@ -190,6 +190,8 @@ let agentsFetchAt = 0
 let agentsInflight = false
 const agentOpen = new Set()
 let subRecs = {}
+let lastAgentsHtml = ""
+let lastLiveJson = ""
 async function refreshSubAgents() {
   const cur = (typeof curConv === "function") ? curConv() : null
   const sids = (cur && cur.sid) ? [cur.sid] : []
@@ -265,7 +267,7 @@ async function renderAgents() {
   if (agentsTimer) { clearInterval(agentsTimer); agentsTimer = null }
   const box = $("#rsideagents")
   if (!box) return
-  box.innerHTML = "<h3>agents</h3><p class='hint'>" + esc(t("agents.loading")) + "</p>"
+  if (!lastAgentsHtml) box.innerHTML = "<h3>agents</h3><p class='hint'>" + esc(t("agents.loading")) + "</p>"
   const okLive = await refreshLiveAgents()
   const ok = await refreshSubAgents()
   if (rsideTab !== "agents") return
@@ -296,8 +298,17 @@ async function renderAgents() {
     })
     html += "</ul>"
   }
-  box.innerHTML = html
-  drawConvs()
+  if (html !== lastAgentsHtml) {
+    const st = box.scrollTop
+    box.innerHTML = html
+    box.scrollTop = st
+    lastAgentsHtml = html
+  }
+  const liveJson = JSON.stringify(liveAgents)
+  if (liveJson !== lastLiveJson) {
+    lastLiveJson = liveJson
+    drawConvs()
+  }
   agentsTimer = setInterval(async () => {
     if (rsideTab !== "agents" || !$("#rsideagents")) {
       if (agentsTimer) { clearInterval(agentsTimer); agentsTimer = null }
