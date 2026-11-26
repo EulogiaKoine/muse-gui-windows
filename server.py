@@ -1651,6 +1651,12 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/models":
             self._send(200, json.dumps(list_models(),
                                       ensure_ascii=False))
+        elif path.startswith("/api/session_workspace"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            sid = (q.get("session_id") or [""])[0]
+            ws = session_workspace(sid) if SID_RE.match(sid or "") else None
+            self._send(200, json.dumps({"ok": bool(ws), "cwd": ws},
+                                      ensure_ascii=False))
         elif path.startswith("/api/tool_output"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             got, err = find_tool_output((q.get("call_id") or [""])[0],

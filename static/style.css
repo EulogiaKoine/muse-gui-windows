@@ -39,6 +39,9 @@ aside button:hover { border-color: var(--me); }
 main header #sidetoggle { margin-right: 2px; }
 body.side-hidden aside { display: none; }
 #convs { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding-top: 8px; }
+#convsortrow { display: flex; justify-content: flex-end; }
+#sortbtn { border: 0; background: none; color: var(--muted); border-radius: 6px; padding: 4px 8px; cursor: pointer; line-height: 0; }
+#sortbtn:hover { color: var(--me); background: var(--hover); }
 #convs button { text-align: left; border-color: transparent; background: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #convs button:hover { background: var(--hover); border-color: transparent; }
 #convs button.active { border-color: var(--me); background: var(--hover); }

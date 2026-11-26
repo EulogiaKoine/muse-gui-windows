@@ -13,6 +13,7 @@ function loadConvs() {
         goal: c.goal && c.goal.objective ? { objective: c.goal.objective,
           items: normGoalItems(c.goal.items), active: !!c.goal.active } : null,
         at: c.at || (msgs.length && msgs[msgs.length - 1].ts) || 0,
+        createdAt: c.createdAt || null,
         scroll: typeof c.scroll === "number" ? c.scroll : null,
         msgs }
     })
@@ -396,6 +397,18 @@ function isOutputTruncated(o) {
   }
   return false
 }
+function sortConvs(list, mode) {
+  const a = (list || []).slice()
+  const pinW = (c) => (c && c.pin ? 0 : 1)
+  if (mode === "name") {
+    a.sort((x, y) => pinW(x) - pinW(y) || (x.t < y.t ? -1 : x.t > y.t ? 1 : 0) || (x.k < y.k ? -1 : 1))
+  } else if (mode === "created") {
+    a.sort((x, y) => pinW(x) - pinW(y) || ((x.createdAt || x.k) < (y.createdAt || y.k) ? -1 : 1))
+  } else {
+    a.sort((x, y) => pinW(x) - pinW(y) || ((y.at || 0) - (x.at || 0)))
+  }
+  return a
+}
 function diffOnly(s) {
   const full = String(s == null ? "" : s)
   const lines = full.split("\n")
@@ -731,6 +744,10 @@ const STR = {
     "th.type.file": "파일 작업",
     "th.type.system": "시스템",
     "th.type.tool": "도구",
+    "conv.sort.recent": "최근순",
+    "conv.sort.name": "이름순",
+    "conv.sort.created": "생성순",
+    "conv.adopted": "가져온 세션",
     "th.fulllog": "전체 로그 보기",
     "th.loading": "불러오는 중…",
     "th.cut": "잘림",
@@ -775,6 +792,10 @@ const STR = {
     "th.type.file": "Files",
     "th.type.system": "System",
     "th.type.tool": "Tool",
+    "conv.sort.recent": "Recent",
+    "conv.sort.name": "Name",
+    "conv.sort.created": "Created",
+    "conv.adopted": "Adopted session",
     "th.fulllog": "View full log",
     "th.loading": "Loading…",
     "th.cut": "cut",
@@ -1275,7 +1296,7 @@ function saveConv(title) {
   if (ex) {
     if (title && !ex.tManual && (ex.msgs || []).length === 0) ex.t = title
   }
-  else convs.unshift({ k: convKey, t: title || "새 대화", sid: null, cwd: serverCwd, msgs: [], at: Date.now() })
+  else convs.unshift({ k: convKey, t: title || "새 대화", sid: null, cwd: serverCwd, msgs: [], at: Date.now(), createdAt: Date.now() })
   persistConvs()
   drawConvs()
 }
@@ -1447,10 +1468,22 @@ function renderFsList() {
   })
 }
 let renamingKey = null
+function convSortMode() {
+  const m = (loadTheme() || {}).convSort
+  return m === "name" || m === "created" ? m : "recent"
+}
+function paintSortBtn() {
+  const b = $("#sortbtn")
+  if (!b) return
+  const m = convSortMode()
+  b.dataset.mode = m
+  b.title = t("conv.sort." + m)
+}
 function drawConvs() {
+  paintSortBtn()
   const box = $("#convs")
   box.innerHTML = ""
-  convs.slice().sort((a, b) => ((b.pin ? 1 : 0) - (a.pin ? 1 : 0)) || ((b.at || 0) - (a.at || 0))).forEach((c) => {
+  sortConvs(convs, convSortMode()).forEach((c) => {
     const row = document.createElement("div")
     row.className = "conv" + (c.pin ? " pinned" : "")
     if (c.k === renamingKey) {
@@ -2597,6 +2630,12 @@ $("#f").addEventListener("submit", async (e) => {
     saveMsg("ai", ph.dataset.raw)
   }
 })
+$("#sortbtn").onclick = () => {
+  const order = ["recent", "name", "created"]
+  const next = order[(order.indexOf(convSortMode()) + 1) % order.length]
+  saveTheme({ convSort: next })
+  drawConvs()
+}
 $("#newchat").onclick = () => {
   saveScroll()
   sessionId = null
@@ -2632,7 +2671,7 @@ $("#gatebtn").onclick = () => {
     if (act === "pick-new") {
       convKey = "c" + Date.now()
       sessionId = null
-      convs.unshift({ k: convKey, t: "새 대화", sid: null, cwd: p, msgs: [] })
+      convs.unshift({ k: convKey, t: "새 대화", sid: null, cwd: p, msgs: [], at: Date.now(), createdAt: Date.now() })
       persistConvs()
       drawConvs()
       openConv(convKey)
@@ -2881,5 +2920,18 @@ applyLang(langCur, false)
   const rid = routeId(location.pathname)
   if (!rid) return
   const c = convs.find((x) => x.k === rid || x.sid === rid)
-  if (c) openConv(c.k)
+  if (c) {
+    openConv(c.k)
+    return
+  }
+  if (!/^[0-9a-fA-F-]{36}$/.test(rid)) return
+  fetch("/api/session_workspace?session_id=" + encodeURIComponent(rid)).then((r) => r.json()).then((j) => {
+    if (!j.ok || !j.cwd) return
+    if (convs.some((x) => x.sid === rid)) return
+    convKey = "c" + Date.now()
+    sessionId = rid
+    convs.unshift({ k: convKey, t: t("conv.adopted"), sid: rid, cwd: j.cwd, msgs: [], at: Date.now(), createdAt: Date.now() })
+    persistConvs()
+    openConv(convKey)
+  }).catch(() => {})
 })()
