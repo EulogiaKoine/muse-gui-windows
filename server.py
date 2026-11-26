@@ -1345,7 +1345,7 @@ public interface IShellItem
     void GetParent(out IShellItem ppsi);
     void GetDisplayName(SIGDN sigdnName, [MarshalAs(UnmanagedType.LPWStr)] out string ppszName);
     void GetAttributes(uint sfgaoMask, out uint psfgaoAttribs);
-    int Compare(IShellItem psi, uint hint, out int piOrder);
+    void Compare(IShellItem psi, uint hint, out int piOrder);
 }
 
 [ComImport]
@@ -1376,7 +1376,7 @@ public interface IFileOpenDialog
     void SetClientGuid(ref Guid guid);
     void ClearClientData();
     void SetFilter(IntPtr pFilter);
-    IShellItem GetResult();
+    void GetResult(out IShellItem ppsi);
     void GetResults(out IntPtr ppenum);
     void GetSelectedItems(out IntPtr ppsai);
 }
@@ -1385,7 +1385,34 @@ public static class ModernPicker
 {
     [DllImport("ole32.dll")]
     private static extern int CoCreateInstance(ref Guid rclsid, IntPtr pUnkOuter, uint dwClsContext, ref Guid riid, [MarshalAs(UnmanagedType.IUnknown)] out object ppv);
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
 
+    private class FgWin : System.Windows.Forms.NativeWindow
+    {
+        public FgWin(IntPtr h) { AssignHandle(h); }
+        public void Drop() { ReleaseHandle(); }
+    }
+
+    public static string PickFolderForms(string title)
+    {
+        using (var d = new System.Windows.Forms.FolderBrowserDialog())
+        {
+            d.Description = title;
+            d.ShowNewFolderButton = true;
+            FgWin o = null;
+            try
+            {
+                IntPtr fg = GetForegroundWindow();
+                if (fg != IntPtr.Zero) o = new FgWin(fg);
+                return d.ShowDialog(o) == System.Windows.Forms.DialogResult.OK ? d.SelectedPath : null;
+            }
+            finally { if (o != null) o.Drop(); }
+        }
+    }
+
+    [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions]
+    [System.Security.SecurityCritical]
     public static string PickFolder(string title)
     {
         Guid clsid = new Guid("DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7");
@@ -1398,13 +1425,22 @@ public static class ModernPicker
         dlg.GetOptions(out opts);
         dlg.SetOptions(opts | 0x20u | 0x40u | 0x800u);
         dlg.SetTitle(title);
-        int showHr = dlg.Show(IntPtr.Zero);
+        // 클릭 직후 포그라운드 창(브라우저)을 오너로 삼아 백그라운드로 깔리지 않게 한다.
+        int showHr = dlg.Show(GetForegroundWindow());
         if (showHr == 0)
         {
-            IShellItem item = dlg.GetResult();
-            string path;
-            item.GetDisplayName(SIGDN.FILESYSPATH, out path);
-            return path;
+            try
+            {
+                IShellItem item;
+                dlg.GetResult(out item);
+                string path;
+                item.GetDisplayName(SIGDN.FILESYSPATH, out path);
+                return path;
+            }
+            catch (System.Exception ex)
+            {
+                throw new COMException("GetResult failed: " + ex.Message, ex.HResult);
+            }
         }
         if (showHr == unchecked((int)0x800704C7)) return null;
         throw new COMException("Show failed", showHr);
@@ -1416,20 +1452,24 @@ PICK_NATIVE_PS = (
     "$cs = @\"\n" + PICK_NATIVE_CS + "\n\"@\n"
     + "[Console]::OutputEncoding = [Text.UTF8Encoding]::UTF8;\n"
     + "try {\n"
-    + "  Add-Type -TypeDefinition $cs -ErrorAction Stop | Out-Null\n"
-    + "  $r = [ModernPicker]::PickFolder('muse-gui 작업 디렉터리 선택')\n"
+    + "  Add-Type -AssemblyName System.Windows.Forms\n"
+    + "  Add-Type -TypeDefinition $cs -ReferencedAssemblies System.Windows.Forms -ErrorAction Stop | Out-Null\n"
+    + "} catch {\n"
+    + "  [Console]::Error.WriteLine($_.Exception.Message)\n"
+    + "  exit 1\n"
+    + "}\n"
+    + "try {\n"
+    + "  $r = [ModernPicker]::PickFolderForms('muse-gui 작업 디렉터리 선택')\n"
     + "  if ($r) { $r } else { exit 2 }\n"
     + "} catch {\n"
     + "  $detail = $_.Exception.Message\n"
     + "  try {\n"
-    + "    Add-Type -AssemblyName System.Windows.Forms\n"
-    + "    $d = New-Object System.Windows.Forms.FolderBrowserDialog\n"
-    + "    $d.Description = 'muse-gui 작업 디렉터리 선택'\n"
-    + "    $d.ShowNewFolderButton = $true\n"
-    + "    if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK)\n"
-    + "    { $d.SelectedPath } else { exit 2 }\n"
+    + "    $r = [ModernPicker]::PickFolder('muse-gui 작업 디렉터리 선택')\n"
+    + "    if ($r) { $r } else { exit 2 }\n"
     + "  } catch {\n"
-    + "    if ($detail) { [Console]::Error.WriteLine($detail) }\n"
+    + "    $m = $_.Exception.Message\n"
+    + "    if ($m) { [Console]::Error.WriteLine($m) }\n"
+    + "    elseif ($detail) { [Console]::Error.WriteLine($detail) }\n"
     + "    exit 1\n"
     + "  }\n"
     + "}\n")
@@ -1461,24 +1501,27 @@ def pick_native_folder():
         except Exception:
             pass
         return False, "선택 시간 초과 (%d초). 다시 시도하세요." % FS_PICK_TIMEOUT
+    win = out.strip()
+    if win:
+        # 종료 코드와 무관하게 경로가 찍혔으면 사용한다.
+        # (선택 직후 CLR 종료 과정에서 비정상 코드가 붙는 경우 보호)
+        try:
+            wp = subprocess.run(["wslpath", "-u", win], capture_output=True,
+                                text=True, timeout=10).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            wp = ""
+        if not wp or not valid_cwd(wp):
+            return False, "WSL 경로 변환 실패: %s" % win
+        return True, {"path": wp, "winpath": win}
     if proc.returncode == 2:
         return False, "취소됨."
     if proc.returncode != 0:
-        tail = " ".join(
-            clean_ansi(err).strip().split())[-200:]
-        detail = ": " + tail if tail else ""
+        # 예외 메시지(앞부분)에 원인이 담기므로 앞쪽을 살린다.
+        head = " ".join(
+            clean_ansi(err).strip().split())[:200]
+        detail = ": " + head if head else ""
         return False, "선택 실패 (exit %d)%s." % (proc.returncode, detail)
-    win = out.strip()
-    if not win:
-        return False, "선택 실패 (빈 경로)."
-    try:
-        wp = subprocess.run(["wslpath", "-u", win], capture_output=True,
-                            text=True, timeout=10).stdout.strip()
-    except (OSError, subprocess.TimeoutExpired):
-        wp = ""
-    if not wp or not valid_cwd(wp):
-        return False, "WSL 경로 변환 실패: %s" % win
-    return True, {"path": wp, "winpath": win}
+    return False, "선택 실패 (빈 경로)."
 
 
 def _is_wsl():
