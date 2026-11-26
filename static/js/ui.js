@@ -185,7 +185,19 @@ document.querySelector("#rsideagents").addEventListener("click", async (e) => {
 })
 let liveAgents = []
 let agentsTimer = null
+let agentsFetchAt = 0
+let agentsInflight = false
 const agentOpen = new Set()
+function pollAgentsForList() {
+  if (typeof refreshLiveAgents !== "function" || typeof drawConvs !== "function") return
+  if (agentsInflight || Date.now() - agentsFetchAt < 15000) return
+  agentsInflight = true
+  agentsFetchAt = Date.now()
+  refreshLiveAgents().then(() => {
+    agentsInflight = false
+    drawConvs()
+  }).catch(() => { agentsInflight = false })
+}
 async function refreshLiveAgents() {
   try {
     const r = await fetch("/api/agents")

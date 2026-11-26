@@ -352,6 +352,7 @@ function drawConvs() {
     }
     row.appendChild(dots)
     box.appendChild(row)
+    if (typeof pollAgentsForList === "function") pollAgentsForList()
     if (c.sid && typeof agentChildren === "function" && typeof agentOpen !== "undefined" && agentOpen.has(c.sid)) {
       agentChildren(c.sid).forEach((k) => {
         const kr = document.createElement("div")
