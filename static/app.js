@@ -890,6 +890,11 @@ function staticRowNote(r, type, tstate) {
   const label = type === "reason" ? t("th.thinking") : t("th.termwork")
   setRowSummary(r, label)
   addThoughtLog(r, label, label)
+  r.el.dataset.static = "1"
+  r.tgl.hidden = true
+  const sub = r.det.lastChild
+  const stg = sub ? sub.querySelector(".ttoggle") : null
+  if (stg) stg.hidden = true
   tstate.last = label
   updateThoughtHead(tstate)
 }
@@ -1100,6 +1105,7 @@ function collectThoughts(tbox) {
   const out = []
   tbox.querySelectorAll(".trow").forEach((r) => {
     const th = { k: r.dataset.type || "tool", s: r.dataset.sum || "" }
+    if (r.dataset.static) th.static = true
     const det = r.nextElementSibling
     if (det && det.classList && det.classList.contains("tdetail")) {
       const subs = []
@@ -1148,16 +1154,16 @@ function renderThoughtsStatic(thoughts) {
         const isD = t.k === "file" && isDiffText(bt)
         const bh = isD ? diffLinesHtml(bt) : esc(bt)
         sh += '<div class="tsub tsub-' + esc(String(t.k || "tool")) + '"><button type="button" class="tsubhead" data-ttoggle title="펼치기/접기">' +
-          '<span class="tsum">' + esc(s.h || "로그") + '</span><span class="ttoggle">›</span></button>' +
+          '<span class="tsum">' + esc(s.h || "로그") + '</span><span class="ttoggle"' + (t.static ? " hidden" : "") + ">›</span></button>" +
           '<div class="tsubbody" hidden><div class="tlog' + (isD ? " diff" : "") + '">' + bh + "</div></div></div>"
       })
       det = '<div class="tdetail" hidden>' + sh + "</div>"
     }
-    rows += '<div class="trow t-' + esc(String(t.k || "tool")) + ' done">' +
+    rows += '<div class="trow t-' + esc(String(t.k || "tool")) + ' done"' + (t.static ? ' data-static="1"' : "") + ">" +
       '<span class="ticon">' + thoughtIcon(t.k) + "</span>" +
       '<span class="ttype">' + esc(lab) + "</span>" +
       '<span class="tspin"></span><span class="tsum">' + esc(t.s || "") + "</span>" +
-      (subs.length ? '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button>' : "") +
+      (subs.length && !t.static ? '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button>' : "") +
       "</div>" + det
   })
   const counts = { terminal: 0, file: 0, reason: 0, other: 0 }
@@ -1181,7 +1187,9 @@ function toggleThoughtDetail(tg) {
     mark = sub.querySelector(".ttoggle")
   } else {
     const host = tg.closest(".trow, .thead")
-    if (host) det = host.nextElementSibling
+    if (!host) return
+    if (host.dataset.static) return
+    det = host.nextElementSibling
   }
   if (!det || !(det.classList.contains("tsubbody") || det.classList.contains("tdetail") || det.classList.contains("tbody"))) return
   det.hidden = !det.hidden
