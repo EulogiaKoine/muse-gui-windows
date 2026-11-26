@@ -5,20 +5,23 @@
 
 ## 경로 4종
 
-1. GUI 고유: `/new /clear /copy /help /quit /exit`
-   로컬 처리. 서버를 거치지 않는다.
+1. GUI 고유: `/new /clear /copy /help /goal` + `/quit /exit`
+   에이전트 턴을 소모하지 않는다. `/clear`·`/copy`·`/goal`은 클라이언트에서
+   직접 처리하고, `/new`·`/help`·`/quit`·`/exit`는 서버 안내로 처리한다.
+   (`/goal`은 목표 등록과 우측 사이드바 진행 추적까지 담당한다.)
 2. 세션 기준: `/usage /status /export /model /effort`
-   TUI와 같은 의미. `/usage`는 세션 토큰 집계(원장), 구독 플랜은 `/plan`.
+   TUI(Terminal UI)와 같은 의미. `/usage`는 세션 토큰 집계(원장)를
+   마크다운 표로 보여주고, 구독 플랜은 `/plan`으로 본다.
 3. 제네릭: 그 외 `muse` 하위 명령 전체.
    `muse <cmd> <args>`를 stdin 차단+120s 타임아웃+ANSI 제거로 실행.
 4. 차단: 아래 표의 deny 항목. 인증 변경·데몬 바인딩·작업공간 기록·타세션
    부작용 범주라 의미 기준으로 고정된다.
 
-## 항목별 정리 (2026-11-25 실측, 전부 0.0~0.3s·모델 토큰 0)
+## 항목별 정리
 
 | 입력 | 경로 | 비고 |
 |---|---|---|
-| /usage /status /export /model /effort | 세션 기준 | TUI와 동일 의미. 원장은 usage.json에 영속화 |
+| /usage /status /export /model /effort | 세션 기준 | TUI와 동일 의미. 원장은 usage.json에 영속화. /usage 출력은 md 표 |
 | /plan /sessions /skills /model-profile | 직접 매핑 | 기본값·JSON 가공·안내문 부가 |
 | /config /schema /trace /sandbox /voice | 제네릭 | 인자 없이 치면 사용법 출력 |
 | /exec | 제네릭 | 프롬프트 필요. bare는 사용법 출력 |
@@ -29,7 +32,7 @@
 | /serve /attach /acp /mxp | 차단 | 데몬·프로토콜 바인딩 |
 | /init | 차단 | 작업공간 기록 (`--dry-run` 미리보기 안내) |
 | /session-message | 차단 | 타 세션 부작용 |
-| 제거됨: rename/rewind/subagents/goal/cron/feedback/questions/tasks/stop/theme/rules | — | 순수 TUI 전용이라 목록·안내에서 삭제 (입력 시 미지정 안내) |
+| rename/rewind/subagents/cron/feedback/questions/tasks/stop/theme/rules 등 | 제네릭(발견 기반) | 하드코딩 목록에는 없으며, `muse --help`에 해당 하위 명령이 있으면 자동완성에 `(CLI)` 표시와 함께 그대로 실행된다. `/goal`은 GUI 고유 기능으로 유지된다 |
 | 기타 미지정 | 안내 | /help 참조 |
 
 ## 취소된 항목
