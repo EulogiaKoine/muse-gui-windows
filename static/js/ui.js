@@ -172,12 +172,23 @@ document.querySelector("#rsidefiles").addEventListener("click", async (e) => {
   if (op) openAgentFile(op.dataset.fopen || "")
 })
 document.querySelector("#rsideagents").addEventListener("click", async (e) => {
-  const ex = e.target.closest("[data-aexpand]")
-  if (ex) {
-    const id = ex.dataset.aexpand || ""
-    if (agentOpen.has(id)) agentOpen.delete(id)
-    else agentOpen.add(id)
+  const sx = e.target.closest("[data-subexpand]")
+  if (sx) {
+    const id = sx.dataset.subexpand || ""
+    if (subOpen.has(id)) subOpen.delete(id)
+    else subOpen.add(id)
     renderAgents()
+    return
+  }
+  const ss = e.target.closest("[data-ssenter]")
+  if (ss) {
+    const raw = ss.dataset.ssenter || ""
+    const bar = raw.indexOf("|")
+    const ck = bar >= 0 ? raw.slice(0, bar) : ""
+    const said = bar >= 0 ? raw.slice(bar + 1) : ""
+    const parent = convs.find((c) => c.k === ck)
+    const rec = parent && (subRecs[parent.sid] || []).find((r) => r.subagent_id === said)
+    if (parent && rec) openSubSession(parent, rec)
     return
   }
   const en = e.target.closest("[data-aenter]")
@@ -188,6 +199,40 @@ let agentsTimer = null
 let agentsFetchAt = 0
 let agentsInflight = false
 const agentOpen = new Set()
+let subRecs = {}
+const subOpen = new Set()
+async function refreshSubAgents() {
+  const sids = [...new Set(convs.map((c) => c.sid).filter(Boolean))]
+  if (!sids.length) { subRecs = {}; return true }
+  try {
+    const r = await fetch("/api/subagents", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sids }) })
+    const j = await r.json()
+    if (j && j.ok) { subRecs = j.parents || {}; return true }
+  } catch (e) {}
+  return false
+}
+function fmtSubTime(at) {
+  try {
+    return new Date(Math.floor((+at || 0) / 1000)).toLocaleString()
+  } catch (e) { return "" }
+}
+function openSubSession(parent, rec) {
+  if (!parent || !rec) return
+  const key = "c" + Date.now()
+  const label = rec.agent_path || (rec.subagent_id || "").slice(0, 8)
+  const seedNote = "[서브세션] " + label + " 기록 기반 (상태: " + rec.state + ")"
+  const seed = "[서브에이전트 기록 기반] 아래는 부모 세션에서 실행된 서브에이전트의 작업 기록이다.\n" +
+    "서브에이전트: " + label + " (상태 " + rec.state + ", 작업 " + (rec.task_ref || "?") + ").\n" +
+    "부모 작업 디렉터리와 동일한 환경에서 이어서 작업하라."
+  convs.unshift({ k: key, t: seedNote.slice(0, 60), sid: null, cwd: parent.cwd,
+    msgs: [{ who: "ai", text: seedNote, ts: Date.now(), el: "", th: null, atts: null }],
+    at: Date.now(), createdAt: Date.now(),
+    sub: { parent: parent.k, seed, used: false } })
+  persistConvs()
+  openConv(key)
+}
 function pollAgentsForList() {
   if (typeof refreshLiveAgents !== "function" || typeof drawConvs !== "function") return
   if (agentsInflight || Date.now() - agentsFetchAt < 15000) return
@@ -226,43 +271,42 @@ async function adoptSession(sid) {
   persistConvs()
   openConv(convKey)
 }
-function agentRowHtml(a) {
-  return "<button type='button' class='fname' data-aenter='" + escAttr(a.id) + "'>" +
-    esc(a.name || a.id.slice(0, 8)) + "</button> <span class='fsize'>" +
-    esc(a.workspace || "") + "</span>"
-}
 async function renderAgents() {
   if (agentsTimer) { clearInterval(agentsTimer); agentsTimer = null }
   const box = $("#rsideagents")
   if (!box) return
   box.innerHTML = "<h3>agents</h3><p class='hint'>" + esc(t("agents.loading")) + "</p>"
-  const ok = await refreshLiveAgents()
+  const okLive = await refreshLiveAgents()
+  const ok = await refreshSubAgents()
   if (rsideTab !== "agents") return
-  if (!ok && !liveAgents.length) {
+  if (!ok && !Object.keys(subRecs).length) {
     box.innerHTML = "<h3>agents</h3><p class='hint'>" + esc(t("agents.fail")) + "</p>"
     return
   }
-  const roots = liveAgents.filter((a) => !a.sideOf)
-  const inConvs = (sid) => (typeof convs !== "undefined") && convs.some((c) => c.sid === sid)
-  const orphans = liveAgents.filter((a) => a.sideOf && !liveAgents.some((p) => p.id === a.sideOf) && !inConvs(a.sideOf))
+  const parents = convs.filter((c) => c.sid).sort((a, b) => (b.at || 0) - (a.at || 0))
   let html = "<h3>agents</h3>"
-  if (!liveAgents.length) {
+  if (!parents.length) {
     html += "<p class='hint'>" + esc(t("agents.empty")) + "</p>"
   } else {
     html += "<ul class='flist'>"
-    roots.forEach((a) => {
-      const kids = agentChildren(a.id)
-      const open = agentOpen.has(a.id)
+    parents.forEach((p) => {
+      const recs = subRecs[p.sid] || []
+      const open = subOpen.has(p.k)
+      const act = recs.filter((r) => r.state === "active").length
       html += "<li class='frow'><button type='button' class='fexpand" + (open ? " open" : "") +
-        "' data-aexpand='" + escAttr(a.id) + "' title='" + escAttr(t("agents.toggle")) + "'>" +
-        (kids.length ? "›" : "·") + "</button>" + agentRowHtml(a) +
-        (kids.length ? " <span class='fcount'>" + kids.length + "</span>" : "") + "</li>"
-      if (open) kids.forEach((k) => {
-        html += "<li class='frow asub'><span class='atree'>└</span>" + agentRowHtml(k) + "</li>"
+        "' data-subexpand='" + escAttr(p.k) + "' title='" + escAttr(t("agents.toggle")) + "'>" +
+        (recs.length ? "›" : "·") + "</button>" +
+        "<button type='button' class='fname' data-aenter='" + escAttr(p.sid) + "'>" +
+        esc(p.t || p.sid.slice(0, 8)) + "</button> <span class='fsize'>" +
+        (recs.length ? recs.length + " · " : "") + (act ? t("agents.active") + " " + act : t("agents.idle")) + "</span></li>"
+      if (open) recs.forEach((r) => {
+        const label = r.agent_path || (r.subagent_id || "").slice(0, 8)
+        html += "<li class='frow asub'><span class='sdot st-" + escAttr(r.state) + "' title='" +
+          escAttr(t("agents.state_" + r.state)) + "'></span>" +
+          "<button type='button' class='fname' data-ssenter='" + escAttr(p.k + "|" + r.subagent_id) +
+          "' title='" + escAttr(label + "\n" + fmtSubTime(r.at)) + "'>" + esc(label) + "</button>" +
+          " <span class='fsize'>" + esc(fmtSubTime(r.at)) + "</span></li>"
       })
-    })
-    orphans.forEach((a) => {
-      html += "<li class='frow'>" + agentRowHtml(a) + "</li>"
     })
     html += "</ul>"
   }
@@ -274,8 +318,10 @@ async function renderAgents() {
       return
     }
     await refreshLiveAgents()
+    await refreshSubAgents()
     if (rsideTab === "agents") renderAgents()
   }, 5000)
+  void okLive
 }
 function fmtSize(n) {
   n = +n || 0

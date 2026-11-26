@@ -417,6 +417,71 @@ def running_session_ids():
             if isinstance(s, dict)}
 
 
+MAX_SUBAGENT_SIDS = 100
+MAX_SESSION_LOG_BYTES = 100 * 1024 * 1024
+
+
+def subagent_records(sids):
+    """부모 세션 로그에서 서브에이전트 스폰 기록을 묶는다.
+
+    {sid: [{subagent_id, agent_path, task_ref, at, state, stages}]}.
+    state는 마지막 관측 기준: done(결과 회수) / active(시작 관측) /
+    spawned(스폰 접수)."""
+    want = [s for s in (sids or []) if SID_RE.match(s or "")][:MAX_SUBAGENT_SIDS]
+    found = find_session_dirs(want)
+    out = {}
+    for sid, d in found.items():
+        p = os.path.join(d, "session.jsonl")
+        try:
+            if os.path.getsize(p) > MAX_SESSION_LOG_BYTES:
+                continue
+            f = open(p, encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        spawns, chains = {}, {}
+        with f:
+            for line in f:
+                if "subagent_id" not in line and "task_ref" not in line:
+                    continue
+                try:
+                    o = json.loads(line)
+                except ValueError:
+                    continue
+                pl = o.get("payload") or {}
+                if (pl.get("kind") == "task"
+                        and isinstance((pl.get("event") or {}).get("chunk"),
+                                     str)):
+                    try:
+                        dd = json.loads(pl["event"]["chunk"])
+                    except ValueError:
+                        dd = None
+                    if isinstance(dd, dict) and dd.get("subagent_id"):
+                        sa = dd["subagent_id"]
+                        spawns.setdefault(sa, {
+                            "subagent_id": sa,
+                            "agent_path": dd.get("agent_path") or "",
+                            "task_ref": dd.get("task_ref") or "",
+                            "at": o.get("recorded_at") or 0})
+                elif pl.get("kind") == "subagent_control":
+                    r = pl.get("record") or {}
+                    sa = r.get("subagent_id") or ""
+                    if sa:
+                        chains.setdefault(sa, []).append(r.get("kind") or "")
+        recs = []
+        for sa, s in spawns.items():
+            ch = chains.get(sa, [])
+            state = ("done" if "result_ready" in ch
+                     else "active" if ("start_attested" in ch
+                                       or "status_updated" in ch)
+                     else "spawned")
+            recs.append({"subagent_id": sa, "agent_path": s["agent_path"],
+                         "task_ref": s["task_ref"], "at": s["at"],
+                         "state": state, "stages": ch})
+        recs.sort(key=lambda r: r["at"])
+        out[sid] = recs
+    return out
+
+
 def live_agents():
     """`muse sessions --json`를 사이드바용으로 정규화한다."""
     try:
@@ -2049,6 +2114,16 @@ class Handler(BaseHTTPRequestHandler):
             ok, msg = open_folder(ap)
             self._send(200, json.dumps(
                 {"ok": ok, "error": None if ok else msg},
+                ensure_ascii=False))
+            return
+        if path == "/api/subagents":
+            if not isinstance(body.get("sids"), list):
+                self._send(400, json.dumps({"ok": False,
+                                            "error": "bad sids"}))
+                return
+            self._send(200, json.dumps(
+                {"ok": True,
+                 "parents": subagent_records(body.get("sids"))},
                 ensure_ascii=False))
             return
         if path == "/api/skills/create":

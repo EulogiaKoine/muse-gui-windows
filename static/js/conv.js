@@ -136,7 +136,12 @@ function openConv(k) {
   sessionId = c.sid || null
   $("#cwd").textContent = c.cwd || serverCwd || ""
   chat.innerHTML = ""
-  c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m), undefined, m.th ? { thoughts: m.th } : null))
+  c.msgs.forEach((m) => {
+    const ex = {}
+    if (m.th) ex.thoughts = m.th
+    if (m.atts && m.atts.length) ex.atts = m.atts
+    addMsg(m.who, m.text, null, footFor(m), undefined, Object.keys(ex).length ? ex : null)
+  })
   chat.scrollTop = (typeof c.scroll === "number") ? c.scroll : chat.scrollHeight
   setRoute("/" + (c.sid || c.k))
   drawConvs()
@@ -255,13 +260,26 @@ function paintSortBtn() {
   b.dataset.mode = m
   b.title = t("conv.sort." + m)
 }
+function orderConvs() {
+  const byKey = new Map(convs.map((c) => [c.k, c]))
+  const subs = convs.filter((c) => c.sub && c.sub.parent && byKey.has(c.sub.parent))
+  const subKeys = new Set(subs.map((c) => c.k))
+  const out = []
+  sortConvs(convs.filter((c) => !subKeys.has(c.k)), convSortMode()).forEach((r) => {
+    out.push(r)
+    subs.filter((s) => s.sub.parent === r.k)
+      .sort((a, b) => (a.at || 0) - (b.at || 0))
+      .forEach((s) => out.push(s))
+  })
+  return out
+}
 function drawConvs() {
   paintSortBtn()
   const box = $("#convs")
   box.innerHTML = ""
-  sortConvs(convs, convSortMode()).forEach((c) => {
+  orderConvs().forEach((c) => {
     const row = document.createElement("div")
-    row.className = "conv" + (c.pin ? " pinned" : "")
+    row.className = "conv" + (c.pin ? " pinned" : "") + (c.sub ? " subconv" : "")
     if (c.k === renamingKey) {
       const ta = document.createElement("textarea")
       ta.className = "crename"
@@ -308,7 +326,7 @@ function drawConvs() {
       return
     }
     const b = document.createElement("button")
-    b.textContent = c.t + (c.msgs.length ? " (" + c.msgs.length + ")" : "")
+    b.textContent = (c.sub ? "↳ " : "") + c.t + (c.msgs.length ? " (" + c.msgs.length + ")" : "")
     b.type = "button"
     b.className = "ctitle"
     b.dataset.k = c.k

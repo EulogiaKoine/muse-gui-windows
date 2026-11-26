@@ -218,6 +218,12 @@ chat.addEventListener("click", async (e) => {
     toggleThoughtDetail(tgl)
     return
   }
+  const hd = e.target.closest(".thead, .tsubhead")
+  if (hd) {
+    const btn = hd.querySelector("[data-ttoggle]")
+    if (btn && !btn.hidden) toggleThoughtDetail(btn)
+    return
+  }
   const fb = e.target.closest("[data-fold]")
   if (fb) {
     const m = fb.closest(".msg")
@@ -544,6 +550,8 @@ $("#f").addEventListener("submit", async (e) => {
   }
   const isSlashCmd = text.startsWith("/") && sendText === null
   const atts = isSlashCmd ? [] : pendingAtts.slice()
+  const cc0 = curConv()
+  const seedPre = (!isSlashCmd && cc0 && cc0.sub && !cc0.sub.used && cc0.sub.seed) ? cc0.sub.seed + "\n\n" : ""
   saveConv(text.slice(0, 30))
   const meTs = Date.now()
   if (skipEcho) skipEcho = false
@@ -561,10 +569,11 @@ $("#f").addEventListener("submit", async (e) => {
     const cc0 = curConv()
     touchLive()
     const cwd = (cc0 && cc0.cwd) || serverCwd || ""
+    if (seedPre && cc0 && cc0.sub) { cc0.sub.used = true; persistConvs() }
     if (text.startsWith("/") && sendText === null) {
       const r = await fetch("/api/chat", { method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: full, session_id: sessionId, cwd,
+        body: JSON.stringify({ message: seedPre + full, session_id: sessionId, cwd,
           attachments: atts }) })
       const j = await r.json()
       if (atts.length) clearAtts()
@@ -581,7 +590,7 @@ $("#f").addEventListener("submit", async (e) => {
       refreshPrefs()
       chat.scrollTop = chat.scrollHeight
     } else {
-      await runStreamTurn(full, sessionId, cwd, ph, t0, goalMode, atts)
+      await runStreamTurn(seedPre + full, sessionId, cwd, ph, t0, goalMode, atts)
       drawConvs()
       refreshPrefs()
       chat.scrollTop = chat.scrollHeight

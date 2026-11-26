@@ -55,6 +55,13 @@ body.rside-hidden #rside { display: none; }
 #convs .cagents.open { color: var(--me); }
 #convs .agentchild { padding-left: 18px; }
 #convs .agentchild .ctitle { color: var(--muted); font-size: 13px; }
+#convs .subconv { padding-left: 18px; }
+#convs .subconv .ctitle { color: var(--muted); }
+.sdot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.st-done { background: var(--ok, #4c9); }
+.st-active { background: var(--me); animation: spulse 1.2s infinite; }
+.st-spawned { background: var(--muted); }
+@keyframes spulse { 50% { opacity: .35; } }
 #rside section[data-rpane] { flex: 1; min-height: 0; overflow-y: auto; font-size: 13px; }
 #rside section[data-rpane][hidden] { display: none; }
 #rsideempty { display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; }

@@ -1,7 +1,7 @@
 /* == muse-gui/css/thoughts.css ==
    Thought block, rows, toggles, diff highlight. */
 .thoughts { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; background: var(--panel); background: color-mix(in srgb, var(--panel) 55%, transparent); border: 1px solid var(--bd); border-radius: 12px; padding: 8px 10px; }
-.thead { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 2px 4px; min-width: 0; }
+.thead { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 2px 4px; min-width: 0; cursor: pointer; }
 .trow { display: flex; align-items: center; gap: 8px; background: none; border: 0; border-bottom: 1px solid var(--bd); border-radius: 0; padding: 9px 4px; font-size: 13px; min-width: 0; }
 .trow .ttype { border: 0; padding: 0; }
 .thead .ttype { display: none; }
