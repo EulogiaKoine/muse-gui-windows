@@ -15,7 +15,7 @@ if (start < 0 || end < 0 || end < start) {
 const sandbox = {}
 require("vm").createContext(sandbox)
 require("vm").runInContext(
-  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd, thoughtKind, truncStr, diffLineClass, isDiffText, diffLinesHtml };",
+  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd, thoughtKind, truncStr, diffLineClass, isDiffText, diffLinesHtml, diffOnly };",
   sandbox)
 const R = sandbox.__R
 let pass = 0, fail = 0
@@ -148,7 +148,8 @@ t("diff meta", R.diffLineClass("+++ b/f") === "td-meta" && R.diffLineClass("--- 
 t("diff plain", R.diffLineClass("context line") === "" && R.diffLineClass("") === "", "")
 t("isDiff", R.isDiffText("diff --git a b\n@@ -1 +1 @@") && R.isDiffText("x\n@@ -1 +1 @@") && !R.isDiffText("hello\nworld"), "")
 t("diff html", (() => { const h = R.diffLinesHtml("+a\n-b\n@@ -1 +1 @@\n ctx\n<script>")
-  return h.includes('<span class="td-add">+a</span>') && h.includes('<span class="td-del">-b</span>') && h.includes('<span class="td-hunk">') && !h.includes("<script>")
+  return h.includes('<span class="td-add">+a</span>') && h.includes('<span class="td-del">-b</span>') && h.includes('<span class="td-hunk">') && h.includes('<span class="td-ctx"> ctx</span>') && !h.includes("<script>")
   })(), "")
+t("diffOnly", R.diffOnly("edited\nchanged lines: line 1\n--- original\n+++ updated\n@@\n-a\n+b") === "--- original\n+++ updated\n@@\n-a\n+b" && R.diffOnly("plain text") === "plain text", "")
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)

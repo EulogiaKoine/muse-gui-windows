@@ -9,7 +9,7 @@ function loadConvs() {
     return a.map((c) => {
       const msgs = Array.isArray(c.msgs) ? c.msgs : []
       return { k: c.k, t: c.t || "새 대화",
-        sid: c.sid || null, cwd: c.cwd || null, pin: !!c.pin,
+        sid: c.sid || null, cwd: c.cwd || null, pin: !!c.pin, tManual: !!c.tManual,
         goal: c.goal && c.goal.objective ? { objective: c.goal.objective,
           items: normGoalItems(c.goal.items), active: !!c.goal.active } : null,
         at: c.at || (msgs.length && msgs[msgs.length - 1].ts) || 0,
@@ -370,13 +370,19 @@ function diffLineClass(ln) {
 }
 function isDiffText(s) {
   s = String(s == null ? "" : s);
-  return /^diff --git/m.test(s) || /^@@ /m.test(s);
+  return /^diff --git/m.test(s) || /^@@/m.test(s);
 }
 function diffLinesHtml(s) {
   return String(s == null ? "" : s).slice(0, 3000).split("\n").map((ln) => {
     const c = diffLineClass(ln);
-    return c ? '<span class="' + c + '">' + esc(ln) + "</span>" : esc(ln);
+    return '<span class="' + (c || "td-ctx") + '">' + esc(ln) + "</span>";
   }).join("\n");
+}
+function diffOnly(s) {
+  const full = String(s == null ? "" : s)
+  const lines = full.split("\n")
+  const i = lines.findIndex((ln) => /^(diff --git|--- |@@ )/.test(ln))
+  return (i < 0 ? full : lines.slice(i).join("\n")).slice(0, 10000)
 }
 function timeStr(ts) {
   if (!ts) return ""
@@ -549,6 +555,7 @@ function startEdit(msgEl) {
   if (editingEl === msgEl) return
   const old = msgEl.dataset.raw || ""
   msgEl.dataset.orig = msgEl.innerHTML
+  msgEl.classList.add("editing")
   msgEl.innerHTML = '<textarea class="medit">' + esc(old) + "</textarea>" +
     '<div class="meditbar"><button type="button" class="optbtn" data-msave>저장</button>' +
     '<button type="button" class="optbtn" data-mcancel>취소</button></div>'
@@ -561,6 +568,7 @@ function startEdit(msgEl) {
 }
 function cancelEdit(msgEl) {
   if (!msgEl) return
+  msgEl.classList.remove("editing")
   if (msgEl.dataset.orig !== undefined) {
     msgEl.innerHTML = msgEl.dataset.orig
     delete msgEl.dataset.orig
@@ -572,6 +580,7 @@ function cancelEdit(msgEl) {
 }
 function finishEdit(msgEl, save) {
   if (editingEl === msgEl) editingEl = null
+  msgEl.classList.remove("editing")
   if (!save) {
     cancelEdit(msgEl)
     return
@@ -892,7 +901,7 @@ function addThoughtLog(r, head, body) {
   const pre = document.createElement("div")
   pre.className = "tlog"
   const txt = String(body == null ? "" : body).slice(0, 10000)
-  if (r.type === "file" && isDiffText(txt)) pre.innerHTML = diffLinesHtml(txt);
+  if (r.type === "file" && isDiffText(txt)) { pre.innerHTML = diffLinesHtml(txt); pre.classList.add("diff"); }
   else pre.textContent = txt;
   bd.appendChild(pre)
   sub.append(hb, bd)
@@ -919,8 +928,9 @@ function updateThought(tbox, tstate, ev) {
     const oc = facts.outcome || ""
     tstate.rows.forEach((r) => {
       if (!r.idem || r.idem.indexOf(cid) < 0) return
-      if (oc && oc !== "success") setRowSummary(r, (r.el.dataset.sum || "") + " · 실패")
-      const head = "tool_result" + (oc ? " · " + oc : "")
+      if (!oc || oc === "success") return
+      setRowSummary(r, (r.el.dataset.sum || "") + " · 실패")
+      const head = "tool_result · " + oc
       const raw = ((facts.tool_name ? "[" + facts.tool_name + "] " : "") + (p.text || "")).slice(0, 10000) || head
       addThoughtLog(r, head, raw)
       tstate.last = head
@@ -935,20 +945,12 @@ function updateThought(tbox, tstate, ev) {
   const ek = te.kind
   if (ek === "proposed") {
     const tk = te.task_kind || ""
-    const r0 = ensureThoughtRow(tbox, tstate, tid, thoughtKind(tk, ""), tk || "작업")
-    addThoughtLog(r0, "proposed" + (tk ? " · " + tk : ""), tk || "proposed")
-    tstate.last = tk || "proposed"
-    updateThoughtHead(tstate)
+    ensureThoughtRow(tbox, tstate, tid, thoughtKind(tk, ""), tk || "작업")
     return
   }
   let r = tstate.rows.get(tid)
   if (!r) r = ensureThoughtRow(tbox, tstate, tid, thoughtKind("", te.operation || ""), te.operation || "작업")
-  if (ek === "accepted" || ek === "scheduled" || ek === "started") {
-    const extra = ek === "scheduled" ? te.idempotency_key : te.span_id
-    addThoughtLog(r, ek, extra ? ek + "\n" + extra : ek)
-    updateThoughtHead(tstate)
-    return
-  }
+  if (ek === "accepted" || ek === "scheduled" || ek === "started") return
   if (ek === "side_effect_intent") {
     if (te.idempotency_key) r.idem = te.idempotency_key
     const op = te.operation || "side_effect_intent"
@@ -963,14 +965,13 @@ function updateThought(tbox, tstate, ev) {
   if (ek === "status" && te.message) {
     setRowSummary(r, te.message)
     tstate.last = te.message
-    const det = te.details || {}
-    const raw = Object.keys(det).length ? te.message + "\n" + JSON.stringify(det) : te.message
-    addThoughtLog(r, te.message, raw)
+    const phase = (te.details || {}).phase || ""
+    addThoughtLog(r, te.message, phase ? te.message + "\n[" + phase + "]" : te.message)
     updateThoughtHead(tstate)
     return
   }
   if (ek === "output" && typeof te.chunk === "string") {
-    let sum = null
+    let sum = null, body = te.chunk
     try {
       const o = JSON.parse(te.chunk)
       if (o && typeof o === "object") {
@@ -978,17 +979,17 @@ function updateThought(tbox, tstate, ev) {
         const desc = o.description || o.desc || ""
         sum = (desc || cmd || "출력") +
           (o.exit_code !== undefined && o.exit_code !== null ? " · 종료 " + o.exit_code : "")
+        if (r.type === "terminal" && typeof o.output === "string") body = (cmd ? "$ " + cmd + "\n" : "") + o.output
       }
     } catch (e) {}
+    if (r.type === "file") body = diffOnly(body)
     if (sum) setRowSummary(r, sum)
     tstate.last = sum || "출력"
-    addThoughtLog(r, sum || "output", te.chunk)
+    addThoughtLog(r, sum || "output", body)
     updateThoughtHead(tstate)
     return
   }
   if (ek === "completed" || ek === "settled") {
-    addThoughtLog(r, ek, ek)
-    tstate.last = ek
     markThoughtDone(r)
     updateThoughtHead(tstate)
   }
@@ -1036,10 +1037,11 @@ function renderThoughtsStatic(thoughts) {
       let sh = ""
       subs.forEach((s) => {
         const bt = String(s.b || "")
-        const bh = (t.k === "file" && isDiffText(bt)) ? diffLinesHtml(bt) : esc(bt)
+        const isD = t.k === "file" && isDiffText(bt)
+        const bh = isD ? diffLinesHtml(bt) : esc(bt)
         sh += '<div class="tsub tsub-' + esc(String(t.k || "tool")) + '"><button type="button" class="tsubhead" data-ttoggle title="펼치기/접기">' +
           '<span class="tsum">' + esc(s.h || "로그") + '</span><span class="ttoggle">›</span></button>' +
-          '<div class="tsubbody" hidden><div class="tlog">' + bh + "</div></div></div>"
+          '<div class="tsubbody" hidden><div class="tlog' + (isD ? " diff" : "") + '">' + bh + "</div></div></div>"
       })
       det = '<div class="tdetail" hidden>' + sh + "</div>"
     }
@@ -1149,7 +1151,7 @@ function saveConv(title) {
   convKey = convKey || ("c" + Date.now())
   const ex = curConv()
   if (ex) {
-    if (title) ex.t = title
+    if (title && !ex.tManual && (ex.msgs || []).length === 0) ex.t = title
   }
   else convs.unshift({ k: convKey, t: title || "새 대화", sid: null, cwd: serverCwd, msgs: [], at: Date.now() })
   persistConvs()
@@ -1322,12 +1324,58 @@ function renderFsList() {
     box.appendChild(b)
   })
 }
+let renamingKey = null
 function drawConvs() {
   const box = $("#convs")
   box.innerHTML = ""
   convs.slice().sort((a, b) => ((b.pin ? 1 : 0) - (a.pin ? 1 : 0)) || ((b.at || 0) - (a.at || 0))).forEach((c) => {
     const row = document.createElement("div")
     row.className = "conv" + (c.pin ? " pinned" : "")
+    if (c.k === renamingKey) {
+      const ta = document.createElement("textarea")
+      ta.className = "crename"
+      ta.value = c.t
+      ta.rows = 1
+      const ok = document.createElement("button")
+      ok.type = "button"
+      ok.className = "crok"
+      ok.textContent = "✓"
+      ok.title = "완료"
+      let finished = false
+      const done = (save) => {
+        if (finished || renamingKey !== c.k) return
+        finished = true
+        renamingKey = null
+        if (save) {
+          const v = ta.value.trim().slice(0, 60)
+          if (v) {
+            c.t = v
+            c.tManual = true
+            persistConvs()
+          }
+        }
+        drawConvs()
+      };
+      ok.onclick = (e) => {
+        e.stopPropagation()
+        done(true)
+      };
+      ta.onkeydown = (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault()
+          done(true)
+        }
+        else if (e.key === "Escape") done(false)
+      };
+      ta.onblur = () => done(true)
+      row.append(ta, ok)
+      box.appendChild(row)
+      setTimeout(() => {
+        ta.focus()
+        try { ta.select(); } catch (e) {}
+      }, 0)
+      return
+    }
     const b = document.createElement("button")
     b.textContent = c.t + (c.msgs.length ? " (" + c.msgs.length + ")" : "")
     b.type = "button"
@@ -1524,12 +1572,8 @@ $("#ctx").addEventListener("click", (e) => {
     persistConvs()
     drawConvs()
   } else if (act.dataset.act === "rename") {
-    const t = prompt("새 이름", c.t)
-    if (t && t.trim()) {
-      c.t = t.trim().slice(0, 60)
-      persistConvs()
-      drawConvs()
-    }
+    renamingKey = c.k
+    drawConvs()
   } else if (act.dataset.act === "export") {
     exportConv(c)
   } else if (confirm('"' + c.t + '" 대화와 muse 세션 기록을 함께 삭제할까요?\n(실행 중인 세션은 삭제되지 않습니다)')) {
