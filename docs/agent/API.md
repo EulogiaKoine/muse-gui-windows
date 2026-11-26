@@ -117,14 +117,18 @@
 | `copyText` / `flashCopy` | 클립보드 복사+피드백 |
 | `notifyCompletion(title, body)` | 백그라운드 탭일 때만 브라우저 알림 |
 | `finishAiTurn(j, ph, goalMode)` / `sealAiTurn` | 턴 종료: 기록·추론 확정·헤더 요약·알림 |
-| `postChatStream` / `runStreamTurn` | SSE 스트리밍 수신→`updateThought` 전달→완료 처리 |
+| `postChatStream` / `runStreamTurn` | SSE 스트리밍 수신→`updateThought` 전달→완료 처리. `atts` 받으면 `attachments` 동봉 후 `clearAtts()` |
 | 전송 핸들러 일체 | 게이트 확인→슬래시 분기→스트림/단발 전송. `pick-new`는 conv 없을 때만 생성 |
 
 ## composer.js — 입력창
 
 `drawSlash`(슬래시 자동완성), `autoGrow`(입력창 높이), `setMode`,
-`addFeat`/`featPrefixes`/`renderPlusMenu`(+ 메뉴),
+`addFeat`/`featPrefixes`/`renderPlusMenu`(+ 메뉴, `upload`는 파일 선택기),
 `chipList`/`renderChips`(칩), yolo 토글 표시, 키보드 핸들러.
+첨부(`pendingAtts`): `openPicker`/`uploadFiles`(전송 전 `downscaleImage`로
+JPEG q0.85/1568px 축소, GIF 원본), `renderAttachBar`/`clearAtts`/
+`attEchoSuffix`/`attCwd`, main DnD+paste 핸들러. 서버 `POST /api/upload`
+→ `.agent/attachments/` 저장; 전송 시 `attachments` 동봉.
 
 ## usage.js — 사용량 (테스트 대상)
 
@@ -139,6 +143,9 @@
 (`loadTheme`/`saveTheme`/`applyTheme`), 스킬 CRUD, 계정,
 `fillSelect`, `paintYolo`, `refreshPrefs`, `refreshInfo`,
 모달(`showModal`/`hideModal`), 파일 선택기 제외 전부(그건 conv.js).
+files 탭(`renderFiles`+`fmtSize`, `GET /api/agent-files` 그룹을
+`<details>` 폴더 토글로 표시, `GET /api/file`로 미리보기/다운로드;
+`availTabs`에 항상 포함, 헤더 `#filesbtn`이 `openRside("files")`).
 
 ## main.js — 부팅 전용
 
@@ -148,7 +155,7 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 
 ---
 
-## 전체 함수 색인 (기계 생성, 140개)
+## 전체 함수 색인 (기계 생성, 149개)
 
 모듈별 전체 목록. 동작 설명은 위 섹션을 본다. 새 함수를 추가하면
 여기에도 한 줄을 추가한다(수동 동기화).
@@ -273,6 +280,13 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 - `renderPlusMenu()`
 - `chipList()`
 - `renderChips()`
+- `attCwd()`
+- `openPicker()`
+- `downscaleImage()`
+- `async uploadFiles()`
+- `renderAttachBar()`
+- `clearAtts()`
+- `attEchoSuffix()`
 
 ### usage.js
 - `fmtNum()`
@@ -298,6 +312,8 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 - `drawRside()`
 - `renderGoal()`
 - `renderHelp()`
+- `fmtSize()`
+- `async renderFiles()`
 - `goalSetPrompt()`
 - `goalTurnPrompt()`
 - `loadTheme()`
