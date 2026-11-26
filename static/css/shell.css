@@ -45,9 +45,7 @@ body.rside-hidden #rside { display: none; }
 .frow:hover .fdel { display: inline-flex; }
 .frow .fdel:hover { color: var(--err); background: var(--hover); }
 .fsize { margin-left: auto; flex: none; font-size: 11px; color: var(--muted); }
-.fexpand { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 4px; font-size: 14px; line-height: 1; flex: none; transition: transform .12s; }
-.fexpand.open { transform: rotate(90deg); }
-.fexpand:hover { color: var(--me); }
+
 .asub .atree { color: var(--muted); flex: none; }
 .asub { padding-left: 18px; }
 #convs .cagents { flex: none; border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 6px; padding: 6px 8px; font-size: 13px; line-height: 1; }

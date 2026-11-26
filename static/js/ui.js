@@ -172,14 +172,6 @@ document.querySelector("#rsidefiles").addEventListener("click", async (e) => {
   if (op) openAgentFile(op.dataset.fopen || "")
 })
 document.querySelector("#rsideagents").addEventListener("click", async (e) => {
-  const sx = e.target.closest("[data-subexpand]")
-  if (sx) {
-    const id = sx.dataset.subexpand || ""
-    if (subOpen.has(id)) subOpen.delete(id)
-    else subOpen.add(id)
-    renderAgents()
-    return
-  }
   const ss = e.target.closest("[data-ssenter]")
   if (ss) {
     const raw = ss.dataset.ssenter || ""
@@ -191,8 +183,6 @@ document.querySelector("#rsideagents").addEventListener("click", async (e) => {
     if (parent && rec) openSubSession(parent, rec)
     return
   }
-  const en = e.target.closest("[data-aenter]")
-  if (en) adoptSession(en.dataset.aenter || "")
 })
 let liveAgents = []
 let agentsTimer = null
@@ -200,7 +190,6 @@ let agentsFetchAt = 0
 let agentsInflight = false
 const agentOpen = new Set()
 let subRecs = {}
-const subOpen = new Set()
 async function refreshSubAgents() {
   const sids = [...new Set(convs.map((c) => c.sid).filter(Boolean))]
   if (!sids.length) { subRecs = {}; return true }
@@ -283,31 +272,24 @@ async function renderAgents() {
     box.innerHTML = "<h3>agents</h3><p class='hint'>" + esc(t("agents.fail")) + "</p>"
     return
   }
-  const parents = convs.filter((c) => c.sid && (subRecs[c.sid] || []).length)
-    .sort((a, b) => (b.at || 0) - (a.at || 0))
+  const all = []
+  convs.forEach((p) => {
+    if (!p.sid) return
+    ;(subRecs[p.sid] || []).forEach((r) => all.push({ p, r }))
+  })
+  all.sort((a, b) => (b.r.at || 0) - (a.r.at || 0))
   let html = "<h3>agents</h3>"
-  if (!parents.length) {
+  if (!all.length) {
     html += "<p class='hint'>" + esc(t("agents.empty")) + "</p>"
   } else {
     html += "<ul class='flist'>"
-    parents.forEach((p) => {
-      const recs = subRecs[p.sid] || []
-      const open = subOpen.has(p.k)
-      const act = recs.filter((r) => r.state === "active").length
-      html += "<li class='frow'><button type='button' class='fexpand" + (open ? " open" : "") +
-        "' data-subexpand='" + escAttr(p.k) + "' title='" + escAttr(t("agents.toggle")) + "'>›</button>" +
-        "<button type='button' class='fname' data-subexpand='" + escAttr(p.k) + "' title='" +
-        escAttr(t("agents.toggle")) + "'>" +
-        esc(p.t || p.sid.slice(0, 8)) + "</button> <span class='fsize'>" +
-        recs.length + " · " + (act ? t("agents.active") + " " + act : t("agents.idle")) + "</span></li>"
-      if (open) recs.forEach((r) => {
-        const label = r.agent_path || (r.subagent_id || "").slice(0, 8)
-        html += "<li class='frow asub'><span class='sdot st-" + escAttr(r.state) + "' title='" +
-          escAttr(t("agents.state_" + r.state)) + "'></span>" +
-          "<button type='button' class='fname' data-ssenter='" + escAttr(p.k + "|" + r.subagent_id) +
-          "' title='" + escAttr(label + "\n" + fmtSubTime(r.at)) + "'>" + esc(label) + "</button>" +
-          " <span class='fsize'>" + esc(fmtSubTime(r.at)) + "</span></li>"
-      })
+    all.forEach(({ p, r }) => {
+      const label = r.agent_path || (r.subagent_id || "").slice(0, 8)
+      html += "<li class='frow'><span class='sdot st-" + escAttr(r.state) + "' title='" +
+        escAttr(t("agents.state_" + r.state)) + "'></span>" +
+        "<button type='button' class='fname' data-ssenter='" + escAttr(p.k + "|" + r.subagent_id) +
+        "' title='" + escAttr(t("agents.enter")) + "'>" + esc(label) + "</button>" +
+        " <span class='fsize'>" + esc(p.t || "") + " · " + esc(fmtSubTime(r.at)) + "</span></li>"
     })
     html += "</ul>"
   }
