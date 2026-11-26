@@ -15,3 +15,4 @@ done
 [ "$missing" = 0 ] && echo "INDEX OK" || exit 1
 node tests/render.test.js
 node tests/usage.test.js
+node tests/interaction.test.js
