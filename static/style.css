@@ -145,7 +145,7 @@ body.rside-hidden #rside { display: none; }
 .msg.me.folded.open .foldfade { display: none; }
 .foldbtn { display: block; margin: 4px auto 0; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 2px 12px; border-radius: 6px; line-height: 0; }
 .foldbtn:hover { color: var(--me); background: var(--hover); }
-.thoughts { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; background: var(--panel); background: color-mix(in srgb, var(--panel) 55%, transparent); border: 1px solid var(--bd); border-left: 3px solid var(--me); border-radius: 12px; padding: 8px 10px; }
+.thoughts { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; background: var(--panel); background: color-mix(in srgb, var(--panel) 55%, transparent); border: 1px solid var(--bd); border-radius: 12px; padding: 8px 10px; }
 .thead { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 2px 4px; min-width: 0; }
 .trow { display: flex; align-items: center; gap: 8px; background: none; border: 0; border-bottom: 1px solid var(--bd); border-radius: 0; padding: 9px 4px; font-size: 13px; min-width: 0; }
 .trow .ttype { border: 0; padding: 0; }
@@ -157,7 +157,6 @@ body.rside-hidden #rside { display: none; }
 .ttype { flex: none; font-size: 11px; color: var(--muted); border: 1px solid var(--bd); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
 .trow .ticon, .thead .ticon { display: inline-flex; flex: none; color: var(--muted); }
 .trow .ticon svg, .thead .ticon svg { display: block; }
-.trow .ticon { display: none; }
 .thead .tspin, .trow .tspin { flex: none; width: 12px; height: 12px; border: 2px solid var(--bd); border-top-color: var(--me); border-radius: 50%; animation: tspin 0.8s linear infinite; }
 .trow.done .tspin { animation: none; border: 0; }
 .trow.done .tspin::after { content: "✓"; color: var(--ok); font-size: 12px; font-weight: 700; }
