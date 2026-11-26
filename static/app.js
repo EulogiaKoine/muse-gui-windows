@@ -22,16 +22,18 @@ function loadConvs() {
   }
 }
 let convs = loadConvs()
+let persistWarned = false
 function persistConvs() {
-  const save = () => localStorage.setItem("muse-gui-convs",
-    JSON.stringify(convs.slice(0, 50)))
+  const save = (data) => localStorage.setItem("muse-gui-convs", JSON.stringify(data))
   try {
-    save()
-  }
-  catch (e) {
-    if (!convs.length) return
-    convs.pop()
-    try { save(); } catch (_) {}
+    save(slimConvsForSave(convs))
+    return
+  } catch (e) {}
+  try {
+    save(slimConvsForSave(convs).map((c) => ({ k: c.k, t: c.t, sid: c.sid, cwd: c.cwd, pin: c.pin, tManual: c.tManual, goal: null, at: c.at, createdAt: c.createdAt, scroll: null, msgs: (c.msgs || []).map((m) => ({ who: m.who, text: String(m.text || "").slice(0, 2000), ts: m.ts })) })))
+    if (!persistWarned) { persistWarned = true; try { alert(t("conv.saveTrim")) } catch (_) {} }
+  } catch (_) {
+    if (!persistWarned) { persistWarned = true; try { alert(t("conv.saveFail")) } catch (_) {} }
   }
 }
 
@@ -397,6 +399,18 @@ function isOutputTruncated(o) {
   }
   return false
 }
+function slimConvsForSave(list) {
+  return (list || []).slice(0, 50).map((c) => {
+    const msgs = Array.isArray(c.msgs) ? c.msgs.slice(-200).map((m) => {
+      if (!m || !m.th) return m
+      return { who: m.who, text: m.text, ts: m.ts, el: m.el, th: m.th.map((t) => {
+        const d = Array.isArray(t.d) ? t.d.slice(0, 8).map((s) => ({ h: String(s.h || "").slice(0, 80), b: String(s.b || "").slice(0, 300) })) : null
+        return d ? { k: t.k, s: t.s, d: d } : { k: t.k, s: t.s }
+      }) }
+    }) : []
+    return { k: c.k, t: c.t, sid: c.sid || null, cwd: c.cwd || null, pin: !!c.pin, tManual: !!c.tManual, goal: c.goal || null, at: c.at || 0, createdAt: c.createdAt || null, scroll: typeof c.scroll === "number" ? c.scroll : null, msgs: msgs }
+  })
+}
 function gateFor(c, live) {
   if (!c) return "pick-new"
   if (c.sid) return live ? "" : "resume"
@@ -754,6 +768,8 @@ const STR = {
     "conv.sort.name": "이름순",
     "conv.sort.created": "생성순",
     "conv.adopted": "가져온 세션",
+    "conv.saveTrim": "저장 공간이 부족해 이전 대화의 세부 기록 일부를 줄여서 저장했습니다.",
+    "conv.saveFail": "저장 공간이 부족해 대화를 저장하지 못했습니다. 오래된 대화를 삭제해 주세요.",
     "th.fulllog": "전체 로그 보기",
     "th.loading": "불러오는 중…",
     "th.cut": "잘림",
@@ -802,6 +818,8 @@ const STR = {
     "conv.sort.name": "Name",
     "conv.sort.created": "Created",
     "conv.adopted": "Adopted session",
+    "conv.saveTrim": "Storage is low; older detail logs were trimmed when saving.",
+    "conv.saveFail": "Storage full; conversations could not be saved. Please delete old conversations.",
     "th.fulllog": "View full log",
     "th.loading": "Loading…",
     "th.cut": "cut",
