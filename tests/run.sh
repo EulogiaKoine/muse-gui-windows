@@ -4,5 +4,14 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 for f in static/js/*.js; do node --check "$f" || exit 1; done && echo "JS OK"
 python3 -m py_compile server.py && echo "py OK"
+missing=0
+for f in static/js/*.js static/css/*.css; do
+  base="${f#static/}"
+  grep -q "static/$base" index.html || { echo "INDEX MISSING: $f"; missing=1; }
+done
+for f in $(grep -o 'static/\(js\|css\)/[A-Za-z0-9_.-]*' index.html); do
+  [ -f "$f" ] || { echo "FILE MISSING: $f"; missing=1; }
+done
+[ "$missing" = 0 ] && echo "INDEX OK" || exit 1
 node tests/render.test.js
 node tests/usage.test.js

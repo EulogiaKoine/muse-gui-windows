@@ -12,12 +12,13 @@
 | 3 | `icons.js` | 인라인 SVG 상수만 | `ICON_*` |
 | 4 | `i18n.js` | 문자열·언어 상태 | `STR`, `langCur`, `t`, `applyLang` |
 | 5 | `render.js` | 마크다운/코드/수식/테이블 렌더 | `renderText`, `hl`, `renderMath`, `vizHtml`, `decorateCode`, `decorateMath`, `decorateTables` |
-| 6 | `thoughts.js` | 추론 블록(라이브+기록) | `updateThought`, `collectThoughts`, `renderThoughtsStatic`, `toggleThoughtDetail`, `loadFullLog`, `ensureThoughtRow` |
-| 7 | `chat.js` | 메시지·편집·전송·턴 종료 | `addMsg`, `startEdit`, `branchFromMessage`, `postChatStream`, `runStreamTurn`, `finishAiTurn`, `notifyCompletion` |
-| 8 | `composer.js` | 입력창·슬래시·칩·+메뉴·yolo | `drawSlash`, `renderChips`, `setMode`, `autoGrow` |
-| 9 | `usage.js` | 사용량 상태+그래프 | `usageDaily`, `drawUsage`, `bucketize`, `tsGraph` |
-| 10 | `ui.js` | 사이드바·모달·설정·스킬·테마·fs 일부 | `applyTheme`, `saveTheme`, `loadTheme`, `drawRside`, `loadSkills`, `showModal` |
-| 11 | `main.js` | 부팅 전용: 옵저버+초기화+딥링크 입수 | (실행문만, 정의 없음) |
+| 6 | `message.js` | 말풍선·링크·수식/코드 장식 | `addMsg`, `decorateCode`, `decorateMath`, `decorateTables`, `decoratePaths`, `resolveLinkPath`, `openPathLink` |
+| 7 | `thoughts.js` | 추론 블록(라이브+기록) | `updateThought`, `collectThoughts`, `renderThoughtsStatic`, `toggleThoughtDetail`, `loadFullLog`, `ensureThoughtRow` |
+| 8 | `chat.js` | 메시지 편집·전송·턴 종료 | `startEdit`, `branchFromMessage`, `postChatStream`, `runStreamTurn`, `finishAiTurn`, `notifyCompletion` |
+| 9 | `composer.js` | 입력창·슬래시·칩·+메뉴·yolo | `drawSlash`, `renderChips`, `setMode`, `autoGrow` |
+| 10 | `usage.js` | 사용량 상태+그래프 | `usageDaily`, `drawUsage`, `bucketize`, `tsGraph` |
+| 11 | `ui.js` | 사이드바·모달·설정·스킬·테마·fs 일부 | `applyTheme`, `saveTheme`, `loadTheme`, `drawRside`, `loadSkills`, `showModal` |
+| 12 | `main.js` | 부팅 전용: 옵저버+초기화+딥링크 입수 | (실행문만, 정의 없음) |
 
 규칙:
 - 새 전역 함수 추가 시 위 표의 영역을 따르고, 어긋나면 이 파일을 함께 고친다.

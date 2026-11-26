@@ -268,27 +268,27 @@ function renderThoughtsStatic(thoughts) {
   const items = thoughts || []
   if (!items.length) return ""
   let rows = ""
-  items.forEach((t) => {
-    const lab = t("th.type." + (t.k || "tool"))
-    const subs = Array.isArray(t.d) ? t.d : []
+  items.forEach((th) => {
+    const lab = t("th.type." + (th.k || "tool"))
+    const subs = Array.isArray(th.d) ? th.d : []
     let det = ""
     if (subs.length) {
       let sh = ""
       subs.forEach((s) => {
         const bt = String(s.b || "")
-        const isD = t.k === "file" && isDiffText(bt)
+        const isD = th.k === "file" && isDiffText(bt)
         const bh = isD ? diffLinesHtml(bt) : esc(bt)
-        sh += '<div class="tsub tsub-' + esc(String(t.k || "tool")) + '"><button type="button" class="tsubhead" data-ttoggle title="펼치기/접기">' +
-          '<span class="tsum">' + esc(s.h || "로그") + '</span><span class="ttoggle"' + (t.static ? " hidden" : "") + ">›</span></button>" +
+        sh += '<div class="tsub tsub-' + esc(String(th.k || "tool")) + '"><button type="button" class="tsubhead" data-ttoggle title="펼치기/접기">' +
+          '<span class="tsum">' + esc(s.h || "로그") + '</span><span class="ttoggle"' + (th.static ? " hidden" : "") + ">›</span></button>" +
           '<div class="tsubbody" hidden><div class="tlog' + (isD ? " diff" : "") + '">' + bh + "</div></div></div>"
       })
       det = '<div class="tdetail" hidden>' + sh + "</div>"
     }
-    rows += '<div class="trow t-' + esc(String(t.k || "tool")) + ' done"' + (t.static ? ' data-static="1"' : "") + ">" +
-      '<span class="ticon">' + thoughtIcon(t.k) + "</span>" +
+    rows += '<div class="trow t-' + esc(String(th.k || "tool")) + ' done"' + (th.static ? ' data-static="1"' : "") + ">" +
+      '<span class="ticon">' + thoughtIcon(th.k) + "</span>" +
       '<span class="ttype">' + esc(lab) + "</span>" +
-      '<span class="tspin"></span><span class="tsum">' + esc(t.s || "") + "</span>" +
-      (subs.length && !t.static ? '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button>' : "") +
+      '<span class="tspin"></span><span class="tsum">' + esc(th.s || "") + "</span>" +
+      (subs.length && !th.static ? '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button>' : "") +
       "</div>" + det
   })
   const counts = { terminal: 0, file: 0, reason: 0, other: 0 }
