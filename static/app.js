@@ -814,14 +814,6 @@ const THOUGHT_LABEL = { reason: "추론", terminal: "터미널 명령", web: "�
 function thoughtIcon(type) {
   return { reason: ICON_TREASON, terminal: ICON_TERM, web: ICON_TWEB, file: ICON_TFILE, system: ICON_TSYS, tool: ICON_TSYS }[type] || ICON_TSYS
 }
-function thoughtShortLabel(type, taskKind) {
-  const base = THOUGHT_LABEL[type] || "작업"
-  if (type === "system" || type === "tool") {
-    const short = String(taskKind || "").split(".").pop().replace(/[-_]/g, " ").trim()
-    if (short && short !== base) return base + " · " + truncStr(short, 40)
-  }
-  return base
-}
 function setRowSummary(r, text) {
   const s = truncStr(text, 140) || "작업 중…"
   r.sum.textContent = s
@@ -866,16 +858,7 @@ function ensureThoughtRow(tbox, tstate, tid, type, summary) {
 function syncThoughtHead(tbox) {
   const st = tbox && tbox._tstate
   if (!st || !st.headSum) return
-  const collapsed = !st.body || st.body.hidden !== false
-  if (collapsed) {
-    st.headSum.textContent = truncStr(st.last || "준비 중…", 140)
-  } else {
-    let n = 0
-    st.rows.forEach(() => {
-      n++
-    })
-    st.headSum.textContent = "추론 과정 · " + n + "단계"
-  }
+  st.headSum.textContent = truncStr(st.last || "준비 중…", 140)
   let d = 0, m = 0
   st.rows.forEach((r) => {
     m++
@@ -908,7 +891,7 @@ function addThoughtLog(r, head, body) {
   bd.hidden = true
   const pre = document.createElement("div")
   pre.className = "tlog"
-  const txt = String(body == null ? "" : body).slice(0, 3000)
+  const txt = String(body == null ? "" : body).slice(0, 10000)
   if (r.type === "file" && isDiffText(txt)) pre.innerHTML = diffLinesHtml(txt);
   else pre.textContent = txt;
   bd.appendChild(pre)
@@ -932,11 +915,17 @@ function updateThought(tbox, tstate, ev) {
   if (kind === "tool_result") {
     const cid = p.call_id
     if (!cid) return
+    const facts = p.correlation_facts || {}
+    const oc = facts.outcome || ""
     tstate.rows.forEach((r) => {
       if (!r.idem || r.idem.indexOf(cid) < 0) return
-      const ok = ((p.correlation_facts || {}).outcome || "") === "success"
-      if (!ok) setRowSummary(r, (r.el.dataset.sum || "") + " · 실패")
+      if (oc && oc !== "success") setRowSummary(r, (r.el.dataset.sum || "") + " · 실패")
+      const head = "tool_result" + (oc ? " · " + oc : "")
+      const raw = ((facts.tool_name ? "[" + facts.tool_name + "] " : "") + (p.text || "")).slice(0, 10000) || head
+      addThoughtLog(r, head, raw)
+      tstate.last = head
     })
+    updateThoughtHead(tstate)
     return
   }
   if (kind !== "task_lifecycle") return
@@ -946,26 +935,42 @@ function updateThought(tbox, tstate, ev) {
   const ek = te.kind
   if (ek === "proposed") {
     const tk = te.task_kind || ""
-    const type = thoughtKind(tk, "")
-    ensureThoughtRow(tbox, tstate, tid, type, thoughtShortLabel(type, tk))
+    const r0 = ensureThoughtRow(tbox, tstate, tid, thoughtKind(tk, ""), tk || "작업")
+    addThoughtLog(r0, "proposed" + (tk ? " · " + tk : ""), tk || "proposed")
+    tstate.last = tk || "proposed"
+    updateThoughtHead(tstate)
     return
   }
   let r = tstate.rows.get(tid)
-  if (!r) r = ensureThoughtRow(tbox, tstate, tid, thoughtKind("", te.operation || ""), "작업")
+  if (!r) r = ensureThoughtRow(tbox, tstate, tid, thoughtKind("", te.operation || ""), te.operation || "작업")
+  if (ek === "accepted" || ek === "scheduled" || ek === "started") {
+    const extra = ek === "scheduled" ? te.idempotency_key : te.span_id
+    addThoughtLog(r, ek, extra ? ek + "\n" + extra : ek)
+    updateThoughtHead(tstate)
+    return
+  }
   if (ek === "side_effect_intent") {
     if (te.idempotency_key) r.idem = te.idempotency_key
+    const op = te.operation || "side_effect_intent"
+    setRowSummary(r, op)
+    tstate.last = op
+    addThoughtLog(r, op, [op,
+      te.idempotency_key ? "idempotency: " + te.idempotency_key : "",
+      te.policy_decision ? "policy: " + te.policy_decision : ""].filter(Boolean).join("\n") || op)
+    updateThoughtHead(tstate)
     return
   }
   if (ek === "status" && te.message) {
     setRowSummary(r, te.message)
     tstate.last = te.message
     const det = te.details || {}
-    addThoughtLog(r, te.message, te.message + (det.phase ? "\n[단계: " + det.phase + "]" : ""))
+    const raw = Object.keys(det).length ? te.message + "\n" + JSON.stringify(det) : te.message
+    addThoughtLog(r, te.message, raw)
     updateThoughtHead(tstate)
     return
   }
   if (ek === "output" && typeof te.chunk === "string") {
-    let sum = null, body = te.chunk
+    let sum = null
     try {
       const o = JSON.parse(te.chunk)
       if (o && typeof o === "object") {
@@ -973,22 +978,17 @@ function updateThought(tbox, tstate, ev) {
         const desc = o.description || o.desc || ""
         sum = (desc || cmd || "출력") +
           (o.exit_code !== undefined && o.exit_code !== null ? " · 종료 " + o.exit_code : "")
-        if (typeof o.output === "string") body = o.output
       }
     } catch (e) {}
     if (sum) setRowSummary(r, sum)
     tstate.last = sum || "출력"
-    addThoughtLog(r, sum || "출력", body)
+    addThoughtLog(r, sum || "output", te.chunk)
     updateThoughtHead(tstate)
     return
   }
   if (ek === "completed" || ek === "settled") {
-    if (!r.det.children.length) {
-      const lab = THOUGHT_LABEL[r.type] || "작업"
-      const sum = r.el.dataset.sum || lab
-      addThoughtLog(r, sum + " · 완료", "유형: " + lab + "\n상태: 완료")
-      tstate.last = sum + " · 완료"
-    }
+    addThoughtLog(r, ek, ek)
+    tstate.last = ek
     markThoughtDone(r)
     updateThoughtHead(tstate)
   }
@@ -1001,10 +1001,10 @@ function collectThoughts(tbox) {
     if (det && det.classList && det.classList.contains("tdetail")) {
       const subs = []
       det.querySelectorAll(".tsub").forEach((sub) => {
-        if (subs.length >= 6) return
+        if (subs.length >= 20) return
         const h = sub.querySelector(".tsubhead .tsum")
         const b = sub.querySelector(".tsubbody .tlog")
-        subs.push({ h: (h ? h.textContent : "").slice(0, 80), b: (b ? b.textContent : "").slice(0, 300) })
+        subs.push({ h: (h ? h.textContent : "").slice(0, 80), b: (b ? b.textContent : "").slice(0, 1000) })
       })
       if (subs.length) th.d = subs
     }
@@ -1017,12 +1017,7 @@ function markThoughtsDone(tbox) {
   const st = tbox._tstate
   if (!st || !st.rows) return
   st.rows.forEach((r) => {
-    if (!r.done && !r.det.children.length) {
-      const lab = THOUGHT_LABEL[r.type] || "작업"
-      const sum = (r.el && r.el.dataset && r.el.dataset.sum) || lab
-      addThoughtLog(r, sum + " · 종료", "유형: " + lab + "\n상태: 종료 (완료 이벤트 없음)")
-      r.done = true
-    }
+    r.done = true
   })
   if (st.rows.size === 0 && st.headSum) {
     st.headSum.textContent = "별도 추론 과정 없음"
@@ -1034,7 +1029,7 @@ function renderThoughtsStatic(thoughts) {
   if (!items.length) return ""
   let rows = ""
   items.forEach((t) => {
-    const lab = THOUGHT_LABEL[t.k] || "작업"
+    const lab = t.k || "tool"
     const subs = Array.isArray(t.d) ? t.d : []
     let det = ""
     if (subs.length) {
