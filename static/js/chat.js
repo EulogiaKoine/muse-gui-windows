@@ -340,7 +340,7 @@ function finishAiTurn(j, ph, goalMode) {
   }
   ph.dataset.raw = j.text || "(빈 응답)"
   ph.innerHTML = renderText(ph.dataset.raw) + '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>"
-  notifyCompletion("muse-gui · 응답 완료", ph.dataset.raw)
+  if (!(goalMode && goalPending())) notifyCompletion("muse-gui · 응답 완료", ph.dataset.raw)
   if (tbox) ph.prepend(tbox)
   decorateCode(ph)
   decorateMath(ph)
@@ -404,10 +404,15 @@ async function goalAutoChain(goalMode, j) {
     addMsg("ai", msg)
     saveMsg("ai", msg)
     drawConvs()
+    notifyCompletion("muse-gui · 응답 완료", msg)
     chat.scrollTop = chat.scrollHeight
     return
   }
-  if (/실패|시간 초과|전송 실패|empty/i.test(j.text || "")) { goalAutoN = 0; return }
+  if (/실패|시간 초과|전송 실패|empty/i.test(j.text || "")) {
+    goalAutoN = 0
+    notifyCompletion("muse-gui · 응답 완료", j.text || "")
+    return
+  }
   goalAutoN++
   const cwd = (curConv() && curConv().cwd) || serverCwd || ""
   const ph = addMsg("ai", "응답 생성 중…", null, null, false)
