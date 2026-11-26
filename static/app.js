@@ -655,8 +655,8 @@ const STR = {
     "foot.model": "모델",
     "foot.effort": "effort",
     "plus.title": "기능 추가",
-    "yolo.onTitle": "yolo 켜짐 (끄려면 클릭)",
-    "yolo.offTitle": "yolo 꺼짐 (켜려면 클릭)",
+    "yolo.warn": "사용자 승인 절차 제거 및 샌드박스 격리 해제(작업 디렉터리 바깥 전역 접근 가능).",
+    "settings.language": "언어",
     "gate.pickNew": "새 대화를 시작하려면 작업 디렉터리를 먼저 선택하세요.",
     "gate.pickBtn": "작업 디렉터리 선택",
     "gate.pick": "이 대화의 작업 디렉터리를 선택해야 입력할 수 있습니다.",
@@ -669,7 +669,6 @@ const STR = {
     "goal.emptyHtml": "진행 중인 목표가 없습니다.<br><code>/goal 목표 내용</code> 으로 시작하세요.",
     "chip.struct": "이 폴더 구조 설명해줘",
     "chip.viz": "viz-html 예시 보여줘",
-    "lang.title": "언어 전환 (한국어/English)"
   },
   en: {
     "lobby.sub": "Chat with the muse agent on WSL",
@@ -682,8 +681,8 @@ const STR = {
     "foot.model": "model",
     "foot.effort": "effort",
     "plus.title": "Add features",
-    "yolo.onTitle": "yolo is on (click to turn off)",
-    "yolo.offTitle": "yolo is off (click to turn on)",
+    "yolo.warn": "Removes user approval and sandbox isolation (global access outside the work directory possible).",
+    "settings.language": "Language",
     "gate.pickNew": "Select a working directory to start a new chat.",
     "gate.pickBtn": "Select directory",
     "gate.pick": "Select this conversation's working directory to type here.",
@@ -696,7 +695,6 @@ const STR = {
     "goal.emptyHtml": "No active goal.<br>Start with <code>/goal your goal</code>.",
     "chip.struct": "Explain this folder structure",
     "chip.viz": "Show a viz-html example",
-    "lang.title": "Switch language (한국어/English)"
   }
 }
 let langCur = "ko"
@@ -729,11 +727,10 @@ function applyLang(l, save) {
   setText("#cwdlabel", t("cwd.label"))
   setText("#rsideempty1", t("rside.empty"))
   setText("#rsideempty2", t("rside.emptyHint"))
-  const lang = $("#lang")
-  if (lang) {
-    lang.textContent = langCur === "ko" ? "한" : "EN"
-    lang.title = t("lang.title")
-  }
+  setText("#langhead", t("settings.language"))
+  document.querySelectorAll("#langrow [data-lang]").forEach((b) => {
+    b.classList.toggle("sel", b.dataset.lang === langCur)
+  })
   paintYolo()
   renderChips()
   updateGate()
@@ -2067,7 +2064,7 @@ function paintYolo() {
   b.setAttribute("aria-pressed", yoloOn ? "true" : "false")
   const mark = b.querySelector(".ycheck")
   if (mark) mark.textContent = yoloOn ? "☑" : "☐"
-  b.title = yoloOn ? t("yolo.onTitle") : t("yolo.offTitle")
+  b.title = t("yolo.warn")
 }
 async function refreshPrefs() {
   try {
@@ -2536,8 +2533,8 @@ $("#effort").addEventListener("change", async (e) => {
     body: JSON.stringify({ effort: e.target.value }) })
   refreshPrefs()
 })
-$("#lang").addEventListener("click", () => {
-  applyLang(langCur === "ko" ? "en" : "ko")
+document.querySelectorAll("#langrow [data-lang]").forEach((b) => {
+  b.addEventListener("click", () => applyLang(b.dataset.lang))
 })
 $("#yolo").addEventListener("click", async () => {
   const next = !yoloOn

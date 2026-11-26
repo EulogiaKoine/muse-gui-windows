@@ -44,6 +44,8 @@
 </div>
 <h3>팔레트</h3>
 <div id="accents"></div>
+<h3 id="langhead">언어</h3>
+<div class="row" id="langrow"><button type="button" class="optbtn" data-lang="ko">한국어</button><button type="button" class="optbtn" data-lang="en">English</button></div>
 <h3>세션 유지</h3>
 <div class="row"><label>최근 유지 세션 수 <input id="keepn" type="number" min="1" max="5" step="1"></label></div>
 <p class="hint">탭을 옮겨도 이 개수만큼의 최근 세션은 이어가기 없이 바로 입력할 수 있다.</p>
@@ -99,7 +101,7 @@
 <button type="submit" title="전송 (Ctrl+Enter)" aria-label="전송"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
 <div id="inputgate" hidden><div id="gatebox"><div id="gateenv"></div><p id="gatemsg"></p><button id="gatebtn" type="button" class="optbtn"></button></div></div>
 </form>
-<footer><button id="plus" type="button" title="기능 추가" aria-label="기능 추가">+</button><div id="plusmenu" hidden></div><label><span id="lab-model">모델</span> <select id="model"></select></label><label><span id="lab-effort">effort</span> <select id="effort"></select></label><button id="yolo" type="button" aria-pressed="true" title="yolo 모드 전환 (승인·샌드박스 생략)"><span class="ycheck" aria-hidden="true">☑</span> yolo</button><button id="lang" type="button" title="언어 전환 (한국어/English)">한</button></footer>
+<footer><button id="plus" type="button" title="기능 추가" aria-label="기능 추가">+</button><div id="plusmenu" hidden></div><label><span id="lab-model">모델</span> <select id="model"></select></label><label><span id="lab-effort">effort</span> <select id="effort"></select></label><button id="yolo" type="button" aria-pressed="true" title="사용자 승인 절차 제거 및 샌드박스 격리 해제(작업 디렉터리 바깥 전역 접근 가능)."><span class="ycheck" aria-hidden="true">☑</span> yolo</button></footer>
 </main>
 <aside id="rside">
 <div id="rsidehead"><button id="rsidetoggle" type="button" title="사이드바 접기" aria-label="사이드바 접기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button><div id="rsidetabs" role="tablist"></div></div>
