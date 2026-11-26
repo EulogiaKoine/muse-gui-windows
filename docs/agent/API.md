@@ -150,9 +150,9 @@ JPEG q0.85/1568px 축소, GIF 원본), `renderAttachBar`/`clearAtts`/
 files 탭(`renderFiles`+`fmtSize`, `GET /api/agent-files` 그룹을
 `<details>` 폴더 토글로 표시, `GET /api/file`로 미리보기/다운로드;
 `availTabs`에 항상 포함, 헤더 `#filesbtn`이 `openRside("files")`).
-agents 탭(`renderAgents`+`refreshLiveAgents` 5초 갱신,
-`GET /api/agents` live 세션을 부모 묶음으로 표시;
-`agentRowHtml`, 펼치기(`agentOpen`)+`adoptSession(sid)` 진입).
+agents 탭(`renderAgents`+`refreshSubAgents` 5초 갱신,
+현재 세션의 자식만 flat 목록으로 표시; `POST /api/subagents`
+스폰 기록+상태; 클릭 시 `openSubSession`으로 서브세션 개설).
 세션 목록 펼치기(conv.js `drawConvs` 내 `agentChildren`/`cagents`+
 `agentchild` 행, 클릭 시 `adoptSession`).
 
@@ -164,7 +164,7 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 
 ---
 
-## 전체 함수 색인 (기계 생성, 163개)
+## 전체 함수 색인 (기계 생성, 162개)
 
 모듈별 전체 목록. 동작 설명은 위 섹션을 본다. 새 함수를 추가하면
 여기에도 한 줄을 추가한다(수동 동기화).
@@ -335,7 +335,6 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 - `openSubSession()`
 - `agentChildren()`
 - `async adoptSession()`
-- `agentRowHtml()`
 - `async renderAgents()`
 - `goalSetPrompt()`
 - `goalTurnPrompt()`
