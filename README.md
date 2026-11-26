@@ -28,7 +28,7 @@ WSL2에서 도는 `muse` CLI용 로컬 챗 GUI입니다. 중계 서버(Python st
 ## 2. 준비물
 
 - Windows 10(2004 이상) 또는 Windows 11
-- `muse-code` 계정과 API 키(유료 모델 호출용 결제 수단 포함)
+- `muse-code`용 [dev.meta.ai](dev.meta.ai) 계정과 API 키(유료 모델 호출용 결제 수단 포함)
 - 아래 3장의 명령들을 순서대로 실행할 수 있는 환경이면 됩니다
 
 ## 3. 설치(따라하기)
