@@ -1554,7 +1554,8 @@ def prepare_workdir(cwd):
     for _d in (os.path.join(workdir, ".agent"),
                os.path.join(workdir, ".agent", "tmp"),
                os.path.join(workdir, ".agent", "memory"),
-               os.path.join(workdir, ".agent", "attachments")):
+               os.path.join(workdir, ".agent", "attachments"),
+               os.path.join(workdir, ".agent", "download")):
         try:
             os.makedirs(_d, exist_ok=True)
         except OSError:
