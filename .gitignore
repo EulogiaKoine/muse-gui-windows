@@ -1,9 +1,11 @@
-# 실행 상태·부산물·에이전트 전용 문서. 코드·사용자 문서는 커밋 대상.
+# 실행 상태·부산물. 코드·사용자 문서는 커밋 대상.
+# (dev-agent 브랜치 전용: docs/agent/ 를 버전 관리에 포함한다.
+#  dev·main 방향으로 통합할 때는 .gitignore 과 docs/agent/ 을
+#  병합 대상에서 제외한다. 절차는 docs/agent/DECISIONS.md 참고.)
 __pycache__/
 *.pyc
 state.json
 usage.json
 prices.json
 .agent/
-docs/agent/
-AGENTS.md
+/AGENTS.md
