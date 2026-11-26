@@ -831,7 +831,7 @@ function ensureThoughtRow(tbox, tstate, tid, type, summary) {
   btn.type = "button"
   btn.className = "ttoggle"
   btn.title = "펼치기/접기"
-  btn.textContent = "▸"
+  btn.textContent = "›"
   btn.setAttribute("data-ttoggle", "")
   btn.hidden = true
   row.append(ic, lab, spin, sum, btn)
@@ -884,7 +884,7 @@ function addThoughtLog(r, head, body) {
   hs.textContent = truncStr(head, 80) || "로그"
   const tg = document.createElement("span")
   tg.className = "ttoggle"
-  tg.textContent = "▸"
+  tg.textContent = "›"
   hb.append(hs, tg)
   const bd = document.createElement("div")
   bd.className = "tsubbody"
@@ -1022,7 +1022,7 @@ function renderThoughtsStatic(thoughts) {
       let sh = ""
       subs.forEach((s) => {
         sh += '<div class="tsub"><button type="button" class="tsubhead" data-ttoggle title="펼치기/접기">' +
-          '<span class="tsum">' + esc(s.h || "로그") + '</span><span class="ttoggle">▸</span></button>' +
+          '<span class="tsum">' + esc(s.h || "로그") + '</span><span class="ttoggle">›</span></button>' +
           '<div class="tsubbody" hidden><div class="tlog">' + esc(s.b || "") + "</div></div></div>"
       })
       det = '<div class="tdetail" hidden>' + sh + "</div>"
@@ -1031,14 +1031,14 @@ function renderThoughtsStatic(thoughts) {
       '<span class="ticon">' + thoughtIcon(t.k) + "</span>" +
       '<span class="ttype">' + esc(lab) + "</span>" +
       '<span class="tspin"></span><span class="tsum">' + esc(t.s || "") + "</span>" +
-      (subs.length ? '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">▸</button>' : "") +
+      (subs.length ? '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button>' : "") +
       "</div>" + det
   })
   const last = items[items.length - 1].s || "완료"
   return '<div class="thoughts static"><div class="thead">' +
     '<span class="ttype">통합</span>' +
     '<span class="tsum">' + esc(truncStr(last, 140)) + "</span>" +
-    '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">▸</button></div>' +
+    '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button></div>' +
     '<div class="tbody" hidden>' + rows + "</div></div>"
 }
 function toggleThoughtDetail(tg) {
@@ -1053,7 +1053,7 @@ function toggleThoughtDetail(tg) {
   }
   if (!det || !(det.classList.contains("tsubbody") || det.classList.contains("tdetail") || det.classList.contains("tbody"))) return
   det.hidden = !det.hidden
-  if (mark) mark.textContent = det.hidden ? "▸" : "▾"
+  if (mark) mark.textContent = det.hidden ? "›" : "∨"
   const box = tg.closest(".thoughts")
   if (box) syncThoughtHead(box)
 }
@@ -2246,9 +2246,9 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode) {
   tbox.className = "thoughts"
   const thead = document.createElement("div")
   thead.className = "thead"
-  thead.innerHTML = '<span class="tspin"></span><span class="ttype">통합</span>' +
+  thead.innerHTML = '<span class="tspin"></span><span class="ttype" hidden>통합</span>' +
     '<span class="tsum">준비 중…</span>' +
-    '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">▸</button>'
+    '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button>'
   const tbody = document.createElement("div")
   tbody.className = "tbody"
   tbody.hidden = true
