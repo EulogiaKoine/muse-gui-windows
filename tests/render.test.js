@@ -168,5 +168,26 @@ t("sortConvs", (() => {
 })(), "")
 t("gateFor", R.gateFor(null, false) === "pick-new" && R.gateFor({ sid: "s1" }, false) === "resume" && R.gateFor({ sid: null, cwd: null }, false) === "pick" && R.gateFor({ sid: null, cwd: "/w" }, false) === "" && R.gateFor({ sid: "s1" }, true) === "", "")
 t("slimSave", (() => { const cs = [{ k: "c1", t: "t", sid: "s", cwd: "/w", pin: 1, msgs: [{ who: "me", text: "hi", ts: 1, el: "", th: [{ k: "file", s: "sum", d: [{ h: "h", b: "x".repeat(500) }] }] }] }]; const out = R.slimConvsForSave(cs); const b = out[0].msgs[0].th[0].d[0].b; return out.length === 1 && b.length <= 300 && cs[0].msgs[0].th[0].d[0].b.length === 500 })(), "")
+try {
+  const vsb = require("vm").createContext({ console });
+  vsb.window = vsb; vsb.self = vsb
+  const katexSrc = fs.readFileSync(path.join(__dirname, "..", "static", "vendor", "katex", "katex.min.js"), "utf8")
+  require("vm").runInContext(katexSrc, vsb, { filename: "katex.min.js" })
+  require("vm").runInContext(src, vsb, { filename: "render-with-katex.js" })
+  const KR = require("vm").runInContext("({ renderMath, renderMathLegacy })", vsb)
+  const kstrip = (h) => String(h).replace(/^<span[^>]*>/, "").replace(/<\/span>$/, "")
+  let kh = KR.renderMath("\\frac{a}{b}", false)
+  t("katex frac", kh.indexOf('class="katex"') >= 0 && kstrip(kh).indexOf("\\frac") < 0, kh.slice(0, 200))
+  kh = KR.renderMath("\\cos^2 x + \\sin^2 x = 1", false)
+  t("katex trig", kstrip(kh).indexOf("\\cos") < 0 && kstrip(kh).indexOf("cos") >= 0, kh.slice(0, 200))
+  kh = KR.renderMath("A \\Rightarrow B", false)
+  t("katex implies", kstrip(kh).indexOf("katex-error") < 0, kh.slice(0, 200))
+  kh = KR.renderMath("\\unknowncmd xyz", false)
+  t("katex unknown falls back", kh.indexOf("katex-error") < 0 && kstrip(kh).indexOf("\\") < 0, kh.slice(0, 200))
+  kh = kstrip(KR.renderMathLegacy("\\quad", false))
+  t("legacy quad", kh.indexOf("\\quad") < 0 && kh.indexOf("\u2003") >= 0, kh.slice(0, 200))
+} catch (e) {
+  t("katex suite", false, String((e && e.message) || e))
+}
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)

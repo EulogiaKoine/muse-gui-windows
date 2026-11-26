@@ -1888,6 +1888,23 @@ class Handler(BaseHTTPRequestHandler):
             self.serve_index()
         elif path.startswith("/static/"):
             name = path[len("/static/"):]
+            vm = re.fullmatch(r"vendor/katex/(katex\.min\.(js|css)|fonts/KaTeX_[A-Za-z0-9-]+\.woff2)", name)
+            if vm:
+                if name.endswith(".js"):
+                    ctype = "text/javascript; charset=utf-8"
+                elif name.endswith(".css"):
+                    ctype = "text/css; charset=utf-8"
+                else:
+                    ctype = "font/woff2"
+                try:
+                    with open(os.path.join(BASE_DIR, "static", name),
+                              "rb") as f:
+                        data = f.read()
+                except OSError:
+                    self._send(404, "not found")
+                    return
+                self._send(200, data, ctype)
+                return
             m = re.fullmatch(r"(js|css)/([A-Za-z0-9_-]+)\.(js|css)", name)
             if not m or (m.group(1) == "js") != (m.group(3) == "js"):
                 self._send(404, "not found")
