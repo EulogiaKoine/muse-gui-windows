@@ -69,13 +69,17 @@ function addMsg(who, text, think, foot, withActs, extra) {
   decorateMath(d)
   decorateTables(d)
   decoratePaths(d)
-  chat.appendChild(d)
-  if (mtime) {
+  if (mtime && who === "me") {
+    const wrap = document.createElement("div")
+    wrap.className = "mewrap"
+    wrap.dataset.mi = d.dataset.mi
     const mt = document.createElement("div")
     mt.className = "mtime"
-    mt.dataset.mi = d.dataset.mi
     mt.textContent = mtime
-    chat.appendChild(mt)
+    wrap.append(mt, d)
+    chat.appendChild(wrap)
+  } else {
+    chat.appendChild(d)
   }
   chat.scrollTop = chat.scrollHeight
   return d
