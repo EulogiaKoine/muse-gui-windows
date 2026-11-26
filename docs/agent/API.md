@@ -150,6 +150,11 @@ JPEG q0.85/1568px 축소, GIF 원본), `renderAttachBar`/`clearAtts`/
 files 탭(`renderFiles`+`fmtSize`, `GET /api/agent-files` 그룹을
 `<details>` 폴더 토글로 표시, `GET /api/file`로 미리보기/다운로드;
 `availTabs`에 항상 포함, 헤더 `#filesbtn`이 `openRside("files")`).
+agents 탭(`renderAgents`+`refreshLiveAgents` 5초 갱신,
+`GET /api/agents` live 세션을 부모 묶음으로 표시;
+`agentRowHtml`, 펼치기(`agentOpen`)+`adoptSession(sid)` 진입).
+세션 목록 펼치기(conv.js `drawConvs` 내 `agentChildren`/`cagents`+
+`agentchild` 행, 클릭 시 `adoptSession`).
 
 ## main.js — 부팅 전용
 
@@ -159,7 +164,7 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 
 ---
 
-## 전체 함수 색인 (기계 생성, 153개)
+## 전체 함수 색인 (기계 생성, 158개)
 
 모듈별 전체 목록. 동작 설명은 위 섹션을 본다. 새 함수를 추가하면
 여기에도 한 줄을 추가한다(수동 동기화).
@@ -322,6 +327,11 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 - `renderHelp()`
 - `fmtSize()`
 - `async renderFiles()`
+- `async refreshLiveAgents()`
+- `agentChildren()`
+- `async adoptSession()`
+- `agentRowHtml()`
+- `async renderAgents()`
 - `goalSetPrompt()`
 - `goalTurnPrompt()`
 - `loadTheme()`
