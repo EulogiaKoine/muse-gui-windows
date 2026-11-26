@@ -29,6 +29,7 @@ const RSIDE_TABS = {
     helpOpen = false
   } },
   files: { label: "files", render: () => renderFiles() },
+  agents: { label: "agents", render: () => renderAgents() },
 }
 let rsideTab = null
 let helpOpen = false
@@ -39,6 +40,7 @@ function availTabs() {
   if (curConv() && curConv().goal) t.push("goal")
   if (helpOpen) t.push("help")
   t.push("files")
+  t.push("agents")
   return t
 }
 function renderRsideTabs() {
@@ -169,6 +171,100 @@ document.querySelector("#rsidefiles").addEventListener("click", async (e) => {
   const op = e.target.closest("[data-fopen]")
   if (op) openAgentFile(op.dataset.fopen || "")
 })
+document.querySelector("#rsideagents").addEventListener("click", async (e) => {
+  const ex = e.target.closest("[data-aexpand]")
+  if (ex) {
+    const id = ex.dataset.aexpand || ""
+    if (agentOpen.has(id)) agentOpen.delete(id)
+    else agentOpen.add(id)
+    renderAgents()
+    return
+  }
+  const en = e.target.closest("[data-aenter]")
+  if (en) adoptSession(en.dataset.aenter || "")
+})
+let liveAgents = []
+let agentsTimer = null
+const agentOpen = new Set()
+async function refreshLiveAgents() {
+  try {
+    const r = await fetch("/api/agents")
+    const j = await r.json()
+    if (j && j.ok) { liveAgents = j.agents || []; return true }
+  } catch (e) {}
+  return false
+}
+function agentChildren(sid) {
+  return liveAgents.filter((a) => a.sideOf && a.sideOf === sid)
+}
+async function adoptSession(sid) {
+  if (!sid) return
+  const hit = (typeof convs !== "undefined") ? convs.find((x) => x.sid === sid) : null
+  if (hit) { openConv(hit.k); return }
+  let cwd = ""
+  try {
+    const r = await fetch("/api/session_workspace?session_id=" + encodeURIComponent(sid))
+    const j = await r.json()
+    if (j && j.ok) cwd = j.cwd || ""
+  } catch (e) {}
+  if (!cwd) { alert(t("agents.noCwd")); return }
+  convKey = "c" + Date.now()
+  sessionId = sid
+  convs.unshift({ k: convKey, t: t("conv.adopted"), sid, cwd, msgs: [], at: Date.now(), createdAt: Date.now() })
+  persistConvs()
+  openConv(convKey)
+}
+function agentRowHtml(a) {
+  return "<button type='button' class='fname' data-aenter='" + escAttr(a.id) + "'>" +
+    esc(a.name || a.id.slice(0, 8)) + "</button> <span class='fsize'>" +
+    esc(a.workspace || "") + "</span>"
+}
+async function renderAgents() {
+  if (agentsTimer) { clearInterval(agentsTimer); agentsTimer = null }
+  const box = $("#rsideagents")
+  if (!box) return
+  box.innerHTML = "<h3>agents</h3><p class='hint'>" + esc(t("agents.loading")) + "</p>"
+  const ok = await refreshLiveAgents()
+  if (rsideTab !== "agents") return
+  if (!ok && !liveAgents.length) {
+    box.innerHTML = "<h3>agents</h3><p class='hint'>" + esc(t("agents.fail")) + "</p>"
+    return
+  }
+  const roots = liveAgents.filter((a) => !a.sideOf)
+  const inConvs = (sid) => (typeof convs !== "undefined") && convs.some((c) => c.sid === sid)
+  const orphans = liveAgents.filter((a) => a.sideOf && !liveAgents.some((p) => p.id === a.sideOf) && !inConvs(a.sideOf))
+  let html = "<h3>agents</h3>"
+  if (!liveAgents.length) {
+    html += "<p class='hint'>" + esc(t("agents.empty")) + "</p>"
+  } else {
+    html += "<ul class='flist'>"
+    roots.forEach((a) => {
+      const kids = agentChildren(a.id)
+      const open = agentOpen.has(a.id)
+      html += "<li class='frow'><button type='button' class='fexpand" + (open ? " open" : "") +
+        "' data-aexpand='" + escAttr(a.id) + "' title='" + escAttr(t("agents.toggle")) + "'>" +
+        (kids.length ? "›" : "·") + "</button>" + agentRowHtml(a) +
+        (kids.length ? " <span class='fcount'>" + kids.length + "</span>" : "") + "</li>"
+      if (open) kids.forEach((k) => {
+        html += "<li class='frow asub'><span class='atree'>└</span>" + agentRowHtml(k) + "</li>"
+      })
+    })
+    orphans.forEach((a) => {
+      html += "<li class='frow'>" + agentRowHtml(a) + "</li>"
+    })
+    html += "</ul>"
+  }
+  box.innerHTML = html
+  drawConvs()
+  agentsTimer = setInterval(async () => {
+    if (rsideTab !== "agents" || !$("#rsideagents")) {
+      if (agentsTimer) { clearInterval(agentsTimer); agentsTimer = null }
+      return
+    }
+    await refreshLiveAgents()
+    if (rsideTab === "agents") renderAgents()
+  }, 5000)
+}
 function fmtSize(n) {
   n = +n || 0
   if (n < 1024) return n + " B"

@@ -417,6 +417,31 @@ def running_session_ids():
             if isinstance(s, dict)}
 
 
+def live_agents():
+    """`muse sessions --json`를 사이드바용으로 정규화한다."""
+    try:
+        proc = subprocess.run(["muse", "sessions", "--json"],
+                              capture_output=True, text=True, timeout=30,
+                              stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    try:
+        data = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError:
+        return None
+    out = []
+    for s in data.get("sessions", []):
+        if not isinstance(s, dict):
+            continue
+        out.append({"id": s.get("sessionId") or "",
+                    "name": s.get("name") or "",
+                    "workspace": s.get("workspaceLabel") or "",
+                    "openedBy": s.get("openedBy") or "",
+                    "attachable": bool(s.get("attachable")),
+                    "sideOf": s.get("sideOf") or ""})
+    return out
+
+
 PRICES_FILE = os.path.join(BASE_DIR, "prices.json")
 
 DEFAULT_PRICES = {
@@ -1796,6 +1821,14 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/models":
             self._send(200, json.dumps(list_models(),
                                       ensure_ascii=False))
+        elif path == "/api/agents":
+            agents = live_agents()
+            if agents is None:
+                self._send(200, json.dumps({"ok": False,
+                                            "error": "sessions fail"}))
+            else:
+                self._send(200, json.dumps({"ok": True, "agents": agents},
+                                           ensure_ascii=False))
         elif path.startswith("/api/session_workspace"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             sid = (q.get("session_id") or [""])[0]

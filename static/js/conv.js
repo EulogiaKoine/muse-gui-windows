@@ -332,8 +332,40 @@ function drawConvs() {
       e.stopPropagation()
       showCtx(e, c.k)
     }
+    if (c.sid && typeof agentChildren === "function") {
+      const kids = agentChildren(c.sid)
+      if (kids.length) {
+        const open = (typeof agentOpen !== "undefined") && agentOpen.has(c.sid)
+        const xb = document.createElement("button")
+        xb.type = "button"
+        xb.className = "cagents" + (open ? " open" : "")
+        xb.textContent = "› " + kids.length
+        xb.title = t("agents.toggle")
+        xb.onclick = (e) => {
+          e.stopPropagation()
+          if (agentOpen.has(c.sid)) agentOpen.delete(c.sid)
+          else agentOpen.add(c.sid)
+          drawConvs()
+        }
+        row.appendChild(xb)
+      }
+    }
     row.appendChild(dots)
     box.appendChild(row)
+    if (c.sid && typeof agentChildren === "function" && typeof agentOpen !== "undefined" && agentOpen.has(c.sid)) {
+      agentChildren(c.sid).forEach((k) => {
+        const kr = document.createElement("div")
+        kr.className = "conv agentchild"
+        const kb = document.createElement("button")
+        kb.type = "button"
+        kb.className = "ctitle"
+        kb.textContent = "└ " + (k.name || k.id.slice(0, 8))
+        kb.title = (k.workspace || "") + "\n" + t("agents.enter")
+        kb.onclick = () => adoptSession(k.id)
+        kr.appendChild(kb)
+        box.appendChild(kr)
+      })
+    }
   })
 }
 function showCtx(e, k) {
