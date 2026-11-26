@@ -180,7 +180,11 @@ document.querySelector("#rsideagents").addEventListener("click", async (e) => {
     const said = bar >= 0 ? raw.slice(bar + 1) : ""
     const parent = convs.find((c) => c.k === ck)
     const rec = parent && (subRecs[parent.sid] || []).find((r) => r.subagent_id === said)
-    if (parent && rec) openSubSession(parent, rec)
+    if (parent && rec) {
+      const hit = convs.find((c) => c.sub && c.sub.parent === ck && c.sub.rec === said)
+      if (hit) openConv(hit.k)
+      else openSubSession(parent, rec)
+    }
     return
   }
 })
@@ -221,7 +225,7 @@ function openSubSession(parent, rec) {
   convs.unshift({ k: key, t: seedNote.slice(0, 60), sid: null, cwd: parent.cwd,
     msgs: [{ who: "ai", text: seedNote, ts: Date.now(), el: "", th: null, atts: null }],
     at: Date.now(), createdAt: Date.now(),
-    sub: { parent: parent.k, seed, used: false } })
+    sub: { parent: parent.k, seed, used: false, rec: rec.subagent_id || "" } })
   persistConvs()
   openConv(key)
 }
