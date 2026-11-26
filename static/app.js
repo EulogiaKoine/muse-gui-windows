@@ -331,9 +331,10 @@ function addMsg(who, text, think, foot, withActs, extra) {
     renderText(text) + (think ? "<details><summary>상세</summary>" + esc(think) + "</details>" : "");
   if (withActs === undefined) withActs = true;
   if (who === "ai") {
-    if (withActs) html += '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>";
+    chat.querySelectorAll('.msg.ai [data-retry]').forEach((b) => b.remove());
+    if (withActs) html += '<div class="acts"><button type="button" data-retry title="재시도 (마지막 질문을 새 세션으로 분기)">' + ICON_RETRY + '</button><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>";
   }
-  else html += '<div class="acts"><button type="button" data-retry title="재시도 (이 메시지부터 새 세션으로 분기)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button><button type="button" data-copy title="복사">' + ICON_COPY + '</button><button type="button" data-edit title="수정 후 다시 전송">✎</button></div>';
+  else html += '<div class="acts"><button type="button" data-retry title="재시도 (이 메시지부터 새 세션으로 분기)">' + ICON_RETRY + '</button><button type="button" data-copy title="복사">' + ICON_COPY + '</button><button type="button" data-edit title="수정 후 다시 전송">✎</button></div>';
   if (foot) html += '<div class="meta">' + esc(foot) + "</div>";
   if (who === "me" && text.length >= 200) {
     d.classList.add("folded");
@@ -540,6 +541,7 @@ function lastAiText() {
   return nodes[nodes.length - 1].dataset.raw || "";
 }
 const ICON_COPY = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const ICON_RETRY = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
 const ICON_CHEVD = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
 const ICON_CHEVU = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>';
 const ICON_SIDEL = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>';
@@ -619,6 +621,7 @@ function ensureThoughtRow(tbox, tstate, tid, type, summary) {
   (tstate.body || tbox).append(row, det);
   r = { el: row, det, sum, tgl: btn, type, idem: null, done: false };
   tstate.rows.set(tid, r);
+  if (tstate.headTgl) tstate.headTgl.hidden = false;
   setRowSummary(r, summary);
   updateThoughtHead(tstate);
   return r;
@@ -724,17 +727,51 @@ function updateThought(tbox, tstate, ev) {
     updateThoughtHead(tstate);
     return;
   }
-  if (ek === "completed" || ek === "settled") { markThoughtDone(r); updateThoughtHead(tstate); }
+  if (ek === "completed" || ek === "settled") {
+    if (!r.det.children.length) {
+      const lab = THOUGHT_LABEL[r.type] || "작업";
+      const sum = r.el.dataset.sum || lab;
+      addThoughtLog(r, sum + " · 완료", "유형: " + lab + "\n상태: 완료");
+      tstate.last = sum + " · 완료";
+    }
+    markThoughtDone(r); updateThoughtHead(tstate);
+  }
 }
 function collectThoughts(tbox) {
   const out = [];
   tbox.querySelectorAll(".trow").forEach((r) => {
-    out.push({ k: r.dataset.type || "tool", s: r.dataset.sum || "" });
+    const th = { k: r.dataset.type || "tool", s: r.dataset.sum || "" };
+    const det = r.nextElementSibling;
+    if (det && det.classList && det.classList.contains("tdetail")) {
+      const subs = [];
+      det.querySelectorAll(".tsub").forEach((sub) => {
+        if (subs.length >= 6) return;
+        const h = sub.querySelector(".tsubhead .tsum");
+        const b = sub.querySelector(".tsubbody .tlog");
+        subs.push({ h: (h ? h.textContent : "").slice(0, 80), b: (b ? b.textContent : "").slice(0, 300) });
+      });
+      if (subs.length) th.d = subs;
+    }
+    out.push(th);
   });
   return out.length ? out : null;
 }
 function markThoughtsDone(tbox) {
   tbox.querySelectorAll(".trow").forEach((r) => r.classList.add("done"));
+  const st = tbox._tstate;
+  if (!st || !st.rows) return;
+  st.rows.forEach((r) => {
+    if (!r.done && !r.det.children.length) {
+      const lab = THOUGHT_LABEL[r.type] || "작업";
+      const sum = (r.el && r.el.dataset && r.el.dataset.sum) || lab;
+      addThoughtLog(r, sum + " · 종료", "유형: " + lab + "\n상태: 종료 (완료 이벤트 없음)");
+      r.done = true;
+    }
+  });
+  if (st.rows.size === 0 && st.headSum) {
+    st.headSum.textContent = "별도 추론 과정 없음";
+    if (st.headSpin) st.headSpin.style.display = "none";
+  }
 }
 function renderThoughtsStatic(thoughts) {
   const items = thoughts || [];
@@ -742,10 +779,23 @@ function renderThoughtsStatic(thoughts) {
   let rows = "";
   items.forEach((t) => {
     const lab = THOUGHT_LABEL[t.k] || "작업";
+    const subs = Array.isArray(t.d) ? t.d : [];
+    let det = "";
+    if (subs.length) {
+      let sh = "";
+      subs.forEach((s) => {
+        sh += '<div class="tsub"><button type="button" class="tsubhead" data-ttoggle title="펼치기/접기">' +
+          '<span class="tsum">' + esc(s.h || "로그") + '</span><span class="ttoggle">▸</span></button>' +
+          '<div class="tsubbody" hidden><div class="tlog">' + esc(s.b || "") + "</div></div></div>";
+      });
+      det = '<div class="tdetail" hidden>' + sh + "</div>";
+    }
     rows += '<div class="trow t-' + esc(String(t.k || "tool")) + ' done">' +
       '<span class="ticon">' + thoughtIcon(t.k) + "</span>" +
       '<span class="ttype">' + esc(lab) + "</span>" +
-      '<span class="tspin"></span><span class="tsum">' + esc(t.s || "") + "</span></div>";
+      '<span class="tspin"></span><span class="tsum">' + esc(t.s || "") + "</span>" +
+      (subs.length ? '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">▸</button>' : "") +
+      "</div>" + det;
   });
   const last = items[items.length - 1].s || "완료";
   return '<div class="thoughts static"><div class="thead">' +
@@ -792,9 +842,17 @@ chat.addEventListener("click", async (e) => {
     if (msgEl) {
       const mi = +(msgEl.dataset.mi ?? -1);
       const c = curConv();
-      if (c && c.msgs[mi] && c.msgs[mi].who === "me") {
+      if (c && mi >= 0) {
         if (editingEl) cancelEdit(editingEl);
-        branchFromMessage(c, mi, c.msgs[mi].text);
+        if (c.msgs[mi] && c.msgs[mi].who === "me") {
+          branchFromMessage(c, mi, c.msgs[mi].text);
+        } else if (msgEl.classList.contains("ai")) {
+          let qi = -1;
+          for (let q = Math.min(mi, c.msgs.length - 1); q >= 0; q--) {
+            if (c.msgs[q] && c.msgs[q].who === "me") { qi = q; break; }
+          }
+          if (qi >= 0) branchFromMessage(c, qi, c.msgs[qi].text);
+        }
       }
     }
     return;
@@ -1701,8 +1759,10 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode) {
   tbox.append(thead, tbody);
   ph.prepend(tbox);
   ph._tbox = tbox;
+  const headTgl = thead.querySelector(".ttoggle");
+  if (headTgl) headTgl.hidden = true;
   const tstate = { rows: new Map(), texts: [], body: tbody, tbox,
-    headSpin: thead.children[0], headSum: thead.children[2], last: "" };
+    headSpin: thead.children[0], headSum: thead.children[2], headTgl, last: "" };
   tbox._tstate = tstate;
   const ctl = new AbortController();
   activeStreamAbort = ctl;

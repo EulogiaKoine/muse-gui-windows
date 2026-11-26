@@ -145,13 +145,12 @@ body.rside-hidden #rside { display: none; }
 .msg.me.folded.open .foldfade { display: none; }
 .foldbtn { display: block; margin: 4px auto 0; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 2px 12px; border-radius: 6px; line-height: 0; }
 .foldbtn:hover { color: var(--me); background: var(--hover); }
-.thoughts { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
-.thead, .trow { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--bd); border-radius: 8px; padding: 6px 10px; font-size: 13px; min-width: 0; }
-.thead { border-left: 3px solid var(--me); }
-.trow { border-left: 3px solid var(--muted); }
+.thoughts { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; background: var(--panel); background: color-mix(in srgb, var(--panel) 55%, transparent); border: 1px solid var(--bd); border-left: 3px solid var(--me); border-radius: 12px; padding: 8px 10px; }
+.thead { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 2px 4px; min-width: 0; }
+.trow { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--bd); border-left: 3px solid var(--muted); border-radius: 8px; padding: 6px 10px; font-size: 13px; min-width: 0; }
 .ttoggle { flex: none; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 1.75em; line-height: 1; padding: 2px 6px; border-radius: 6px; }
 .ttoggle:hover { color: var(--me); background: var(--hover); }
-.trow .ttoggle[hidden] { display: none; }
+.trow .ttoggle[hidden], .thead .ttoggle[hidden] { display: none; }
 .thead .tsum, .trow .tsum, .tsubhead .tsum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ttype { flex: none; font-size: 11px; color: var(--muted); border: 1px solid var(--bd); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
 .trow .ticon, .thead .ticon { display: inline-flex; flex: none; color: var(--muted); }
@@ -396,6 +395,7 @@ form button[type="submit"]:active { transform: scale(.96); }
 #lobby .chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 #lobby .chips button { border: 1px solid var(--bd); background: var(--panel); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 13px; }
 #lobby .chips button:hover { border-color: var(--me); }
-main.lobby #chat, main.lobby footer { display: none; }
+main.lobby #chat { display: none; }
+main.lobby #lobby { display: flex; }
 main.lobby form { max-width: 640px; margin: auto; width: 100%; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
