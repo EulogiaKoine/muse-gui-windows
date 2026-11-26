@@ -1,21 +1,17 @@
 // muse-gui 렌더러 하네스 (의존성 없음, node만 필요).
 // 실행: node tests/render.test.js  (또는 tests/run.sh)
-// 규칙: 테스트는 static/app.js에서 "function esc(" 부터 "function timeStr("
-// 구간만 잘라 평가한다. 순수 함수(esc/escAttr/renderMath/hl/vizHtml/
-// renderText)는 이 구간 안에 둘 것. DOM 코드는 구간 밖에 둘 것.
+// 규칙: 순수 함수(util.js)와 렌더러(render.js)만 통째로 평가한다.
+// DOM·브라우저 코드는 테스트에 올리지 않는다.
 const fs = require("fs")
 const path = require("path")
-const src = fs.readFileSync(path.join(__dirname, "..", "static", "app.js"), "utf8")
-const start = src.indexOf("function esc(")
-const end = src.indexOf("function timeStr(")
-if (start < 0 || end < 0 || end < start) {
-  console.error("FAIL slice anchors missing (esc..timeStr convention broken)")
-  process.exit(1)
-}
+const srcDir = path.join(__dirname, "..", "static", "js")
+const src = fs.readFileSync(path.join(srcDir, "util.js"), "utf8") + "\n" +
+  fs.readFileSync(path.join(srcDir, "icons.js"), "utf8") + "\n" +
+  fs.readFileSync(path.join(srcDir, "render.js"), "utf8")
 const sandbox = {}
 require("vm").createContext(sandbox)
 require("vm").runInContext(
-  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd, thoughtKind, truncStr, diffLineClass, isDiffText, diffLinesHtml, diffOnly, shouldNotifyCompletion, thoughtSummary, isOutputTruncated, sortConvs, gateFor, slimConvsForSave };",
+  src + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd, thoughtKind, truncStr, diffLineClass, isDiffText, diffLinesHtml, diffOnly, shouldNotifyCompletion, thoughtSummary, isOutputTruncated, sortConvs, gateFor, slimConvsForSave };",
   sandbox)
 const R = sandbox.__R
 let pass = 0, fail = 0

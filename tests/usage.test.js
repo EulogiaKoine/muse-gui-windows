@@ -1,12 +1,6 @@
 const fs = require("fs")
 const path = require("path")
-const src = fs.readFileSync(path.join(__dirname, "..", "static", "app.js"), "utf8")
-const start = src.indexOf("let usageRange")
-const end = src.indexOf("async function loadUsage")
-if (start < 0 || end < 0) {
-  console.error("FAIL anchors")
-  process.exit(1)
-}
+const src = fs.readFileSync(path.join(__dirname, "..", "static", "js", "usage.js"), "utf8")
 const store = { ucards: "", usagebox: "" }
 const sandbox = {
   document: { querySelectorAll: () => [] },
@@ -19,7 +13,7 @@ sandbox.$ = (s) => ({
 require("vm").createContext(sandbox)
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 sandbox.esc = esc
-require("vm").runInContext(src.slice(start, end) + `
+require("vm").runInContext(src + `
 globalThis.__U = { fmtNum, barsSVG, ucard, drawUsage, fmtMoney, rateFor, dayCost, bucketize, tsGraph,
   setData: (d) => { usageDaily = d; usageFull = { turns: 1 }; },
   setModel: (m) => { usageModel = m; } };`, sandbox)

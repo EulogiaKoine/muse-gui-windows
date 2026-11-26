@@ -1599,11 +1599,12 @@ class Handler(BaseHTTPRequestHandler):
             self.serve_index()
         elif path.startswith("/static/"):
             name = path[len("/static/"):]
-            if "/" in name or name not in ("app.js", "style.css"):
+            m = re.fullmatch(r"(js|css)/([A-Za-z0-9_-]+)\.(js|css)", name)
+            if not m or (m.group(1) == "js") != (m.group(3) == "js"):
                 self._send(404, "not found")
             else:
                 ctype = ("text/javascript; charset=utf-8"
-                         if name.endswith(".js")
+                         if m.group(1) == "js"
                          else "text/css; charset=utf-8")
                 try:
                     with open(os.path.join(BASE_DIR, "static", name),
