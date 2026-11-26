@@ -283,7 +283,8 @@ async function renderAgents() {
     box.innerHTML = "<h3>agents</h3><p class='hint'>" + esc(t("agents.fail")) + "</p>"
     return
   }
-  const parents = convs.filter((c) => c.sid).sort((a, b) => (b.at || 0) - (a.at || 0))
+  const parents = convs.filter((c) => c.sid && (subRecs[c.sid] || []).length)
+    .sort((a, b) => (b.at || 0) - (a.at || 0))
   let html = "<h3>agents</h3>"
   if (!parents.length) {
     html += "<p class='hint'>" + esc(t("agents.empty")) + "</p>"
@@ -294,11 +295,11 @@ async function renderAgents() {
       const open = subOpen.has(p.k)
       const act = recs.filter((r) => r.state === "active").length
       html += "<li class='frow'><button type='button' class='fexpand" + (open ? " open" : "") +
-        "' data-subexpand='" + escAttr(p.k) + "' title='" + escAttr(t("agents.toggle")) + "'>" +
-        (recs.length ? "›" : "·") + "</button>" +
-        "<button type='button' class='fname' data-aenter='" + escAttr(p.sid) + "'>" +
+        "' data-subexpand='" + escAttr(p.k) + "' title='" + escAttr(t("agents.toggle")) + "'>›</button>" +
+        "<button type='button' class='fname' data-subexpand='" + escAttr(p.k) + "' title='" +
+        escAttr(t("agents.toggle")) + "'>" +
         esc(p.t || p.sid.slice(0, 8)) + "</button> <span class='fsize'>" +
-        (recs.length ? recs.length + " · " : "") + (act ? t("agents.active") + " " + act : t("agents.idle")) + "</span></li>"
+        recs.length + " · " + (act ? t("agents.active") + " " + act : t("agents.idle")) + "</span></li>"
       if (open) recs.forEach((r) => {
         const label = r.agent_path || (r.subagent_id || "").slice(0, 8)
         html += "<li class='frow asub'><span class='sdot st-" + escAttr(r.state) + "' title='" +
