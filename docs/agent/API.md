@@ -165,7 +165,7 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 
 ---
 
-## 전체 함수 색인 (기계 생성, 169개)
+## 전체 함수 색인 (기계 생성, 171개)
 
 모듈별 전체 목록. 동작 설명은 위 섹션을 본다. 새 함수를 추가하면
 여기에도 한 줄을 추가한다(수동 동기화).
@@ -227,6 +227,8 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 - `syncThoughtHead()`
 - `updateThoughtHead()`
 - `loadFullLog()`
+- `webSafeUrl()`
+- `addWebResultLog()`
 - `addThoughtLog()`
 - `markThoughtDone()`
 - `updateThought()`
