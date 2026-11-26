@@ -1310,6 +1310,11 @@ function saveMsg(who, text, meta) {
   persistConvs()
 }
 let liveSessions = [];
+try { liveSessions = JSON.parse(localStorage.getItem("muse-gui-live") || "[]"); } catch (e) { liveSessions = []; }
+if (!Array.isArray(liveSessions)) liveSessions = [];
+function persistLive() {
+  try { localStorage.setItem("muse-gui-live", JSON.stringify(liveSessions.slice(0, 5))); } catch (e) {}
+}
 // resume-consented convs (kept across tab switches, latest N)
 function keepN() {
   const n = +((loadTheme().keepN ?? 3))
@@ -1318,6 +1323,7 @@ function keepN() {
 function touchLive() {
   if (!convKey) return
   liveSessions = [convKey, ...liveSessions.filter((x) => x !== convKey)].slice(0, keepN())
+  persistLive()
 }
 function inputGated() {
   const c = curConv()
@@ -1735,6 +1741,7 @@ $("#ctx").addEventListener("click", (e) => {
     const sid = c.sid || null
     convs = convs.filter((x) => x.k !== c.k)
     liveSessions = liveSessions.filter((x) => x !== c.k)
+    persistLive()
     if (convKey === c.k) {
       convKey = null
       sessionId = null
