@@ -1953,6 +1953,14 @@ function fillSelect(sel, opts, cur) {
     (o === cur ? " selected" : "") + ">" + esc(o) + "</option>").join("")
   sel.value = cur || ""
 }
+let yoloOn = true
+function paintYolo() {
+  const b = $("#yolo")
+  if (!b) return
+  b.classList.toggle("on", yoloOn)
+  b.setAttribute("aria-pressed", yoloOn ? "true" : "false")
+  b.title = yoloOn ? "yolo 켜짐 (끄려면 클릭)" : "yolo 꺼짐 (켜려면 클릭)"
+}
 async function refreshPrefs() {
   try {
     const [mi, ii] = await Promise.all([
@@ -1960,6 +1968,8 @@ async function refreshPrefs() {
       fetch("/api/info").then((r) => r.json())])
     fillSelect($("#model"), mi.models || [], ii.model)
     fillSelect($("#effort"), EFFORT_OPTS, ii.effort)
+    yoloOn = ii.yolo !== false
+    paintYolo()
   } catch (e) {}
 }
 async function refreshInfo() {
@@ -2416,6 +2426,17 @@ $("#effort").addEventListener("change", async (e) => {
   await fetch("/api/prefs", { method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ effort: e.target.value }) })
+  refreshPrefs()
+})
+$("#yolo").addEventListener("click", async () => {
+  const next = !yoloOn
+  yoloOn = next
+  paintYolo()
+  try {
+    await fetch("/api/prefs", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ yolo: next }) })
+  } catch (e) {}
   refreshPrefs()
 })
 $("#gear").onclick = showModal

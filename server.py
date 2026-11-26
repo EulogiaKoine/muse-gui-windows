@@ -339,7 +339,7 @@ def default_state():
     efforts = st.get("model_reasoning_efforts", {}) or {}
     effort = (flag_value(MUSE_ARGS, "--reasoning-effort", "--effort")
               or efforts.get(model) or "high")
-    return {"model": model, "effort": effort}
+    return {"model": model, "effort": effort, "yolo": True}
 
 
 STATE = default_state()
@@ -352,6 +352,8 @@ try:
         if saved.get("effort") in EFFORTS and not flag_value(
                 MUSE_ARGS, "--reasoning-effort", "--effort"):
             STATE["effort"] = saved["effort"]
+        if isinstance(saved.get("yolo"), bool):
+            STATE["yolo"] = saved["yolo"]
 except (OSError, ValueError):
     pass
 
@@ -1318,6 +1320,11 @@ def prepare_workdir(cwd):
 def build_muse_cmd(prompt, session_id, workdir):
     """`muse exec` 호출 argv를 만든다."""
     cmd = ["muse", "exec", "--json"] + MUSE_ARGS
+    # --yolo는 기본 켜짐이다. GUI 토글로 끄면 그 턴부터 제외한다.
+    # (명령줄에 직접 준 --yolo/--no-yolo가 있으면 그것을 따른다.)
+    if ("--yolo" not in MUSE_ARGS and "--no-yolo" not in MUSE_ARGS
+            and STATE.get("yolo", True)):
+        cmd += ["--yolo"]
     # --model/--reasoning-effort는 meta·local에서만 유효하므로
     # echo 등 다른 프로바이더에서는 붙이지 않는다.
     prov = (flag_value(MUSE_ARGS, "--provider")
@@ -1563,6 +1570,7 @@ class Handler(BaseHTTPRequestHandler):
                 "muse_args": MUSE_ARGS, "cwd": os.getcwd(),
                 "platform": platform_label(),
                 "model": STATE.get("model"), "effort": STATE.get("effort"),
+                "yolo": STATE.get("yolo", True),
             }, ensure_ascii=False))
         elif path == "/api/slash":
             self._send(200, json.dumps(slash_command_list(),
@@ -1655,9 +1663,17 @@ class Handler(BaseHTTPRequestHandler):
                                                 "allowed": EFFORTS}))
                     return
                 STATE["effort"] = effort
+            yolo = body.get("yolo")
+            if yolo is not None:
+                if not isinstance(yolo, bool):
+                    self._send(400, json.dumps({"ok": False,
+                                                "error": "bad yolo"}))
+                    return
+                STATE["yolo"] = yolo
             save_state()
             self._send(200, json.dumps({"ok": True, "model": STATE["model"],
-                                        "effort": STATE["effort"]}))
+                                        "effort": STATE["effort"],
+                                        "yolo": STATE.get("yolo", True)}))
             return
         if path == "/api/session/delete":
             ok, msg = delete_session(body.get("session_id") or "")

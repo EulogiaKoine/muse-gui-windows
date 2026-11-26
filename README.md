@@ -29,8 +29,12 @@ sudo apt update && sudo apt install -y git nodejs npm python3
 
 1. 개발자 사이트에서 계정을 만들고 API 키를 발급받는다. 유료 모델 호출용
    결제 수단을 등록한다.
-2. WSL 셸에서 공식 설치 스크립트로 `muse-code`를 설치한다
-   (`curl … | bash` — 정확한 경로는 공식 안내를 따른다).
+2. WSL 셸에서 공식 설치 스크립트로 `muse-code`를 설치한다.
+   스크립트는 bash 전용이므로 `sh`가 아니라 `bash`로 실행한다.
+
+   ```bash
+   curl -fsSL https://dev.meta.ai/install.sh | bash
+   ```
 3. TUI를 한 번 실행해 `--yolo` 동작을 확인하고 로그인한다.
 4. 사용할 모델을 `muse-spark-1.3-contributor`로 설정한다
    (GUI 하단 모델 선택 또는 `muse-gui --model` 인자).
@@ -38,7 +42,7 @@ sudo apt update && sudo apt install -y git nodejs npm python3
 ### 2.3 muse-gui 설치와 실행
 
 ```bash
-git clone <this-repo> ~/.local/share/muse-gui
+git clone https://github.com/EulogiaKoine/muse-gui-windows.git ~/.local/share/muse-gui
 ln -s ~/.local/share/muse-gui/bin/muse-gui ~/.local/bin/muse-gui
 muse-gui
 ```
@@ -51,8 +55,9 @@ muse-gui [--port 8765] [--host 127.0.0.1] [--no-open] [MUSE_OPTIONS]
 ```
 
 `--port`·`--host`·`--no-open`만 런처가 소비하고, 나머지 인자는 모든
-`muse exec` 호출에 그대로 전달된다. 예: `muse-gui --yolo --model <ID>`.
-(`--yolo` 기본값 true는 미구현. 필요하면 매번 명시한다.)
+`muse exec` 호출에 그대로 전달된다. 예: `muse-gui --model <ID>`.
+`--yolo`는 기본 켜짐이라 따로 주지 않아도 `exec`에 자동 추가된다.
+명령줄에 직접 `--yolo`/`--no-yolo`를 주면 그 지정이 우선한다.
 
 ## 3. Usage
 
@@ -61,7 +66,8 @@ muse-gui [--port 8765] [--host 127.0.0.1] [--no-open] [MUSE_OPTIONS]
   따로 가지고, 에이전트는 WSL 리눅스 환경에서 그 디렉터리 기준으로
   작업한다. 디렉터리를 바꾸면 새 대화(= 새 세션)로 시작한다.
 - New Chat 빈 화면에서도 입력창 하단 푸터의 모델 선택과 `+` 메뉴가
-  그대로 동작한다.
+  그대로 동작한다. 푸터의 `yolo` 토글은 세션 생성·이어가기 시점에도
+  보여서, 언제든 눌러 다음 턴부터 적용할 수 있다.
 - 에이전트 응답은 스트리밍으로 표시되며, 중간 추론 과정은 통합 블록에
   접힘 형태로 쌓인다. 각 세부 블록은 펼쳐서 로그를 볼 수 있다.
 - `/goal`로 목표를 등록하면 우측 사이드바에 진행도가 표시된다.
