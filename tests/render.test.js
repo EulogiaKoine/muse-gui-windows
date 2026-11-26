@@ -148,7 +148,7 @@ t("diff meta", R.diffLineClass("+++ b/f") === "td-meta" && R.diffLineClass("--- 
 t("diff plain", R.diffLineClass("context line") === "" && R.diffLineClass("") === "", "")
 t("isDiff", R.isDiffText("diff --git a b\n@@ -1 +1 @@") && R.isDiffText("x\n@@ -1 +1 @@") && !R.isDiffText("hello\nworld"), "")
 t("diff html", (() => { const h = R.diffLinesHtml("+a\n-b\n@@ -1 +1 @@\n ctx\n<script>")
-  return h.includes('<span class="td-add">+a</span>') && h.includes('<span class="td-del">-b</span>') && h.includes('<span class="td-hunk">') && h.includes('<span class="td-ctx"> ctx</span>') && !h.includes("<script>")
+  return h.includes('<span class="td-add">+a</span>') && h.includes('<span class="td-del">-b</span>') && h.includes('<span class="td-hunk">') && h.includes('<span class="td-ctx"> ctx</span>') && !h.includes("<script>") && !h.includes("\n")
   })(), "")
 t("diffOnly", R.diffOnly("edited\nchanged lines: line 1\n--- original\n+++ updated\n@@\n-a\n+b") === "--- original\n+++ updated\n@@\n-a\n+b" && R.diffOnly("plain text") === "plain text", "")
 t("notify gate", R.shouldNotifyCompletion("granted", true) && !R.shouldNotifyCompletion("granted", false) && !R.shouldNotifyCompletion("denied", true) && !R.shouldNotifyCompletion("default", true), "")

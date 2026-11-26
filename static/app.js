@@ -376,7 +376,7 @@ function diffLinesHtml(s) {
   return String(s == null ? "" : s).slice(0, 3000).split("\n").map((ln) => {
     const c = diffLineClass(ln);
     return '<span class="' + (c || "td-ctx") + '">' + esc(ln) + "</span>";
-  }).join("\n");
+  }).join("");
 }
 function diffOnly(s) {
   const full = String(s == null ? "" : s)
@@ -831,6 +831,15 @@ function setRowSummary(r, text) {
   r.sum.textContent = s
   r.el.dataset.sum = s
 }
+function staticRowNote(r, type, tstate) {
+  if (type !== "reason" && type !== "system") return
+  if (r.det.children.length) return
+  const label = type === "reason" ? "생각 중" : "터미널 작업"
+  setRowSummary(r, label)
+  addThoughtLog(r, label, label)
+  tstate.last = label
+  updateThoughtHead(tstate)
+}
 function ensureThoughtRow(tbox, tstate, tid, type, summary) {
   let r = tstate.rows.get(tid)
   if (r) return r
@@ -948,24 +957,24 @@ function updateThought(tbox, tstate, ev) {
   const ek = te.kind
   if (ek === "proposed") {
     const tk = te.task_kind || ""
-    ensureThoughtRow(tbox, tstate, tid, thoughtKind(tk, ""), tk || "작업")
+    const type = thoughtKind(tk, "")
+    const r0 = ensureThoughtRow(tbox, tstate, tid, type, tk || "작업")
+    staticRowNote(r0, type, tstate)
     return
   }
   let r = tstate.rows.get(tid)
-  if (!r) r = ensureThoughtRow(tbox, tstate, tid, thoughtKind("", te.operation || ""), te.operation || "작업")
+  if (!r) {
+    const type0 = thoughtKind("", te.operation || "")
+    r = ensureThoughtRow(tbox, tstate, tid, type0, te.operation || "작업")
+    staticRowNote(r, type0, tstate)
+  }
   if (ek === "accepted" || ek === "scheduled" || ek === "started") return
   if (ek === "side_effect_intent") {
     if (te.idempotency_key) r.idem = te.idempotency_key
-    const op = te.operation || "side_effect_intent"
-    setRowSummary(r, op)
-    tstate.last = op
-    addThoughtLog(r, op, [op,
-      te.idempotency_key ? "idempotency: " + te.idempotency_key : "",
-      te.policy_decision ? "policy: " + te.policy_decision : ""].filter(Boolean).join("\n") || op)
-    updateThoughtHead(tstate)
     return
   }
   if (ek === "status" && te.message) {
+    if (r.type === "reason" || r.type === "system") return
     setRowSummary(r, te.message)
     tstate.last = te.message
     const phase = (te.details || {}).phase || ""
@@ -1007,8 +1016,13 @@ function collectThoughts(tbox) {
       det.querySelectorAll(".tsub").forEach((sub) => {
         if (subs.length >= 20) return
         const h = sub.querySelector(".tsubhead .tsum")
-        const b = sub.querySelector(".tsubbody .tlog")
-        subs.push({ h: (h ? h.textContent : "").slice(0, 80), b: (b ? b.textContent : "").slice(0, 1000) })
+        const logEl = sub.querySelector(".tsubbody .tlog")
+        let bt = ""
+        if (logEl) {
+          const kids = Array.from(logEl.children).filter((c) => c.tagName === "SPAN")
+          bt = kids.length ? kids.map((x) => x.textContent).join("\n") : (logEl.textContent || "")
+        }
+        subs.push({ h: (h ? h.textContent : "").slice(0, 80), b: bt.slice(0, 1000) })
       })
       if (subs.length) th.d = subs
     }
