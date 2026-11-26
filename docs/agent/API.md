@@ -119,6 +119,7 @@
 | `finishAiTurn(j, ph, goalMode)` / `sealAiTurn` | 턴 종료: 기록·추론 확정·헤더 요약·알림 |
 | `postChatStream` / `runStreamTurn` | SSE 스트리밍 수신→`updateThought` 전달→완료 처리. `atts` 받으면 `attachments` 동봉 후 `clearAtts()` |
 | `goalPending()` / `goalAutoChain` | goal 미완료면 `status` 턴 자동 계속(상한 6회, 중단·실패 시 정지). 수동 전송 시 계수 초기화 |
+| 턴 스코핑 일체 | `turnIsCurrent`/`saveMsgTo`/`makeTurnPh`/`markBusy`+`busyConvs`: 턴은 시작 대화에 귀속 저장, 목록에 작업중 표시. `famRoot`/`isFamilyConv`: family 내 전송은 차단 안내, 그 외는 중단 후 전송 |
 | 전송 핸들러 일체 | 게이트 확인→슬래시 분기→스트림/단발 전송. `pick-new`는 conv 없을 때만 생성 |
 
 ## composer.js — 입력창
@@ -164,7 +165,7 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 
 ---
 
-## 전체 함수 색인 (기계 생성, 162개)
+## 전체 함수 색인 (기계 생성, 169개)
 
 모듈별 전체 목록. 동작 설명은 위 섹션을 본다. 새 함수를 추가하면
 여기에도 한 줄을 추가한다(수동 동기화).
@@ -283,6 +284,13 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 - `sealAiTurn()`
 - `async postChatStream()`
 - `async runStreamTurn()`
+- `turnIsCurrent()`
+- `goalPendingIn()`
+- `saveMsgTo()`
+- `makeTurnPh()`
+- `markBusy()`
+- `famRoot()`
+- `isFamilyConv()`
 - `goalPending()`
 - `async goalAutoChain()`
 
