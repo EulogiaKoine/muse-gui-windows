@@ -152,8 +152,10 @@ async function branchFromMessage(c, mi, newText, atts) {
       })
     } catch (e) {}
   }
-  pendingPrefix = "[이전 대화 계승] 아래는 같은 대화의 지금까지 내역이다(긴 시각화·앞부분 생략됨). 이를 이어서 다음 요청을 처리하라.\n\n" +
-    convToMd(c, "prompt") + "\n위 내역을 이어서 처리하라.\n\n"
+  pendingPrefix =
+    "[이전 대화 계승] 아래는 같은 대화의 지금까지 내역이다(긴 시각화·앞부분 생략됨). 이를 이어서 다음 요청을 처리하라.\n\n" +
+    convToMd(c, "prompt") +
+    "\n위 내역을 이어서 처리하라.\n\n"
   skipEcho = true
   editingEl = null
   chat.innerHTML = ""

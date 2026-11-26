@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026.11.26.89
+- 다운로드/zip 스킬 지원(.agent/download 보장·WORKSPACE 명시)
+- 편집·재시도 프롬프트 토큰 최적화(convToMd prompt 모드)
+
 ## 2026.11.26.86
 - 세션 조회 캐시(sid→경로·live 목록 TTL)로 폴링·열기 반복 비용 절감
 

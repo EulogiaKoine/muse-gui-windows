@@ -1,135 +1,527 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>muse-gui</title>
-<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="%232f6fed"/><path d="M9 9h14v10H15l-5 5v-5H9z" fill="white"/></svg>'>
-<link rel="stylesheet" href="/static/css/base.css?v=__GUI_VERSION__">
-<link rel="stylesheet" href="/static/css/shell.css?v=__GUI_VERSION__">
-<link rel="stylesheet" href="/static/css/chat.css?v=__GUI_VERSION__">
-<link rel="stylesheet" href="/static/css/thoughts.css?v=__GUI_VERSION__">
-<link rel="stylesheet" href="/static/css/content.css?v=__GUI_VERSION__">
-<link rel="stylesheet" href="/static/css/ui.css?v=__GUI_VERSION__">
-<link rel="stylesheet" href="/static/vendor/katex/katex.min.css?v=__GUI_VERSION__">
-</head>
-<body>
-<aside>
-<div id="sidehead"><h1>muse-gui</h1><button id="sidetoggle" type="button" title="사이드바 접기" aria-label="사이드바 접기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button></div>
-<p id="args">연결 중…</p>
-<button id="newchat" type="button"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>New Chat</span></button>
-<div id="convsortrow"><div id="sortmenu" hidden></div><button id="sortbtn" type="button"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v13M4 14l3 3 3-3M17 20V7M14 10l3-3 3 3"/></svg></button></div>
-<div id="convs"></div>
-<div id="ctx" hidden>
-<button type="button" data-act="pin">상단 고정</button>
-<button type="button" data-act="rename">이름 변경</button>
-<button type="button" data-act="export">MD로 내보내기</button>
-<button type="button" data-act="del">삭제</button>
-</div>
-<div id="sidefoot"><button id="gear" type="button" title="설정" aria-label="설정"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.4"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="7" cy="17" r="2.4"/></svg></button></div>
-</aside>
-<div id="fsovl" hidden><div id="fsmodal" role="dialog" aria-label="작업 디렉터리 선택">
-<div class="mhead"><h2>작업 디렉터리 선택</h2><button type="button" class="iconbtn" id="fsclose" title="닫기" aria-label="닫기"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
-<div class="fsbar"><div id="fscrumbs"></div><button type="button" class="optbtn" id="fsup" title="상위 폴더">⬆ 상위</button></div>
-<div class="fsbar"><input id="fsfilter" placeholder="이름 필터" autocomplete="off"><input id="fspath" placeholder="/직접/경로/입력" autocomplete="off"><button type="button" class="optbtn" id="fsgo">이동</button></div>
-<div id="fsroots"></div>
-<div id="fslist"></div>
-<div class="fsfoot"><button type="button" class="optbtn" id="fswin" title="Windows 기본 폴더 선택 대화상자 열기">Windows 탐색기로 선택</button><code id="fssel" class="grow">…</code><button type="button" class="optbtn" id="fsok">이 폴더 선택</button><button type="button" class="optbtn" id="fscancel">취소</button></div>
-</div></div>
-<div id="ovl" hidden><div id="modal" role="dialog" aria-label="설정">
-<div class="mhead"><h2>설정</h2><button type="button" class="iconbtn" id="mclose" title="닫기" aria-label="닫기"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
-<div class="mbody">
-<div class="tabs" id="mtabs" role="tablist">
-<button type="button" data-tab="gen" class="sel">일반</button><button type="button" data-tab="acct">계정</button><button type="button" data-tab="usage">사용량</button><button type="button" data-tab="skills">스킬</button>
-</div>
-<section data-pane="gen" class="on">
-<h3>서버</h3>
-<div class="row"><span id="srvdot" class="svcdot"></span><span id="srvinfo" title="서버 실행 정보">연결 중…</span></div>
-<h3>테마</h3>
-<div class="row" id="themes">
-<button type="button" class="optbtn" data-th="light">라이트</button><button type="button" class="optbtn" data-th="dark">다크</button>
-</div>
-<h3>팔레트</h3>
-<div id="accents"></div>
-<h3 id="langhead">언어</h3>
-<div class="row" id="langrow"><button type="button" class="optbtn" data-lang="ko">한국어</button><button type="button" class="optbtn" data-lang="en">English</button></div>
-<h3>세션 유지</h3>
-<div class="row"><label>최근 유지 세션 수 <input id="keepn" type="number" min="1" max="5" step="1"></label></div>
-<p class="hint">탭을 옮겨도 이 개수만큼의 최근 세션은 이어가기 없이 바로 입력할 수 있다.</p>
-</section>
-<section data-pane="acct">
-<h3>계정</h3>
-<div id="acct"><p class="hint">불러오는 중…</p></div>
-<h3>API 토큰</h3>
-<div class="row"><code id="tok" class="grow">…</code><button type="button" class="iconbtn" id="tokcopy" title="토큰 복사"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
-<h3>로그인 가이드</h3>
-<details class="guide"><summary>서버 종료 → 로그인 → 재시작 순서로 진행 (펼치기)</summary>
-<ol>
-<li>실행 중인 <code>muse-gui</code> 서버를 종료합니다 (터미널 <code>Ctrl+C</code> 또는 <code>kill</code>).</li>
-<li>터미널에서 <code>muse login</code>을 실행하고 브라우저 승인으로 로그인합니다.</li>
-<li>서버를 다시 시작합니다.</li>
-<li>설정 &gt; 계정에서 이름·이메일이 표시되는지 확인합니다.</li>
-<li>로그아웃은 <code>muse logout</code> — 자격이 삭제되므로 필요할 때만 실행하세요.</li>
-</ol>
-<p class="hint">로그인·로그아웃은 터미널에서만 가능합니다 (브라우저 승인 / 자격 삭제).</p>
-</details>
-</section>
-<section data-pane="usage">
-<h3>총 사용량</h3>
-<div class="row"><a class="optbtn" id="dashlink" href="https://dev.meta.ai" target="_blank" rel="noopener" title="Meta 개발자 콘솔">dev.meta.ai 콘솔 열기</a></div>
-<div class="urange" id="urange" role="group" aria-label="기간">
-<button type="button" data-r="7" class="sel">7d</button><button type="button" data-r="30">30d</button><button type="button" data-r="90">90d</button>
-<select id="umodel" title="모델별 보기"><option value="">통합</option></select>
-</div>
-<div id="ucards"></div>
-<div id="usagebox">불러오는 중…</div>
-</section>
-<section data-pane="skills">
-<h3>에이전트 스킬</h3>
-<p class="hint">muse CLI 스킬 목록. 토글로 활성화/비활성화를 변경한다. (대화형 세션에 적용, headless exec는 스킬 미로드)</p>
-<div class="row"><button type="button" class="optbtn" id="skilladd">＋ 새 스킬</button></div>
-<div id="skillform" hidden>
-<label>이름 <input id="skname" placeholder="my-skill" autocomplete="off"></label>
-<label>설명 <input id="skdesc" placeholder="언제 사용하는지 한 줄로" autocomplete="off"></label>
-<textarea id="skbody" placeholder="SKILL.md 본문 (마크다운)"></textarea>
-<div class="row"><button type="button" class="optbtn" id="sksave">저장</button><button type="button" class="optbtn" id="skcancel">취소</button></div>
-</div>
-<div id="skillbox">불러오는 중…</div>
-</section>
-</div>
-</div></div>
-<main>
-<header><span id="status"></span><span id="cwdwrap"><span id="oschip" class="oschip" hidden></span><span id="cwdlabel">작업 경로</span><span id="cwd" title="작업 디렉터리 — 클릭하면 탐색기로 열기"></span></span><button id="filesbtn" type="button">파일</button><button id="rsideopen" type="button" title="사이드바 펼치기" aria-label="사이드바 펼치기" hidden><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button></header>
-<div id="lobby"><h1>muse-gui</h1><p id="lobbysub">WSL의 muse 에이전트와 대화하세요</p><div class="chips" id="chips"></div></div>
-<div id="chat" aria-live="polite"></div>
-<form id="f">
-<div id="slash" role="listbox"></div>
-<div id="inwrap"><div id="attachbar" hidden></div><div id="inbox"><textarea id="in" placeholder="메시지 입력 (Enter 줄바꿈, / 자동완성)" autocomplete="off"></textarea><span id="sendhint" title="Ctrl+Enter로 전송">Ctrl + Enter</span></div><div id="feats"></div></div>
-<button type="submit" title="전송 (Ctrl+Enter)" aria-label="전송"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
-<div id="inputgate" hidden><div id="gatebox"><div id="gateenv"></div><p id="gatemsg"></p><button id="gatebtn" type="button" class="optbtn"></button></div></div>
-</form>
-<footer><button id="plus" type="button" title="기능 추가" aria-label="기능 추가">+</button><div id="plusmenu" hidden></div><label><span id="lab-model">모델</span> <select id="model"></select></label><label><span id="lab-effort">effort</span> <select id="effort"></select></label><button id="yolo" type="button" aria-pressed="true" title="사용자 승인 절차 제거 및 샌드박스 격리 해제(작업 디렉터리 바깥 전역 접근 가능)."><span class="ycheck" aria-hidden="true">☑</span> yolo</button></footer>
-</main>
-<aside id="rside">
-<div id="rsidehead"><button id="rsidetoggle" type="button" title="사이드바 접기" aria-label="사이드바 접기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button><button id="rtabmenu" type="button" title="탭 목록" aria-label="탭 목록"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="8" cy="18" r="1.6" fill="currentColor" stroke="none"/><line x1="12" y1="18" x2="20" y2="18"/></svg></button><button id="rtabadd" type="button" title="탭 열기" aria-label="탭 열기">+</button><div id="rsidetabs" role="tablist"></div><div id="tabmenu" hidden></div></div>
-<section id="rsidegoal" data-rpane="goal"></section>
-<section id="rsidehelp" data-rpane="help" hidden></section>
-<section id="rsidefiles" data-rpane="files" hidden></section>
-<section id="rsidesubagents" data-rpane="subagents" hidden></section>
-<section id="rsideempty" data-rpane="empty" hidden><div class="emptybox"><p id="rsideempty1">열린 탭이 없습니다</p><p class="hint" id="rsideempty2">/goal · /help 로 탭을 여세요</p></div></section>
-</aside>
-<script src="/static/vendor/katex/katex.min.js?v=__GUI_VERSION__"></script>
-<script src="/static/js/util.js?v=__GUI_VERSION__"></script>
-<script src="/static/js/conv.js?v=__GUI_VERSION__"></script>
-<script src="/static/js/icons.js?v=__GUI_VERSION__"></script>
-<script src="/static/js/i18n.js?v=__GUI_VERSION__"></script>
-<script src="/static/js/render.js?v=__GUI_VERSION__"></script>
-<script src="/static/js/message.js?v=__GUI_VERSION__"></script>
-<script src="/static/js/thoughts.js?v=__GUI_VERSION__"></script>
-<script src="/static/js/chat.js?v=__GUI_VERSION__"></script>
-<script src="/static/js/composer.js?v=__GUI_VERSION__"></script>
-<script src="/static/js/usage.js?v=__GUI_VERSION__"></script>
-<script src="/static/js/ui.js?v=__GUI_VERSION__"></script>
-<script src="/static/js/main.js?v=__GUI_VERSION__"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>muse-gui</title>
+    <link
+      rel="icon"
+      href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="%232f6fed"/><path d="M9 9h14v10H15l-5 5v-5H9z" fill="white"/></svg>'
+    />
+    <link rel="stylesheet" href="/static/css/base.css?v=__GUI_VERSION__" />
+    <link rel="stylesheet" href="/static/css/shell.css?v=__GUI_VERSION__" />
+    <link rel="stylesheet" href="/static/css/chat.css?v=__GUI_VERSION__" />
+    <link rel="stylesheet" href="/static/css/thoughts.css?v=__GUI_VERSION__" />
+    <link rel="stylesheet" href="/static/css/content.css?v=__GUI_VERSION__" />
+    <link rel="stylesheet" href="/static/css/ui.css?v=__GUI_VERSION__" />
+    <link
+      rel="stylesheet"
+      href="/static/vendor/katex/katex.min.css?v=__GUI_VERSION__"
+    />
+  </head>
+  <body>
+    <aside>
+      <div id="sidehead">
+        <h1>muse-gui</h1>
+        <button
+          id="sidetoggle"
+          type="button"
+          title="사이드바 접기"
+          aria-label="사이드바 접기"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+      </div>
+      <p id="args">연결 중…</p>
+      <button id="newchat" type="button">
+        <svg
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+          /></svg
+        ><span>New Chat</span>
+      </button>
+      <div id="convsortrow">
+        <div id="sortmenu" hidden></div>
+        <button id="sortbtn" type="button">
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M7 4v13M4 14l3 3 3-3M17 20V7M14 10l3-3 3 3" />
+          </svg>
+        </button>
+      </div>
+      <div id="convs"></div>
+      <div id="ctx" hidden>
+        <button type="button" data-act="pin">상단 고정</button>
+        <button type="button" data-act="rename">이름 변경</button>
+        <button type="button" data-act="export">MD로 내보내기</button>
+        <button type="button" data-act="del">삭제</button>
+      </div>
+      <div id="sidefoot">
+        <button id="gear" type="button" title="설정" aria-label="설정">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <line x1="4" y1="7" x2="20" y2="7" />
+            <circle cx="9" cy="7" r="2.4" />
+            <line x1="4" y1="12" x2="20" y2="12" />
+            <circle cx="15" cy="12" r="2.4" />
+            <line x1="4" y1="17" x2="20" y2="17" />
+            <circle cx="7" cy="17" r="2.4" />
+          </svg>
+        </button>
+      </div>
+    </aside>
+    <div id="fsovl" hidden>
+      <div id="fsmodal" role="dialog" aria-label="작업 디렉터리 선택">
+        <div class="mhead">
+          <h2>작업 디렉터리 선택</h2>
+          <button
+            type="button"
+            class="iconbtn"
+            id="fsclose"
+            title="닫기"
+            aria-label="닫기"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="fsbar">
+          <div id="fscrumbs"></div>
+          <button type="button" class="optbtn" id="fsup" title="상위 폴더">
+            ⬆ 상위
+          </button>
+        </div>
+        <div class="fsbar">
+          <input
+            id="fsfilter"
+            placeholder="이름 필터"
+            autocomplete="off"
+          /><input
+            id="fspath"
+            placeholder="/직접/경로/입력"
+            autocomplete="off"
+          /><button type="button" class="optbtn" id="fsgo">이동</button>
+        </div>
+        <div id="fsroots"></div>
+        <div id="fslist"></div>
+        <div class="fsfoot">
+          <button
+            type="button"
+            class="optbtn"
+            id="fswin"
+            title="Windows 기본 폴더 선택 대화상자 열기"
+          >
+            Windows 탐색기로 선택</button
+          ><code id="fssel" class="grow">…</code
+          ><button type="button" class="optbtn" id="fsok">이 폴더 선택</button
+          ><button type="button" class="optbtn" id="fscancel">취소</button>
+        </div>
+      </div>
+    </div>
+    <div id="ovl" hidden>
+      <div id="modal" role="dialog" aria-label="설정">
+        <div class="mhead">
+          <h2>설정</h2>
+          <button
+            type="button"
+            class="iconbtn"
+            id="mclose"
+            title="닫기"
+            aria-label="닫기"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="mbody">
+          <div class="tabs" id="mtabs" role="tablist">
+            <button type="button" data-tab="gen" class="sel">일반</button
+            ><button type="button" data-tab="acct">계정</button
+            ><button type="button" data-tab="usage">사용량</button
+            ><button type="button" data-tab="skills">스킬</button>
+          </div>
+          <section data-pane="gen" class="on">
+            <h3>서버</h3>
+            <div class="row">
+              <span id="srvdot" class="svcdot"></span
+              ><span id="srvinfo" title="서버 실행 정보">연결 중…</span>
+            </div>
+            <h3>테마</h3>
+            <div class="row" id="themes">
+              <button type="button" class="optbtn" data-th="light">
+                라이트</button
+              ><button type="button" class="optbtn" data-th="dark">다크</button>
+            </div>
+            <h3>팔레트</h3>
+            <div id="accents"></div>
+            <h3 id="langhead">언어</h3>
+            <div class="row" id="langrow">
+              <button type="button" class="optbtn" data-lang="ko">한국어</button
+              ><button type="button" class="optbtn" data-lang="en">
+                English
+              </button>
+            </div>
+            <h3>세션 유지</h3>
+            <div class="row">
+              <label
+                >최근 유지 세션 수
+                <input id="keepn" type="number" min="1" max="5" step="1"
+              /></label>
+            </div>
+            <p class="hint">
+              탭을 옮겨도 이 개수만큼의 최근 세션은 이어가기 없이 바로 입력할 수
+              있다.
+            </p>
+          </section>
+          <section data-pane="acct">
+            <h3>계정</h3>
+            <div id="acct"><p class="hint">불러오는 중…</p></div>
+            <h3>API 토큰</h3>
+            <div class="row">
+              <code id="tok" class="grow">…</code
+              ><button
+                type="button"
+                class="iconbtn"
+                id="tokcopy"
+                title="토큰 복사"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path
+                    d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                  />
+                </svg>
+              </button>
+            </div>
+            <h3>로그인 가이드</h3>
+            <details class="guide">
+              <summary>
+                서버 종료 → 로그인 → 재시작 순서로 진행 (펼치기)
+              </summary>
+              <ol>
+                <li>
+                  실행 중인 <code>muse-gui</code> 서버를 종료합니다 (터미널
+                  <code>Ctrl+C</code> 또는 <code>kill</code>).
+                </li>
+                <li>
+                  터미널에서 <code>muse login</code>을 실행하고 브라우저
+                  승인으로 로그인합니다.
+                </li>
+                <li>서버를 다시 시작합니다.</li>
+                <li>설정 &gt; 계정에서 이름·이메일이 표시되는지 확인합니다.</li>
+                <li>
+                  로그아웃은 <code>muse logout</code> — 자격이 삭제되므로 필요할
+                  때만 실행하세요.
+                </li>
+              </ol>
+              <p class="hint">
+                로그인·로그아웃은 터미널에서만 가능합니다 (브라우저 승인 / 자격
+                삭제).
+              </p>
+            </details>
+          </section>
+          <section data-pane="usage">
+            <h3>총 사용량</h3>
+            <div class="row">
+              <a
+                class="optbtn"
+                id="dashlink"
+                href="https://dev.meta.ai"
+                target="_blank"
+                rel="noopener"
+                title="Meta 개발자 콘솔"
+                >dev.meta.ai 콘솔 열기</a
+              >
+            </div>
+            <div class="urange" id="urange" role="group" aria-label="기간">
+              <button type="button" data-r="7" class="sel">7d</button
+              ><button type="button" data-r="30">30d</button
+              ><button type="button" data-r="90">90d</button>
+              <select id="umodel" title="모델별 보기">
+                <option value="">통합</option>
+              </select>
+            </div>
+            <div id="ucards"></div>
+            <div id="usagebox">불러오는 중…</div>
+          </section>
+          <section data-pane="skills">
+            <h3>에이전트 스킬</h3>
+            <p class="hint">
+              muse CLI 스킬 목록. 토글로 활성화/비활성화를 변경한다. (대화형
+              세션에 적용, headless exec는 스킬 미로드)
+            </p>
+            <div class="row">
+              <button type="button" class="optbtn" id="skilladd">
+                ＋ 새 스킬
+              </button>
+            </div>
+            <div id="skillform" hidden>
+              <label
+                >이름
+                <input id="skname" placeholder="my-skill" autocomplete="off"
+              /></label>
+              <label
+                >설명
+                <input
+                  id="skdesc"
+                  placeholder="언제 사용하는지 한 줄로"
+                  autocomplete="off"
+              /></label>
+              <textarea
+                id="skbody"
+                placeholder="SKILL.md 본문 (마크다운)"
+              ></textarea>
+              <div class="row">
+                <button type="button" class="optbtn" id="sksave">저장</button
+                ><button type="button" class="optbtn" id="skcancel">
+                  취소
+                </button>
+              </div>
+            </div>
+            <div id="skillbox">불러오는 중…</div>
+          </section>
+        </div>
+      </div>
+    </div>
+    <main>
+      <header>
+        <span id="status"></span
+        ><span id="cwdwrap"
+          ><span id="oschip" class="oschip" hidden></span
+          ><span id="cwdlabel">작업 경로</span
+          ><span
+            id="cwd"
+            title="작업 디렉터리 — 클릭하면 탐색기로 열기"
+          ></span></span
+        ><button id="filesbtn" type="button">파일</button
+        ><button
+          id="rsideopen"
+          type="button"
+          title="사이드바 펼치기"
+          aria-label="사이드바 펼치기"
+          hidden
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+      </header>
+      <div id="lobby">
+        <h1>muse-gui</h1>
+        <p id="lobbysub">WSL의 muse 에이전트와 대화하세요</p>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div id="chat" aria-live="polite"></div>
+      <form id="f">
+        <div id="slash" role="listbox"></div>
+        <div id="inwrap">
+          <div id="attachbar" hidden></div>
+          <div id="inbox">
+            <textarea
+              id="in"
+              placeholder="메시지 입력 (Enter 줄바꿈, / 자동완성)"
+              autocomplete="off"
+            ></textarea
+            ><span id="sendhint" title="Ctrl+Enter로 전송">Ctrl + Enter</span>
+          </div>
+          <div id="feats"></div>
+        </div>
+        <button type="submit" title="전송 (Ctrl+Enter)" aria-label="전송">
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+        </button>
+        <div id="inputgate" hidden>
+          <div id="gatebox">
+            <div id="gateenv"></div>
+            <p id="gatemsg"></p>
+            <button id="gatebtn" type="button" class="optbtn"></button>
+          </div>
+        </div>
+      </form>
+      <footer>
+        <button
+          id="plus"
+          type="button"
+          title="기능 추가"
+          aria-label="기능 추가"
+        >
+          +
+        </button>
+        <div id="plusmenu" hidden></div>
+        <label
+          ><span id="lab-model">모델</span>
+          <select id="model"></select></label
+        ><label
+          ><span id="lab-effort">effort</span>
+          <select id="effort"></select></label
+        ><button
+          id="yolo"
+          type="button"
+          aria-pressed="true"
+          title="사용자 승인 절차 제거 및 샌드박스 격리 해제(작업 디렉터리 바깥 전역 접근 가능)."
+        >
+          <span class="ycheck" aria-hidden="true">☑</span> yolo
+        </button>
+      </footer>
+    </main>
+    <aside id="rside">
+      <div id="rsidehead">
+        <button
+          id="rsidetoggle"
+          type="button"
+          title="사이드바 접기"
+          aria-label="사이드바 접기"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="9 18 15 12 9 6" />
+          </svg></button
+        ><button
+          id="rtabmenu"
+          type="button"
+          title="탭 목록"
+          aria-label="탭 목록"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <line x1="4" y1="6" x2="20" y2="6" />
+            <line x1="4" y1="12" x2="20" y2="12" />
+            <circle cx="8" cy="18" r="1.6" fill="currentColor" stroke="none" />
+            <line x1="12" y1="18" x2="20" y2="18" />
+          </svg></button
+        ><button
+          id="rtabadd"
+          type="button"
+          title="탭 열기"
+          aria-label="탭 열기"
+        >
+          +
+        </button>
+        <div id="rsidetabs" role="tablist"></div>
+        <div id="tabmenu" hidden></div>
+      </div>
+      <section id="rsidegoal" data-rpane="goal"></section>
+      <section id="rsidehelp" data-rpane="help" hidden></section>
+      <section id="rsidefiles" data-rpane="files" hidden></section>
+      <section id="rsidesubagents" data-rpane="subagents" hidden></section>
+      <section id="rsideempty" data-rpane="empty" hidden>
+        <div class="emptybox">
+          <p id="rsideempty1">열린 탭이 없습니다</p>
+          <p class="hint" id="rsideempty2">/goal · /help 로 탭을 여세요</p>
+        </div>
+      </section>
+    </aside>
+    <script src="/static/vendor/katex/katex.min.js?v=__GUI_VERSION__"></script>
+    <script src="/static/js/util.js?v=__GUI_VERSION__"></script>
+    <script src="/static/js/conv.js?v=__GUI_VERSION__"></script>
+    <script src="/static/js/icons.js?v=__GUI_VERSION__"></script>
+    <script src="/static/js/i18n.js?v=__GUI_VERSION__"></script>
+    <script src="/static/js/render.js?v=__GUI_VERSION__"></script>
+    <script src="/static/js/message.js?v=__GUI_VERSION__"></script>
+    <script src="/static/js/thoughts.js?v=__GUI_VERSION__"></script>
+    <script src="/static/js/chat.js?v=__GUI_VERSION__"></script>
+    <script src="/static/js/composer.js?v=__GUI_VERSION__"></script>
+    <script src="/static/js/usage.js?v=__GUI_VERSION__"></script>
+    <script src="/static/js/ui.js?v=__GUI_VERSION__"></script>
+    <script src="/static/js/main.js?v=__GUI_VERSION__"></script>
+  </body>
 </html>

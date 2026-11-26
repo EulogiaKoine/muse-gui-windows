@@ -78,7 +78,7 @@ function convToMd(c, mode) {
   const compact = mode === "prompt"
   const lines = ["# " + (c.t || "대화"), ""]
   if (c.sid) lines.push("- 세션: " + String(c.sid).slice(0, 8), "")
-  if (c.cwd) lines.push("- 작업 디렉터리: " + c.cwd, "");
+  if (c.cwd) lines.push("- 작업 디렉터리: " + c.cwd, "")
   let msgs = c.msgs || []
   if (compact && msgs.length > 60) {
     lines.push("[앞부분 " + (msgs.length - 60) + "개 메시지 생략]", "")
@@ -95,7 +95,10 @@ function convToMd(c, mode) {
         return "[시각화 " + n + " 내용 생략 (원문 약 " + blk.length + "자)]"
       })
     }
-    t = t.replace(/[ \t]+$/gm, "").replace(/\n{3,}/g, "\n\n").trim()
+    t = t
+      .replace(/[ \t]+$/gm, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
     if (!t) return
     lines.push(m.who === "me" ? "## User" : "## Assistant", "")
     // timeStr is outside the test slice; guarded call (always present in browser)
