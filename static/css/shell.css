@@ -15,12 +15,13 @@ header { border-bottom: 1px solid var(--bd); padding: 8px 14px; font-size: 13px;
 body.rside-hidden #rside { display: none; }
 #rsidehead { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 #rsidetabs { display: flex; gap: 4px; flex: 1; min-width: 0; }
-#rsidetabs button { flex: 1; border: 1px solid transparent; background: none; color: var(--muted); border-radius: 8px 8px 0 0; padding: 7px 4px; cursor: pointer; font-size: 13px; min-width: 0; }
+#rsidehead { border-bottom: 1px solid var(--bd); }
+#rsidetabs button { flex: 1; display: inline-flex; align-items: center; border: 1px solid transparent; border-bottom: 0; background: none; color: var(--muted); border-radius: 8px 8px 0 0; padding: 7px 4px; cursor: pointer; font-size: 13px; min-width: 0; margin-bottom: -1px; }
 #rsidetabs button:hover { color: var(--text); background: var(--hover); }
-#rsidetabs button.sel { background: var(--bg); color: var(--text); font-weight: 600; border-color: var(--bd); border-bottom-color: var(--bg); }
-#rsidetabs button .tlab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#rsidetabs button .tx { display: none; margin-left: 6px; color: var(--muted); border-radius: 4px; padding: 0 2px; font-size: 1.5em; line-height: 1; flex: none; }
-#rsidetabs button:hover .tx { display: inline-block; }
+#rsidetabs button.sel { background: var(--bg); color: var(--text); font-weight: 600; border-color: var(--bd); }
+#rsidetabs button .tlab { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#rsidetabs button .tx { visibility: hidden; margin-left: 6px; color: var(--muted); border-radius: 4px; padding: 0 2px; font-size: 1.5em; line-height: 1; flex: none; }
+#rsidetabs button:hover .tx { visibility: visible; }
 #rsidetabs button .tx:hover { color: var(--text); background: var(--bd); }
 #rsidetabs button.pinned .tlab::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--me); margin-right: 5px; vertical-align: 1px; }
 #rtabmenu, #rtabadd { border: 1px solid transparent; background: none; color: var(--muted); border-radius: 8px; padding: 4px 6px; cursor: pointer; flex: none; line-height: 1; font-size: 14px; }
