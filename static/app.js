@@ -397,6 +397,12 @@ function isOutputTruncated(o) {
   }
   return false
 }
+function gateFor(c, live) {
+  if (!c) return "pick-new"
+  if (c.sid) return live ? "" : "resume"
+  if (!c.cwd) return "pick"
+  return ""
+}
 function sortConvs(list, mode) {
   const a = (list || []).slice()
   const pinW = (c) => (c && c.pin ? 0 : 1)
@@ -1327,9 +1333,10 @@ function touchLive() {
 }
 function inputGated() {
   const c = curConv()
-  if (!c) return { msg: t("gate.pickNew"), btn: t("gate.pickBtn"), act: "pick-new" }
-  if (!c.cwd) return { msg: t("gate.pick"), btn: t("gate.pickBtn"), act: "pick" }
-  if (c.sid && !liveSessions.includes(c.k)) return { msg: t("gate.resumePre") + c.sid.slice(0, 8) + " · " + c.cwd + t("gate.resumePost"), btn: t("gate.resumeBtn"), act: "resume" }
+  const g = gateFor(c, !!c && liveSessions.includes(c.k))
+  if (g === "pick-new") return { msg: t("gate.pickNew"), btn: t("gate.pickBtn"), act: "pick-new" }
+  if (g === "resume") return { msg: t("gate.resumePre") + c.sid.slice(0, 8) + (c.cwd ? " · " + c.cwd : "") + t("gate.resumePost"), btn: t("gate.resumeBtn"), act: "resume" }
+  if (g === "pick") return { msg: t("gate.pick"), btn: t("gate.pickBtn"), act: "pick" }
   return null
 }
 let serverPlatform = ""
@@ -1359,6 +1366,17 @@ function saveScroll() {
   c.scroll = chat.scrollTop
   persistConvs()
 }
+function backfillCwd(c) {
+  fetch("/api/session_workspace?session_id=" + encodeURIComponent(c.sid)).then((r) => r.json()).then((j) => {
+    if (curConv() !== c) return
+    if (j.ok && j.cwd) {
+      c.cwd = j.cwd
+      persistConvs()
+      $("#cwd").textContent = j.cwd
+    }
+    updateGate()
+  }).catch(() => {})
+}
 function openConv(k) {
   const c = convs.find((x) => x.k === k)
   if (!c) return
@@ -1373,6 +1391,7 @@ function openConv(k) {
   drawConvs()
   updateGate()
   drawRside()
+  if (c.sid && !c.cwd) backfillCwd(c)
 }
 let fsCb = null, fsCur = "", fsParent = null, fsEntries = []
 async function openFsPicker(cb) {

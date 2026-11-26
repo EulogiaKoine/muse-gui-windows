@@ -15,7 +15,7 @@ if (start < 0 || end < 0 || end < start) {
 const sandbox = {}
 require("vm").createContext(sandbox)
 require("vm").runInContext(
-  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd, thoughtKind, truncStr, diffLineClass, isDiffText, diffLinesHtml, diffOnly, shouldNotifyCompletion, thoughtSummary, isOutputTruncated, sortConvs };",
+  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd, thoughtKind, truncStr, diffLineClass, isDiffText, diffLinesHtml, diffOnly, shouldNotifyCompletion, thoughtSummary, isOutputTruncated, sortConvs, gateFor };",
   sandbox)
 const R = sandbox.__R
 let pass = 0, fail = 0
@@ -161,5 +161,6 @@ t("sortConvs", (() => {
   const byCreated = R.sortConvs(cs, "created").map((c) => c.k).join(",")
   return byRecent === "c1,c3,c2" && byName === "c1,c2,c3" && byCreated === "c1,c2,c3"
 })(), "")
+t("gateFor", R.gateFor(null, false) === "pick-new" && R.gateFor({ sid: "s1" }, false) === "resume" && R.gateFor({ sid: null, cwd: null }, false) === "pick" && R.gateFor({ sid: null, cwd: "/w" }, false) === "" && R.gateFor({ sid: "s1" }, true) === "", "")
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)
