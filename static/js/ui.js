@@ -29,7 +29,7 @@ const RSIDE_TABS = {
     helpOpen = false
   } },
   files: { label: "files", render: () => renderFiles() },
-  agents: { label: "agents", render: () => renderAgents() },
+  subagents: { label: "subagents", render: () => renderAgents() },
 }
 let rsideTab = null
 let helpOpen = false
@@ -40,7 +40,7 @@ function availTabs() {
   if (curConv() && curConv().goal) t.push("goal")
   if (helpOpen) t.push("help")
   t.push("files")
-  t.push("agents")
+  t.push("subagents")
   return t
 }
 function renderRsideTabs() {
@@ -171,7 +171,7 @@ document.querySelector("#rsidefiles").addEventListener("click", async (e) => {
   const op = e.target.closest("[data-fopen]")
   if (op) openAgentFile(op.dataset.fopen || "")
 })
-document.querySelector("#rsideagents").addEventListener("click", async (e) => {
+document.querySelector("#rsidesubagents").addEventListener("click", async (e) => {
   const ss = e.target.closest("[data-ssenter]")
   if (ss) {
     const raw = ss.dataset.ssenter || ""
@@ -203,7 +203,7 @@ async function refreshSubAgents() {
   try {
     const r = await fetch("/api/subagents", { method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sids }) })
+      body: JSON.stringify({ sids, cwd: (cur && cur.cwd) || "" }) })
     const j = await r.json()
     if (j && j.ok) { subRecs = j.parents || {}; return true }
   } catch (e) {}
@@ -269,12 +269,12 @@ async function adoptSession(sid) {
 }
 async function renderAgents() {
   if (agentsTimer) { clearInterval(agentsTimer); agentsTimer = null }
-  const box = $("#rsideagents")
+  const box = $("#rsidesubagents")
   if (!box) return
-  if (!lastAgentsHtml) box.innerHTML = "<h3>agents</h3><p class='hint'>" + esc(t("agents.loading")) + "</p>"
+  if (!lastAgentsHtml) box.innerHTML = "<p class='hint'>" + esc(t("agents.loading")) + "</p>"
   const okLive = await refreshLiveAgents()
   const ok = await refreshSubAgents()
-  if (rsideTab !== "agents") return
+  if (rsideTab !== "subagents") return
   if (!ok && !Object.keys(subRecs).length) {
     box.innerHTML = "<h3>agents</h3><p class='hint'>" + esc(t("agents.fail")) + "</p>"
     return
@@ -287,7 +287,7 @@ async function renderAgents() {
     ;(subRecs[p.sid] || []).forEach((r) => all.push({ p, r }))
   })
   all.sort((a, b) => (b.r.at || 0) - (a.r.at || 0))
-  let html = "<h3>agents</h3>"
+  let html = ""
   if (!all.length) {
     html += "<p class='hint'>" + esc(t("agents.empty")) + "</p>"
   } else {
@@ -314,13 +314,13 @@ async function renderAgents() {
     drawConvs()
   }
   agentsTimer = setInterval(async () => {
-    if (rsideTab !== "agents" || !$("#rsideagents")) {
+    if (rsideTab !== "subagents" || !$("#rsidesubagents")) {
       if (agentsTimer) { clearInterval(agentsTimer); agentsTimer = null }
       return
     }
     await refreshLiveAgents()
     await refreshSubAgents()
-    if (rsideTab === "agents") renderAgents()
+    if (rsideTab === "subagents") renderAgents()
   }, 5000)
   void okLive
 }

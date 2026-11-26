@@ -83,7 +83,8 @@ try {
   t("addmsg-fold", m3.className.indexOf("folded") >= 0);
   const m4 = T.addMsg("me", "", null, null, true);
   t("addmsg-empty", !!m4);
-  t("addmsg-count", chat.children.length === 4, String(chat.children.length));
+  t("addmsg-count", chat.children.filter((c) => (c.className || "").split(" ").indexOf("msg") >= 0).length === 4, String(chat.children.length));
+  t("addmsg-mtime", chat.children.filter((c) => c.className === "mtime").length === 1 && chat.children.filter((c) => c.className === "mtime")[0].textContent === "12:00", "");
 } catch (e) {
   t("addmsg-nothrow", false, e && e.message);
 }

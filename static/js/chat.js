@@ -507,7 +507,7 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode, atts, turnConv) {
   markBusy(tc, true)
   try {
     const j = await postChatStream(full, sid, cwd, ctl.signal, (ev) => updateThought(tbox, tstate, ev), atts)
-    if (atts && atts.length && turnIsCurrent(tc)) clearAtts()
+    clearSentAtts(atts)
     const fr = finishAiTurn(j, ph, goalMode, tc)
     sealAiTurn(ph, t0, fr, tc)
     await goalAutoChain(goalMode, j, tc)
@@ -640,7 +640,7 @@ $("#f").addEventListener("submit", async (e) => {
         body: JSON.stringify({ message: seedPre + full, session_id: sessionId, cwd,
           attachments: atts }) })
       const j = await r.json()
-      if (atts.length) clearAtts()
+      clearSentAtts(atts)
       if (j.text === "__COPY__") {
         const prev = [...chat.querySelectorAll(".msg.ai")].filter((n) => n !== ph).pop()
         ph.dataset.raw = await copyText(prev ? prev.dataset.raw || "" : "")

@@ -53,7 +53,9 @@ function addMsg(who, text, think, foot, withActs, extra) {
     if (withActs) html += '<div class="acts"><button type="button" data-retry title="재시도 (마지막 질문을 새 세션으로 분기)">' + ICON_RETRY + '</button><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>"
   }
   else html += '<div class="acts"><button type="button" data-retry title="재시도 (이 메시지부터 새 세션으로 분기)">' + ICON_RETRY + '</button><button type="button" data-copy title="복사">' + ICON_COPY + '</button><button type="button" data-edit title="수정 후 다시 전송">✎</button></div>'
-  if (foot) html += '<div class="meta">' + esc(foot) + "</div>"
+  let mtime = null
+  if (foot && who === "me") mtime = foot
+  else if (foot) html += '<div class="meta">' + esc(foot) + "</div>"
   if (who === "me" && text.length >= 200) {
     d.classList.add("folded")
     const ai = html.indexOf('<div class="acts">')
@@ -68,6 +70,13 @@ function addMsg(who, text, think, foot, withActs, extra) {
   decorateTables(d)
   decoratePaths(d)
   chat.appendChild(d)
+  if (mtime) {
+    const mt = document.createElement("div")
+    mt.className = "mtime"
+    mt.dataset.mi = d.dataset.mi
+    mt.textContent = mtime
+    chat.appendChild(mt)
+  }
   chat.scrollTop = chat.scrollHeight
   return d
 }

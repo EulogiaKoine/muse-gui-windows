@@ -242,6 +242,12 @@ function clearAtts() {
   pendingAtts = []
   renderAttachBar()
 }
+function clearSentAtts(sent) {
+  if (!sent || !sent.length) return
+  const done = new Set(sent)
+  pendingAtts = pendingAtts.filter((a) => !done.has(a))
+  renderAttachBar()
+}
 document.querySelector("main").addEventListener("dragover", (e) => {
   if (!e.dataTransfer || ![...(e.dataTransfer.types || [])].includes("Files")) return
   e.preventDefault()

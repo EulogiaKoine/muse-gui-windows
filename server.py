@@ -423,12 +423,31 @@ SUBAGENT_CACHE = {}
 SUBAGENT_CACHE_MAX = 200
 
 
-def subagent_records(sids):
+def subagent_registry(cwd):
+    """워크플로우 자식 기록 파일(.agent/subagents.json)을 읽는다.
+
+    네이티브 스폰과 달리 워크플로우 자식은 세션 로그에 구조적 기록이
+    남지 않으므로, 워크플로우 스크립트가 직접 남긴 레지스트리를 본다.
+    {parent_sid: [record]}. 없거나 깨졌으면 {}."""
+    if not cwd:
+        return {}
+    p = os.path.join(cwd, ".agent", "subagents.json")
+    try:
+        if os.path.getsize(p) > 1024 * 1024:
+            return {}
+        with open(p, encoding="utf-8") as f:
+            d = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return d if isinstance(d, dict) else {}
+
+
+def subagent_records(sids, cwd=None):
     """부모 세션 로그에서 서브에이전트 스폰 기록을 묶는다.
 
     {sid: [{subagent_id, agent_path, task_ref, at, state, stages}]}.
     state는 마지막 관측 기준: done(결과 회수) / active(시작 관측) /
-    spawned(스폰 접수)."""
+    spawned(스폰 접수). 워크플로우 레지스트리 기록도 합친다."""
     want = [s for s in (sids or []) if SID_RE.match(s or "")][:MAX_SUBAGENT_SIDS]
     found = find_session_dirs(want)
     out = {}
@@ -493,6 +512,28 @@ def subagent_records(sids):
         SUBAGENT_CACHE[sid] = (key, recs)
         while len(SUBAGENT_CACHE) > SUBAGENT_CACHE_MAX:
             SUBAGENT_CACHE.pop(next(iter(SUBAGENT_CACHE)))
+    if cwd:
+        reg = subagent_registry(cwd if os.path.isdir(cwd) else None)
+        for sid, recs in reg.items():
+            if not SID_RE.match(sid or "") or not isinstance(recs, list):
+                continue
+            if sid in want:
+                seen = {r.get("subagent_id") for r in out.get(sid, [])}
+                for r in recs:
+                    if (isinstance(r, dict) and r.get("subagent_id")
+                            and r["subagent_id"] not in seen):
+                        seen.add(r["subagent_id"])
+                        out.setdefault(sid, []).append({
+                            "subagent_id": r["subagent_id"],
+                            "agent_path": r.get("agent_path") or "",
+                            "task_ref": r.get("task_ref") or "",
+                            "at": r.get("at") or 0,
+                            "state": (r.get("state") if r.get("state") in
+                                      ("done", "active", "spawned") else "spawned"),
+                            "stages": [],
+                            "source": "workflow",
+                        })
+                out.get(sid, []).sort(key=lambda r: r["at"])
     return out
 
 
@@ -2137,7 +2178,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self._send(200, json.dumps(
                 {"ok": True,
-                 "parents": subagent_records(body.get("sids"))},
+                 "parents": subagent_records(
+                     body.get("sids"),
+                     prepare_workdir(body.get("cwd") or ""))},
                 ensure_ascii=False))
             return
         if path == "/api/skills/create":
