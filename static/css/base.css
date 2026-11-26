@@ -2,66 +2,404 @@
    Theme vars, reset, app shell frame, sidebar, conversation list. */
 :root {
   color-scheme: light;
-  --bg: #ffffff; --panel: #f3f4f6; --bd: #e0e3e9; --text: #1c1e21;
-  --muted: #68707d; --me: #2f6fed; --me-text: #ffffff; --input: #ffffff;
-  --bubble: #ffffff; --hover: #2f6fed14;
-  --mebg: #e8ecf3; --mebd: #c2ccde;
-  --ok: #1a9e54; --err: #d33; --code-tint: #8882;
+  --bg: #ffffff;
+  --panel: #f3f4f6;
+  --bd: #e0e3e9;
+  --text: #1c1e21;
+  --muted: #68707d;
+  --me: #2f6fed;
+  --me-text: #ffffff;
+  --input: #ffffff;
+  --bubble: #ffffff;
+  --hover: #2f6fed14;
+  --mebg: #e8ecf3;
+  --mebd: #c2ccde;
+  --ok: #1a9e54;
+  --err: #d33;
+  --code-tint: #8882;
 }
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #16181d; --panel: #1e2128; --bd: #333947; --text: #e8eaf0;
-  --muted: #98a0b3; --me: #3b82f6; --me-text: #ffffff; --input: #22262f;
-  --bubble: #1e2128; --hover: #3b82f61f;
-  --mebg: #272e3d; --mebd: #3d4760;
-  --ok: #3fb950; --err: #f85149; --code-tint: #8883;
+  --bg: #16181d;
+  --panel: #1e2128;
+  --bd: #333947;
+  --text: #e8eaf0;
+  --muted: #98a0b3;
+  --me: #3b82f6;
+  --me-text: #ffffff;
+  --input: #22262f;
+  --bubble: #1e2128;
+  --hover: #3b82f61f;
+  --mebg: #272e3d;
+  --mebd: #3d4760;
+  --ok: #3fb950;
+  --err: #f85149;
+  --code-tint: #8883;
 }
-[data-accent="green"] { --me: #178a4c; --hover: #178a4c14; --bg: #f3f7f4; --panel: #e9f1e9; --input: #fbfdfb; }
-[data-accent="amber"] { --me: #b45309; --hover: #b4530914; --bg: #faf6ee; --panel: #f3ecdc; --input: #fffdf8; }
-[data-theme="dark"][data-accent="green"] { --me: #23a35c; --bg: #111713; --panel: #19211b; --input: #1d2520; }
-[data-theme="dark"][data-accent="amber"] { --me: #d97706; --bg: #171310; --panel: #211b14; --input: #262019; }
+[data-accent="green"] {
+  --me: #178a4c;
+  --hover: #178a4c14;
+  --bg: #f3f7f4;
+  --panel: #e9f1e9;
+  --input: #fbfdfb;
+}
+[data-accent="amber"] {
+  --me: #b45309;
+  --hover: #b4530914;
+  --bg: #faf6ee;
+  --panel: #f3ecdc;
+  --input: #fffdf8;
+}
+[data-theme="dark"][data-accent="green"] {
+  --me: #23a35c;
+  --bg: #111713;
+  --panel: #19211b;
+  --input: #1d2520;
+}
+[data-theme="dark"][data-accent="amber"] {
+  --me: #d97706;
+  --bg: #171310;
+  --panel: #211b14;
+  --input: #262019;
+}
 /* 팔레트: GitHub Primer 참조. 라이트·다크 각각 전체 변수 세트. */
-[data-accent="github"] { --bg: #ffffff; --panel: #f6f8fa; --bd: #d0d7de; --text: #1f2328; --muted: #59636e; --me: #0969da; --me-text: #ffffff; --input: #ffffff; --bubble: #ffffff; --hover: #0969da14; --mebg: #ddf4ff; --mebd: #9ecbff; --ok: #1a7f37; --err: #cf222e; --code-tint: #59636e22; --hd: #1f2328; --hdbd: #d0d7de; --code-bg: #f6f8fa; --hl-k: #cf222e; --hl-s: #0a3069; --hl-c: #59636e; --hl-n: #0550ae; --hl-f: #8250df; --hl-t: #0550ae; --mark: #fff8c5; --callout-bd: #d0d7de; }
-[data-theme="dark"][data-accent="github"] { --bg: #0d1117; --panel: #161b22; --bd: #30363d; --text: #e6edf3; --muted: #9198a1; --me: #4493f8; --me-text: #ffffff; --input: #0d1117; --bubble: #161b22; --hover: #4493f81f; --mebg: #388bfd26; --mebd: #1f6feb66; --ok: #3fb950; --err: #f85149; --code-tint: #9198a122; --hd: #e6edf3; --hdbd: #30363d; --code-bg: #0d1117; --hl-k: #ff7b72; --hl-s: #a5d6ff; --hl-c: #8b949e; --hl-n: #79c0ff; --hl-f: #d2a8ff; --hl-t: #ffa657; --mark: #5c4a00; --callout-bd: #30363d; }
+[data-accent="github"] {
+  --bg: #ffffff;
+  --panel: #f6f8fa;
+  --bd: #d0d7de;
+  --text: #1f2328;
+  --muted: #59636e;
+  --me: #0969da;
+  --me-text: #ffffff;
+  --input: #ffffff;
+  --bubble: #ffffff;
+  --hover: #0969da14;
+  --mebg: #ddf4ff;
+  --mebd: #9ecbff;
+  --ok: #1a7f37;
+  --err: #cf222e;
+  --code-tint: #59636e22;
+  --hd: #1f2328;
+  --hdbd: #d0d7de;
+  --code-bg: #f6f8fa;
+  --hl-k: #cf222e;
+  --hl-s: #0a3069;
+  --hl-c: #59636e;
+  --hl-n: #0550ae;
+  --hl-f: #8250df;
+  --hl-t: #0550ae;
+  --mark: #fff8c5;
+  --callout-bd: #d0d7de;
+}
+[data-theme="dark"][data-accent="github"] {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --bd: #30363d;
+  --text: #e6edf3;
+  --muted: #9198a1;
+  --me: #4493f8;
+  --me-text: #ffffff;
+  --input: #0d1117;
+  --bubble: #161b22;
+  --hover: #4493f81f;
+  --mebg: #388bfd26;
+  --mebd: #1f6feb66;
+  --ok: #3fb950;
+  --err: #f85149;
+  --code-tint: #9198a122;
+  --hd: #e6edf3;
+  --hdbd: #30363d;
+  --code-bg: #0d1117;
+  --hl-k: #ff7b72;
+  --hl-s: #a5d6ff;
+  --hl-c: #8b949e;
+  --hl-n: #79c0ff;
+  --hl-f: #d2a8ff;
+  --hl-t: #ffa657;
+  --mark: #5c4a00;
+  --callout-bd: #30363d;
+}
 /* 팔레트: Obsidian 기본 테마 참조 (바이올렛 악센트). */
-[data-accent="obsidian"] { --bg: #ffffff; --panel: #f2f2f2; --bd: #e0e0e0; --text: #2e3338; --muted: #6b6b6b; --me: #7c3aed; --me-text: #ffffff; --input: #ffffff; --bubble: #ffffff; --hover: #7c3aed14; --mebg: #efe9fb; --mebd: #d4c2f5; --ok: #3d8b40; --err: #e05c5c; --code-tint: #6b6b6b22; --hd: #6d28d9; --hdbd: #e0e0e0; --code-bg: #f5f2fa; --hl-k: #7c3aed; --hl-s: #1f7a3d; --hl-c: #8a8a8a; --hl-n: #9a4fb5; --hl-f: #5b21b6; --hl-t: #0e7490; --mark: #fff3b0; --callout-bd: #e0e0e0; }
-[data-theme="dark"][data-accent="obsidian"] { --bg: #202020; --panel: #2a2a2a; --bd: #333333; --text: #dcddde; --muted: #999999; --me: #a882ff; --me-text: #ffffff; --input: #242424; --bubble: #262626; --hover: #a882ff1f; --mebg: #2e2540; --mebd: #5b4a8a; --ok: #7ec787; --err: #e06c75; --code-tint: #99999922; --hd: #c4b5fd; --hdbd: #333333; --code-bg: #1a1a1a; --hl-k: #c792ea; --hl-s: #7ee0a3; --hl-c: #7a7a7a; --hl-n: #f78c6c; --hl-f: #82aaff; --hl-t: #89ddff; --mark: #5c4a00; --callout-bd: #333333; }
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, "Segoe UI", "Noto Sans KR", sans-serif; display: flex; height: 100vh; }
-button { font: inherit; color: inherit; }
-aside { width: 242px; background: var(--panel); border-right: 1px solid var(--bd); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-aside h1 { font-size: 15px; margin: 2px 0 0; letter-spacing: .2px; }
-aside p { font-size: 12px; margin: 0; color: var(--muted); }
-aside button { padding: 8px 10px; cursor: pointer; background: var(--bg); border: 1px solid var(--bd); border-radius: 8px; font-size: 13px; }
-aside button:hover { border-color: var(--me); }
-#sidehead { display: flex; align-items: center; justify-content: space-between; }
-#sidehead h1 { flex: 1; min-width: 0; }
-#sidetoggle { border: 1px solid var(--bd); background: var(--bg); border-radius: 8px; padding: 4px 6px; cursor: pointer; color: var(--muted); line-height: 0; flex: none; }
-#sidetoggle:hover { border-color: var(--me); color: var(--me); }
-main header #sidetoggle { margin-right: 2px; }
-body.side-hidden aside { display: none; }
-#convs { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding-top: 8px; }
-#convsortrow { display: flex; justify-content: flex-end; position: relative; }
-#sortmenu { position: absolute; right: 0; top: 100%; z-index: 30; border: 1px solid var(--bd); background: var(--bubble); border-radius: 8px; box-shadow: 0 8px 24px #0003; min-width: 130px; padding: 4px; }
-#sortmenu[hidden] { display: none; }
-#sortmenu .sortopt { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; border-radius: 6px; background: none; color: var(--text); padding: 8px 10px; cursor: pointer; font-size: 13px; }
-#sortmenu .sortopt:hover { background: var(--hover); }
-#sortmenu .somark { flex: none; width: 1.2em; text-align: center; color: var(--me); }
-#sortbtn { border: 0; background: none; color: var(--muted); border-radius: 6px; padding: 4px 8px; cursor: pointer; line-height: 0; }
-#sortbtn:hover { color: var(--me); background: var(--hover); }
-#convs button { text-align: left; border-color: transparent; background: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#convs button:hover { background: var(--hover); border-color: transparent; }
-#convs button.active { border-color: var(--me); background: var(--hover); }
-#convs .conv { position: relative; display: flex; align-items: center; gap: 2px; }
-#convs .ctitle { flex: 1; min-width: 0; }
-#convs .cdots { flex: none; border: 0; color: var(--muted); border-radius: 6px; padding: 6px 9px; font-size: 14px; line-height: 1; opacity: .55; }
-#convs .cdots:hover { opacity: 1; color: var(--text); }
-.pinbadge { position: absolute; top: -7px; right: 24px; font-size: 11px; pointer-events: none; z-index: 5; }
-#sidefoot { margin-top: auto; display: flex; justify-content: flex-start; align-items: center; gap: 8px; }
-#srvinfo { font-size: 13px; color: var(--text); word-break: break-word; }
-.svcdot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
-.svcdot.on { background: var(--ok); }
-.svcdot.err { background: var(--err); }
-#gear { border: 1px solid var(--bd); border-radius: 8px; background: var(--bg); padding: 6px 8px; cursor: pointer; line-height: 0; }
-#gear:hover { border-color: var(--me); }
-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+[data-accent="obsidian"] {
+  --bg: #ffffff;
+  --panel: #f2f2f2;
+  --bd: #e0e0e0;
+  --text: #2e3338;
+  --muted: #6b6b6b;
+  --me: #7c3aed;
+  --me-text: #ffffff;
+  --input: #ffffff;
+  --bubble: #ffffff;
+  --hover: #7c3aed14;
+  --mebg: #efe9fb;
+  --mebd: #d4c2f5;
+  --ok: #3d8b40;
+  --err: #e05c5c;
+  --code-tint: #6b6b6b22;
+  --hd: #6d28d9;
+  --hdbd: #e0e0e0;
+  --code-bg: #f5f2fa;
+  --hl-k: #7c3aed;
+  --hl-s: #1f7a3d;
+  --hl-c: #8a8a8a;
+  --hl-n: #9a4fb5;
+  --hl-f: #5b21b6;
+  --hl-t: #0e7490;
+  --mark: #fff3b0;
+  --callout-bd: #e0e0e0;
+}
+[data-theme="dark"][data-accent="obsidian"] {
+  --bg: #202020;
+  --panel: #2a2a2a;
+  --bd: #333333;
+  --text: #dcddde;
+  --muted: #999999;
+  --me: #a882ff;
+  --me-text: #ffffff;
+  --input: #242424;
+  --bubble: #262626;
+  --hover: #a882ff1f;
+  --mebg: #2e2540;
+  --mebd: #5b4a8a;
+  --ok: #7ec787;
+  --err: #e06c75;
+  --code-tint: #99999922;
+  --hd: #c4b5fd;
+  --hdbd: #333333;
+  --code-bg: #1a1a1a;
+  --hl-k: #c792ea;
+  --hl-s: #7ee0a3;
+  --hl-c: #7a7a7a;
+  --hl-n: #f78c6c;
+  --hl-f: #82aaff;
+  --hl-t: #89ddff;
+  --mark: #5c4a00;
+  --callout-bd: #333333;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, "Segoe UI", "Noto Sans KR", sans-serif;
+  display: flex;
+  height: 100vh;
+}
+button {
+  font: inherit;
+  color: inherit;
+}
+aside {
+  width: 242px;
+  background: var(--panel);
+  border-right: 1px solid var(--bd);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+aside h1 {
+  font-size: 15px;
+  margin: 2px 0 0;
+  letter-spacing: 0.2px;
+}
+aside p {
+  font-size: 12px;
+  margin: 0;
+  color: var(--muted);
+}
+aside button {
+  padding: 8px 10px;
+  cursor: pointer;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  font-size: 13px;
+}
+aside button:hover {
+  border-color: var(--me);
+}
+#sidehead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#sidehead h1 {
+  flex: 1;
+  min-width: 0;
+}
+#sidetoggle {
+  border: 1px solid var(--bd);
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 4px 6px;
+  cursor: pointer;
+  color: var(--muted);
+  line-height: 0;
+  flex: none;
+}
+#sidetoggle:hover {
+  border-color: var(--me);
+  color: var(--me);
+}
+main header #sidetoggle {
+  margin-right: 2px;
+}
+body.side-hidden aside {
+  display: none;
+}
+#convs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  padding-top: 8px;
+}
+#convsortrow {
+  display: flex;
+  justify-content: flex-end;
+  position: relative;
+}
+#sortmenu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 30;
+  border: 1px solid var(--bd);
+  background: var(--bubble);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px #0003;
+  min-width: 130px;
+  padding: 4px;
+}
+#sortmenu[hidden] {
+  display: none;
+}
+#sortmenu .sortopt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+#sortmenu .sortopt:hover {
+  background: var(--hover);
+}
+#sortmenu .somark {
+  flex: none;
+  width: 1.2em;
+  text-align: center;
+  color: var(--me);
+}
+#sortbtn {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  line-height: 0;
+}
+#sortbtn:hover {
+  color: var(--me);
+  background: var(--hover);
+}
+#convs button {
+  text-align: left;
+  border-color: transparent;
+  background: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#convs button:hover {
+  background: var(--hover);
+  border-color: transparent;
+}
+#convs button.active {
+  border-color: var(--me);
+  background: var(--hover);
+}
+#convs .conv {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+#convs .ctitle {
+  flex: 1;
+  min-width: 0;
+}
+#convs .cdots {
+  flex: none;
+  border: 0;
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.55;
+}
+#convs .cdots:hover {
+  opacity: 1;
+  color: var(--text);
+}
+.pinbadge {
+  position: absolute;
+  top: -7px;
+  right: 24px;
+  font-size: 11px;
+  pointer-events: none;
+  z-index: 5;
+}
+#sidefoot {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+}
+#srvinfo {
+  font-size: 13px;
+  color: var(--text);
+  word-break: break-word;
+}
+.svcdot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+.svcdot.on {
+  background: var(--ok);
+}
+.svcdot.err {
+  background: var(--err);
+}
+#gear {
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  background: var(--bg);
+  padding: 6px 8px;
+  cursor: pointer;
+  line-height: 0;
+}
+#gear:hover {
+  border-color: var(--me);
+}
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}

@@ -1,12 +1,19 @@
-"use strict";
+"use strict"
 // == muse-gui/js/usage.js ==
 // Usage/accounting state, graphs, tables.
-let usageRange = 7, usageDaily = [], usageFull = null, usageModel = "", usagePrices = null
-document.querySelectorAll("#urange button").forEach((b) => { b.onclick = () => {
-  usageRange = +b.dataset.r || 7
-  document.querySelectorAll("#urange button").forEach((x) => x.classList.toggle("sel", x === b))
-  drawUsage()
-}
+let usageRange = 7,
+  usageDaily = [],
+  usageFull = null,
+  usageModel = "",
+  usagePrices = null
+document.querySelectorAll("#urange button").forEach((b) => {
+  b.onclick = () => {
+    usageRange = +b.dataset.r || 7
+    document
+      .querySelectorAll("#urange button")
+      .forEach((x) => x.classList.toggle("sel", x === b))
+    drawUsage()
+  }
 })
 function fmtNum(n) {
   n = n || 0
@@ -15,20 +22,43 @@ function fmtNum(n) {
   return String(n)
 }
 function barsSVG(vals) {
-  const W = 260, H = 64, max = Math.max.apply(null, vals.concat([1]))
-  let s = '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" style="width:100%;height:64px;display:block" aria-hidden="true">'
+  const W = 260,
+    H = 64,
+    max = Math.max.apply(null, vals.concat([1]))
+  let s =
+    '<svg viewBox="0 0 ' +
+    W +
+    " " +
+    H +
+    '" preserveAspectRatio="none" style="width:100%;height:64px;display:block" aria-hidden="true">'
   const bw = W / Math.max(vals.length, 1)
   for (let i = 0; i < vals.length; i++) {
-    const h = Math.max(2, Math.round(vals[i] / max * (H - 14)))
-    s += '<rect x="' + (i * bw + 1).toFixed(1) + '" y="' + (H - h) +
-      '" width="' + Math.max(1, bw - 2).toFixed(1) + '" height="' + h + '" rx="2" fill="var(--me)" opacity="' +
-      (0.35 + 0.65 * vals[i] / max).toFixed(2) + '"/>'
+    const h = Math.max(2, Math.round((vals[i] / max) * (H - 14)))
+    s +=
+      '<rect x="' +
+      (i * bw + 1).toFixed(1) +
+      '" y="' +
+      (H - h) +
+      '" width="' +
+      Math.max(1, bw - 2).toFixed(1) +
+      '" height="' +
+      h +
+      '" rx="2" fill="var(--me)" opacity="' +
+      (0.35 + (0.65 * vals[i]) / max).toFixed(2) +
+      '"/>'
   }
   return s + "</svg>"
 }
 function ucard(title, value, vals) {
-  return '<div class="ucard"><div class="uval">' + esc(value) + '</div><div class="ulab">' +
-    esc(title) + "</div>" + barsSVG(vals) + "</div>"
+  return (
+    '<div class="ucard"><div class="uval">' +
+    esc(value) +
+    '</div><div class="ulab">' +
+    esc(title) +
+    "</div>" +
+    barsSVG(vals) +
+    "</div>"
+  )
 }
 function fmtMoney(v) {
   v = +v || 0
@@ -38,7 +68,8 @@ function fmtMoney(v) {
 }
 function rateFor(model, prices) {
   const m = ((prices && prices.models) || {})[model] || {}
-  let pin = parseFloat(m.input), pout = parseFloat(m.output)
+  let pin = parseFloat(m.input),
+    pout = parseFloat(m.output)
   if (!(pin >= 0)) pin = 1.25
   if (!(pout >= 0)) pout = 4.25
   return [pin, pout]
@@ -48,7 +79,10 @@ function dayCost(day, prices, model) {
   const ms = day.models || null
   const cost = (e, n) => {
     const r = rateFor(n, prices)
-    return ((e.input || 0) * r[0] + (((e.output || 0) + (e.reasoning || 0)) * r[1])) / 1e6
+    return (
+      ((e.input || 0) * r[0] + ((e.output || 0) + (e.reasoning || 0)) * r[1]) /
+      1e6
+    )
   }
   if (model) {
     const e = ms ? ms[model] : null
@@ -56,16 +90,21 @@ function dayCost(day, prices, model) {
   }
   if (ms) {
     let t = 0
-    Object.keys(ms).forEach((n) => { t += cost(ms[n] || {}, n)
+    Object.keys(ms).forEach((n) => {
+      t += cost(ms[n] || {}, n)
     })
     return t
   }
   const r = rateFor("", prices)
-  return (((day.input || 0) * r[0]) + (((day.output || 0) + (day.reasoning || 0)) * r[1])) / 1e6
+  return (
+    ((day.input || 0) * r[0] +
+      ((day.output || 0) + (day.reasoning || 0)) * r[1]) /
+    1e6
+  )
 }
 function bucketize(daily, range, per, model, prices) {
-  const byDate = {};
-  (daily || []).forEach((d) => {
+  const byDate = {}
+  ;(daily || []).forEach((d) => {
     if (d && d.date) byDate[d.date] = d
   })
   const days = []
@@ -73,24 +112,40 @@ function bucketize(daily, range, per, model, prices) {
   now.setHours(0, 0, 0, 0)
   for (let i = range - 1; i >= 0; i--) {
     const dt = new Date(now.getTime() - i * 86400000)
-    days.push(dt.getFullYear() + "-" + String(dt.getMonth() + 1).padStart(2, "0") + "-" + String(dt.getDate()).padStart(2, "0"))
+    days.push(
+      dt.getFullYear() +
+        "-" +
+        String(dt.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(dt.getDate()).padStart(2, "0"),
+    )
   }
   const out = []
   for (let s = 0; s < days.length; s += per) {
     const chunk = days.slice(s, s + per)
-    const b = { label: chunk[0].slice(5), input: 0, output: 0, reasoning: 0, requests: 0, cost: 0 }
+    const b = {
+      label: chunk[0].slice(5),
+      input: 0,
+      output: 0,
+      reasoning: 0,
+      requests: 0,
+      cost: 0,
+    }
     chunk.forEach((k) => {
       const d = byDate[k]
       if (!d) return
       if (model) {
-        const e = ((d.models || {})[model]) || null
+        const e = (d.models || {})[model] || null
         if (!e) return
         const r = rateFor(model, prices)
         b.input += e.input || 0
         b.output += e.output || 0
         b.reasoning += e.reasoning || 0
         b.requests += e.requests || 0
-        b.cost += (((e.input || 0) * r[0]) + (((e.output || 0) + (e.reasoning || 0)) * r[1])) / 1e6
+        b.cost +=
+          ((e.input || 0) * r[0] +
+            ((e.output || 0) + (e.reasoning || 0)) * r[1]) /
+          1e6
       } else {
         b.input += d.input || 0
         b.output += d.output || 0
@@ -104,8 +159,13 @@ function bucketize(daily, range, per, model, prices) {
   return out
 }
 function tsGraph(buckets, series, yfmt) {
-  const W = 640, H = 168, L = 52, B = 20, T = 10
-  const pw = W - L - 8, ph = H - T - B
+  const W = 640,
+    H = 168,
+    L = 52,
+    B = 20,
+    T = 10
+  const pw = W - L - 8,
+    ph = H - T - B
   const totals = buckets.map((b) => {
     let t = 0
     series.forEach((s) => {
@@ -116,11 +176,32 @@ function tsGraph(buckets, series, yfmt) {
   const max = Math.max.apply(null, totals.concat([1]))
   const X = (i) => L + (i + 0.5) * (pw / Math.max(buckets.length, 1))
   const Y = (v) => T + ph - (v / max) * ph
-  let s = '<svg viewBox="0 0 ' + W + " " + H + '" style="width:100%;height:auto;display:block" role="img">';
-  [0, max / 2, max].forEach((tv) => {
+  let s =
+    '<svg viewBox="0 0 ' +
+    W +
+    " " +
+    H +
+    '" style="width:100%;height:auto;display:block" role="img">'
+  ;[0, max / 2, max].forEach((tv) => {
     const y = Y(tv).toFixed(1)
-    s += '<line x1="' + L + '" y1="' + y + '" x2="' + (W - 8) + '" y2="' + y + '" stroke="var(--bd)" stroke-width="1"/>'
-    s += '<text x="' + (L - 5) + '" y="' + (+y + 4).toFixed(1) + '" text-anchor="end" font-size="10" fill="var(--muted)">' + esc(String(yfmt(tv))) + "</text>"
+    s +=
+      '<line x1="' +
+      L +
+      '" y1="' +
+      y +
+      '" x2="' +
+      (W - 8) +
+      '" y2="' +
+      y +
+      '" stroke="var(--bd)" stroke-width="1"/>'
+    s +=
+      '<text x="' +
+      (L - 5) +
+      '" y="' +
+      (+y + 4).toFixed(1) +
+      '" text-anchor="end" font-size="10" fill="var(--muted)">' +
+      esc(String(yfmt(tv))) +
+      "</text>"
   })
   const bw = pw / Math.max(buckets.length, 1)
   buckets.forEach((b, i) => {
@@ -129,7 +210,18 @@ function tsGraph(buckets, series, yfmt) {
       const v = sr.get(b, i) || 0
       if (v > 0) {
         const h = Math.max(1.5, (v / max) * ph)
-        s += '<rect x="' + (X(i) - Math.max(2, bw * 0.32)).toFixed(1) + '" y="' + Y(acc + v).toFixed(1) + '" width="' + Math.max(2, bw * 0.64).toFixed(1) + '" height="' + h.toFixed(1) + '" rx="2" fill="' + sr.color + '"/>'
+        s +=
+          '<rect x="' +
+          (X(i) - Math.max(2, bw * 0.32)).toFixed(1) +
+          '" y="' +
+          Y(acc + v).toFixed(1) +
+          '" width="' +
+          Math.max(2, bw * 0.64).toFixed(1) +
+          '" height="' +
+          h.toFixed(1) +
+          '" rx="2" fill="' +
+          sr.color +
+          '"/>'
       }
       acc += v
     })
@@ -137,15 +229,32 @@ function tsGraph(buckets, series, yfmt) {
   const xi = [0, Math.floor((buckets.length - 1) / 2), buckets.length - 1]
   xi.forEach((ii, k) => {
     if (ii < 0 || !buckets[ii] || (k && xi[k - 1] === ii)) return
-    s += '<text x="' + X(ii).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="10" fill="var(--muted)">' + esc(buckets[ii].label) + "</text>"
+    s +=
+      '<text x="' +
+      X(ii).toFixed(1) +
+      '" y="' +
+      (H - 6) +
+      '" text-anchor="middle" font-size="10" fill="var(--muted)">' +
+      esc(buckets[ii].label) +
+      "</text>"
   })
-  if (!buckets.some((b) => (b.input + b.output) > 0)) {
-    s += '<text x="' + (L + pw / 2) + '" y="' + (T + ph / 2) + '" text-anchor="middle" font-size="12" fill="var(--muted)">기록 없음</text>'
+  if (!buckets.some((b) => b.input + b.output > 0)) {
+    s +=
+      '<text x="' +
+      (L + pw / 2) +
+      '" y="' +
+      (T + ph / 2) +
+      '" text-anchor="middle" font-size="12" fill="var(--muted)">기록 없음</text>'
   }
   return s + "</svg>"
 }
 async function refreshPrices() {
-  if (!confirm("해당 기능은 토큰을 소비합니다.\n에이전트 세션을 열어 최신 단가를 검색하고 반영할까요?")) return
+  if (
+    !confirm(
+      "해당 기능은 토큰을 소비합니다.\n에이전트 세션을 열어 최신 단가를 검색하고 반영할까요?",
+    )
+  )
+    return
   const b = $("#costrefresh")
   const old = b ? b.textContent : ""
   if (b) {
@@ -155,12 +264,11 @@ async function refreshPrices() {
   try {
     const r = await fetch("/api/prices/refresh", { method: "POST" })
     const j = await r.json()
-    alert(j.ok ? j.text : ("실패: " + (j.error || "알 수 없음")))
+    alert(j.ok ? j.text : "실패: " + (j.error || "알 수 없음"))
     if (j.ok) await loadUsage()
   } catch (e) {
     alert("실패: " + e)
-  }
-  finally {
+  } finally {
     const bb = $("#costrefresh")
     if (bb) {
       bb.disabled = false
@@ -174,8 +282,20 @@ function drawUsage() {
   const names = Object.keys(j.models || {})
   const sel = $("#umodel")
   if (sel) {
-    sel.innerHTML = '<option value="">통합</option>' + names.map((n) =>
-      '<option value="' + escAttr(n) + '"' + (n === usageModel ? " selected" : "") + ">" + esc(n) + "</option>").join("")
+    sel.innerHTML =
+      '<option value="">통합</option>' +
+      names
+        .map(
+          (n) =>
+            '<option value="' +
+            escAttr(n) +
+            '"' +
+            (n === usageModel ? " selected" : "") +
+            ">" +
+            esc(n) +
+            "</option>",
+        )
+        .join("")
     sel.onchange = () => {
       usageModel = sel.value
       drawUsage()
@@ -193,27 +313,62 @@ function drawUsage() {
     tot.input += dv(d, "input")
     tot.output += dv(d, "output")
   })
-  let html = '<div class="ucards">' +
-    ucard("Requests", fmtNum(tot.requests), data.map((d) => dv(d, "requests"))) +
-    ucard("Input tokens", fmtNum(tot.input), data.map((d) => dv(d, "input"))) +
-    ucard("Output tokens", fmtNum(tot.output), data.map((d) => dv(d, "output"))) +
+  let html =
+    '<div class="ucards">' +
+    ucard(
+      "Requests",
+      fmtNum(tot.requests),
+      data.map((d) => dv(d, "requests")),
+    ) +
+    ucard(
+      "Input tokens",
+      fmtNum(tot.input),
+      data.map((d) => dv(d, "input")),
+    ) +
+    ucard(
+      "Output tokens",
+      fmtNum(tot.output),
+      data.map((d) => dv(d, "output")),
+    ) +
     "</div>"
-  if (!data.length) html += '<p class="hint">일자별 기록 없음 (세션 로그에 model_completed 없음)</p>'
+  if (!data.length)
+    html +=
+      '<p class="hint">일자별 기록 없음 (세션 로그에 model_completed 없음)</p>'
   const per = usageRange <= 7 ? 1 : usageRange <= 30 ? 2 : 3
   const buckets = bucketize(usageDaily, usageRange, per, m, usagePrices)
-  const legend = '<span class="lg"><i style="background:var(--me)"></i>입력</span>' +
+  const legend =
+    '<span class="lg"><i style="background:var(--me)"></i>입력</span>' +
     '<span class="lg"><i style="background:var(--ok)"></i>출력</span>'
-  html += '<h4 class="ugtitle">토큰 사용량' + (m ? " · " + esc(m) : "") + ' <span class="uglegend">' + legend + "</span></h4>"
-  html += tsGraph(buckets, [
-    { get: (b) => b.input, color: "var(--me)" },
-    { get: (b) => b.output, color: "var(--ok)" },
-  ], fmtNum)
+  html +=
+    '<h4 class="ugtitle">토큰 사용량' +
+    (m ? " · " + esc(m) : "") +
+    ' <span class="uglegend">' +
+    legend +
+    "</span></h4>"
+  html += tsGraph(
+    buckets,
+    [
+      { get: (b) => b.input, color: "var(--me)" },
+      { get: (b) => b.output, color: "var(--ok)" },
+    ],
+    fmtNum,
+  )
   const hasPrices = !!(usagePrices && usagePrices.models)
   if (hasPrices) {
     const totCost = buckets.reduce((a, b) => a + b.cost, 0)
-    html += '<h4 class="ugtitle">예상 비용 <span class="ucost">' + fmtMoney(totCost) + "</span></h4>"
-    html += tsGraph(buckets, [{ get: (b) => b.cost, color: "var(--me)" }], fmtMoney)
-    html += '<p class="hint">단가 기준일: ' + esc(usagePrices.updated || "?") + ' · reasoning은 출력 단가로 계산 · ' +
+    html +=
+      '<h4 class="ugtitle">예상 비용 <span class="ucost">' +
+      fmtMoney(totCost) +
+      "</span></h4>"
+    html += tsGraph(
+      buckets,
+      [{ get: (b) => b.cost, color: "var(--me)" }],
+      fmtMoney,
+    )
+    html +=
+      '<p class="hint">단가 기준일: ' +
+      esc(usagePrices.updated || "?") +
+      " · reasoning은 출력 단가로 계산 · " +
       '<button type="button" class="linkbtn" id="costrefresh">비용 업데이트</button></p>'
     const cb = $("#costrefresh")
     if (cb) cb.onclick = refreshPrices

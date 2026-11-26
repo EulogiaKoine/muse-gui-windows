@@ -1,15 +1,77 @@
 /* == muse-gui/css/chat.css ==
    Chat bubbles, fold, edit box. */
-#chat { flex: 1; overflow-y: auto; padding: 18px 18px 8px; display: flex; flex-direction: column; gap: 12px; }
-.msg { max-width: 78ch; word-break: break-word; font-size: 14px; line-height: 1.65; }
-.msg.me { align-self: flex-end; padding: 10px 14px; background: var(--mebg); color: var(--text); border: 1px solid var(--mebd); border-radius: 14px 14px 4px 14px; }
-.msg.me a { color: var(--me); }
-.msg.ai { align-self: stretch; max-width: none; padding: 2px 0; }
-.msg .meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
-.msg.me .mfold { position: relative; }
-.msg.me.folded .mfold { max-height: 9.5em; overflow: hidden; }
-.msg.me.folded.open .mfold { max-height: none; overflow: visible; }
-.foldfade { position: absolute; left: -4px; right: -4px; bottom: 0; height: 3.4em; background: linear-gradient(transparent, var(--mebg)); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); pointer-events: none; }
-.msg.me.folded.open .foldfade { display: none; }
-.foldbtn { display: block; margin: 4px auto 0; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 2px 12px; border-radius: 6px; line-height: 0; }
-.foldbtn:hover { color: var(--me); background: var(--hover); }
+#chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 18px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.msg {
+  max-width: 78ch;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.msg.me {
+  align-self: flex-end;
+  padding: 10px 14px;
+  background: var(--mebg);
+  color: var(--text);
+  border: 1px solid var(--mebd);
+  border-radius: 14px 14px 4px 14px;
+}
+.msg.me a {
+  color: var(--me);
+}
+.msg.ai {
+  align-self: stretch;
+  max-width: none;
+  padding: 2px 0;
+}
+.msg .meta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.msg.me .mfold {
+  position: relative;
+}
+.msg.me.folded .mfold {
+  max-height: 9.5em;
+  overflow: hidden;
+}
+.msg.me.folded.open .mfold {
+  max-height: none;
+  overflow: visible;
+}
+.foldfade {
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  bottom: 0;
+  height: 3.4em;
+  background: linear-gradient(transparent, var(--mebg));
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+.msg.me.folded.open .foldfade {
+  display: none;
+}
+.foldbtn {
+  display: block;
+  margin: 4px auto 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 12px;
+  border-radius: 6px;
+  line-height: 0;
+}
+.foldbtn:hover {
+  color: var(--me);
+  background: var(--hover);
+}

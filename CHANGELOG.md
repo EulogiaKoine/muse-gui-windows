@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026.11.26.64
+- main beautify: prettier --no-semi 적용(JS/CSS, 동작 동일)
+
 ## 2026.11.26.63
 - 하네스에 순서·API 커버리지 게이트 추가
 

@@ -1,8 +1,17 @@
-"use strict";
+"use strict"
 // == muse-gui/js/thoughts.js ==
 // Thought-block live/static render, toggle, head, collect.
 function thoughtIcon(type) {
-  return { reason: ICON_TREASON, terminal: ICON_TERM, web: ICON_TWEB, file: ICON_TFILE, system: ICON_TSYS, tool: ICON_TSYS }[type] || ICON_TSYS
+  return (
+    {
+      reason: ICON_TREASON,
+      terminal: ICON_TERM,
+      web: ICON_TWEB,
+      file: ICON_TFILE,
+      system: ICON_TSYS,
+      tool: ICON_TSYS,
+    }[type] || ICON_TSYS
+  )
 }
 function setRowSummary(r, text) {
   const s = truncStr(text, 140) || t("th.working")
@@ -50,8 +59,8 @@ function ensureThoughtRow(tbox, tstate, tid, type, summary) {
   row.append(ic, lab, spin, sum, btn)
   const det = document.createElement("div")
   det.className = "tdetail"
-  det.hidden = true;
-  (tstate.body || tbox).append(row, det)
+  det.hidden = true
+  ;(tstate.body || tbox).append(row, det)
   r = { el: row, det, sum, tgl: btn, type, idem: null, done: false }
   tstate.rows.set(tid, r)
   if (tstate.headTgl) tstate.headTgl.hidden = false
@@ -62,7 +71,8 @@ function ensureThoughtRow(tbox, tstate, tid, type, summary) {
 function syncThoughtHead(tbox) {
   const st = tbox && tbox._tstate
   if (!st || !st.headSum) return
-  let d = 0, m = 0
+  let d = 0,
+    m = 0
   const counts = { terminal: 0, file: 0, reason: 0, other: 0 }
   st.rows.forEach((r) => {
     m++
@@ -83,17 +93,25 @@ function updateThoughtHead(tstate) {
 function loadFullLog(btn, callId) {
   btn.disabled = true
   btn.textContent = t("th.loading")
-  const q = "call_id=" + encodeURIComponent(callId) + (sessionId ? "&session_id=" + encodeURIComponent(sessionId) : "")
-  fetch("/api/tool_output?" + q).then((r) => r.json()).then((j) => {
-    if (!j.ok) throw new Error(j.error || "failed")
-    const box = btn.closest(".tsubbody")
-    const log = box ? box.querySelector(".tlog") : null
-    if (log) log.textContent = j.text + (j.truncated ? "\n[" + t("th.cut") + "]" : "")
-    btn.remove()
-  }).catch((e) => {
-    btn.textContent = String((e && e.message) || e)
-    btn.disabled = false
-  })
+  const q =
+    "call_id=" +
+    encodeURIComponent(callId) +
+    (sessionId ? "&session_id=" + encodeURIComponent(sessionId) : "")
+  fetch("/api/tool_output?" + q)
+    .then((r) => r.json())
+    .then((j) => {
+      if (!j.ok) throw new Error(j.error || "failed")
+      const box = btn.closest(".tsubbody")
+      const log = box ? box.querySelector(".tlog") : null
+      if (log)
+        log.textContent =
+          j.text + (j.truncated ? "\n[" + t("th.cut") + "]" : "")
+      btn.remove()
+    })
+    .catch((e) => {
+      btn.textContent = String((e && e.message) || e)
+      btn.disabled = false
+    })
 }
 function addThoughtLog(r, head, body, extra) {
   const det = r.det
@@ -118,8 +136,10 @@ function addThoughtLog(r, head, body, extra) {
   const pre = document.createElement("div")
   pre.className = "tlog"
   const txt = String(body == null ? "" : body).slice(0, 10000)
-  if (r.type === "file" && isDiffText(txt)) { pre.innerHTML = diffLinesHtml(txt); pre.classList.add("diff"); }
-  else pre.textContent = txt;
+  if (r.type === "file" && isDiffText(txt)) {
+    pre.innerHTML = diffLinesHtml(txt)
+    pre.classList.add("diff")
+  } else pre.textContent = txt
   bd.appendChild(pre)
   if (extra && extra.callId) {
     const btn = document.createElement("button")
@@ -157,7 +177,10 @@ function updateThought(tbox, tstate, ev) {
       if (!oc || oc === "success") return
       setRowSummary(r, (r.el.dataset.sum || "") + t("th.failed"))
       const head = "tool_result · " + oc
-      const raw = ((facts.tool_name ? "[" + facts.tool_name + "] " : "") + (p.text || "")).slice(0, 10000) || head
+      const raw =
+        (
+          (facts.tool_name ? "[" + facts.tool_name + "] " : "") + (p.text || "")
+        ).slice(0, 10000) || head
       addThoughtLog(r, head, raw)
       tstate.last = head
     })
@@ -192,19 +215,28 @@ function updateThought(tbox, tstate, ev) {
     setRowSummary(r, te.message)
     tstate.last = te.message
     const phase = (te.details || {}).phase || ""
-    addThoughtLog(r, te.message, phase ? te.message + "\n[" + phase + "]" : te.message)
+    addThoughtLog(
+      r,
+      te.message,
+      phase ? te.message + "\n[" + phase + "]" : te.message,
+    )
     updateThoughtHead(tstate)
     return
   }
   if (ek === "output" && typeof te.chunk === "string") {
-    let sum = null, body = te.chunk, fullKey = ""
+    let sum = null,
+      body = te.chunk,
+      fullKey = ""
     try {
       const o = JSON.parse(te.chunk)
       if (o && typeof o === "object") {
         const cmd = o.command || o.tool || ""
         const desc = o.description || o.desc || ""
-        sum = (desc || cmd || t("th.output")) +
-          (o.exit_code !== undefined && o.exit_code !== null ? t("th.exit") + o.exit_code : "")
+        sum =
+          (desc || cmd || t("th.output")) +
+          (o.exit_code !== undefined && o.exit_code !== null
+            ? t("th.exit") + o.exit_code
+            : "")
         if (r.type === "terminal" && typeof o.output === "string") {
           body = (cmd ? "$ " + cmd + "\n" : "") + o.output
           if (isOutputTruncated(o)) {
@@ -217,7 +249,12 @@ function updateThought(tbox, tstate, ev) {
     if (r.type === "file") body = diffOnly(body)
     if (sum) setRowSummary(r, sum)
     tstate.last = sum || t("th.output")
-    addThoughtLog(r, sum || t("th.output"), body, fullKey ? { callId: fullKey } : null)
+    addThoughtLog(
+      r,
+      sum || t("th.output"),
+      body,
+      fullKey ? { callId: fullKey } : null,
+    )
     updateThoughtHead(tstate)
     return
   }
@@ -240,10 +277,17 @@ function collectThoughts(tbox) {
         const logEl = sub.querySelector(".tsubbody .tlog")
         let bt = ""
         if (logEl) {
-          const kids = Array.from(logEl.children).filter((c) => c.tagName === "SPAN")
-          bt = kids.length ? kids.map((x) => x.textContent).join("\n") : (logEl.textContent || "")
+          const kids = Array.from(logEl.children).filter(
+            (c) => c.tagName === "SPAN",
+          )
+          bt = kids.length
+            ? kids.map((x) => x.textContent).join("\n")
+            : logEl.textContent || ""
         }
-        subs.push({ h: (h ? h.textContent : "").slice(0, 80), b: bt.slice(0, 1000) })
+        subs.push({
+          h: (h ? h.textContent : "").slice(0, 80),
+          b: bt.slice(0, 1000),
+        })
       })
       if (subs.length) th.d = subs
     }
@@ -278,18 +322,43 @@ function renderThoughtsStatic(thoughts) {
         const bt = String(s.b || "")
         const isD = th.k === "file" && isDiffText(bt)
         const bh = isD ? diffLinesHtml(bt) : esc(bt)
-        sh += '<div class="tsub tsub-' + esc(String(th.k || "tool")) + '"><button type="button" class="tsubhead" data-ttoggle title="펼치기/접기">' +
-          '<span class="tsum">' + esc(s.h || "로그") + '</span><span class="ttoggle"' + (th.static ? " hidden" : "") + ">›</span></button>" +
-          '<div class="tsubbody" hidden><div class="tlog' + (isD ? " diff" : "") + '">' + bh + "</div></div></div>"
+        sh +=
+          '<div class="tsub tsub-' +
+          esc(String(th.k || "tool")) +
+          '"><button type="button" class="tsubhead" data-ttoggle title="펼치기/접기">' +
+          '<span class="tsum">' +
+          esc(s.h || "로그") +
+          '</span><span class="ttoggle"' +
+          (th.static ? " hidden" : "") +
+          ">›</span></button>" +
+          '<div class="tsubbody" hidden><div class="tlog' +
+          (isD ? " diff" : "") +
+          '">' +
+          bh +
+          "</div></div></div>"
       })
       det = '<div class="tdetail" hidden>' + sh + "</div>"
     }
-    rows += '<div class="trow t-' + esc(String(th.k || "tool")) + ' done"' + (th.static ? ' data-static="1"' : "") + ">" +
-      '<span class="ticon">' + thoughtIcon(th.k) + "</span>" +
-      '<span class="ttype">' + esc(lab) + "</span>" +
-      '<span class="tspin"></span><span class="tsum">' + esc(th.s || "") + "</span>" +
-      (subs.length && !th.static ? '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button>' : "") +
-      "</div>" + det
+    rows +=
+      '<div class="trow t-' +
+      esc(String(th.k || "tool")) +
+      ' done"' +
+      (th.static ? ' data-static="1"' : "") +
+      ">" +
+      '<span class="ticon">' +
+      thoughtIcon(th.k) +
+      "</span>" +
+      '<span class="ttype">' +
+      esc(lab) +
+      "</span>" +
+      '<span class="tspin"></span><span class="tsum">' +
+      esc(th.s || "") +
+      "</span>" +
+      (subs.length && !th.static
+        ? '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button>'
+        : "") +
+      "</div>" +
+      det
   })
   const counts = { terminal: 0, file: 0, reason: 0, other: 0 }
   items.forEach((t) => {
@@ -298,14 +367,21 @@ function renderThoughtsStatic(thoughts) {
     else if (t.k === "reason") counts.reason++
     else counts.other++
   })
-  return '<div class="thoughts static"><div class="thead">' +
+  return (
+    '<div class="thoughts static"><div class="thead">' +
     '<span class="ttype">통합</span>' +
-    '<span class="tsum">' + esc(thoughtSummary(langCur === "en", counts)) + "</span>" +
+    '<span class="tsum">' +
+    esc(thoughtSummary(langCur === "en", counts)) +
+    "</span>" +
     '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button></div>' +
-    '<div class="tbody" hidden>' + rows + "</div></div>"
+    '<div class="tbody" hidden>' +
+    rows +
+    "</div></div>"
+  )
 }
 function toggleThoughtDetail(tg) {
-  let det = null, mark = tg
+  let det = null,
+    mark = tg
   const sub = tg.closest(".tsubhead")
   if (sub) {
     det = sub.nextElementSibling
@@ -316,7 +392,15 @@ function toggleThoughtDetail(tg) {
     if (host.dataset.static) return
     det = host.nextElementSibling
   }
-  if (!det || !(det.classList.contains("tsubbody") || det.classList.contains("tdetail") || det.classList.contains("tbody"))) return
+  if (
+    !det ||
+    !(
+      det.classList.contains("tsubbody") ||
+      det.classList.contains("tdetail") ||
+      det.classList.contains("tbody")
+    )
+  )
+    return
   det.hidden = !det.hidden
   if (mark) mark.classList.toggle("open", !det.hidden)
   const box = tg.closest(".thoughts")

@@ -1,4 +1,4 @@
-"use strict";
+"use strict"
 // == muse-gui/js/chat.js ==
 // Message edit/copy, chat stream, turn completion, send flow.
 let editingEl = null
@@ -37,13 +37,18 @@ function startEdit(msgEl) {
   const old = msgEl.dataset.raw || ""
   msgEl.dataset.orig = msgEl.innerHTML
   msgEl.classList.add("editing")
-  msgEl.innerHTML = '<textarea class="medit">' + esc(old) + "</textarea>" +
+  msgEl.innerHTML =
+    '<textarea class="medit">' +
+    esc(old) +
+    "</textarea>" +
     '<div class="meditbar"><button type="button" class="optbtn" data-msave>저장</button>' +
     '<button type="button" class="optbtn" data-mcancel>취소</button></div>'
   const ta = msgEl.querySelector(".medit")
   if (ta) {
     ta.focus()
-    try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch (e) {}
+    try {
+      ta.setSelectionRange(ta.value.length, ta.value.length)
+    } catch (e) {}
   }
   editingEl = msgEl
 }
@@ -99,17 +104,33 @@ async function branchFromMessage(c, mi, newText) {
   persistConvs()
   if (oldSid) {
     try {
-      await fetch("/api/session/archive", { method: "POST",
+      await fetch("/api/session/archive", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: oldSid, cwd: c.cwd || serverCwd || "" }) })
+        body: JSON.stringify({
+          session_id: oldSid,
+          cwd: c.cwd || serverCwd || "",
+        }),
+      })
     } catch (e) {}
   }
-  pendingPrefix = "[이전 대화 계승] 아래는 같은 대화의 지금까지 내역이다. 이를 이어서 다음 요청을 처리하라.\n\n" +
-    convToMd(c) + "\n위 내역을 이어서 처리하라.\n\n"
+  pendingPrefix =
+    "[이전 대화 계승] 아래는 같은 대화의 지금까지 내역이다. 이를 이어서 다음 요청을 처리하라.\n\n" +
+    convToMd(c) +
+    "\n위 내역을 이어서 처리하라.\n\n"
   skipEcho = true
   editingEl = null
   chat.innerHTML = ""
-  c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m), undefined, m.th ? { thoughts: m.th } : null))
+  c.msgs.forEach((m) =>
+    addMsg(
+      m.who,
+      m.text,
+      null,
+      footFor(m),
+      undefined,
+      m.th ? { thoughts: m.th } : null,
+    ),
+  )
   chat.scrollTop = chat.scrollHeight
   setRoute("/" + c.k)
   input.value = newText
@@ -125,8 +146,14 @@ function exportConv(c) {
     return
   }
   const body = convToMd(c)
-  const name = "muse-gui-" + String(c.t || "대화").replace(/[^\w가-힣-]+/g, "_").slice(0, 40) +
-    "-" + new Date().toISOString().slice(0, 10) + ".md"
+  const name =
+    "muse-gui-" +
+    String(c.t || "대화")
+      .replace(/[^\w가-힣-]+/g, "_")
+      .slice(0, 40) +
+    "-" +
+    new Date().toISOString().slice(0, 10) +
+    ".md"
   const blob = new Blob([body], { type: "text/markdown;charset=utf-8" })
   const a = document.createElement("a")
   a.href = URL.createObjectURL(blob)
@@ -153,8 +180,7 @@ async function copyText(t) {
   try {
     await navigator.clipboard.writeText(t)
     return true
-  }
-  catch (e) {
+  } catch (e) {
     const ta = document.createElement("textarea")
     ta.value = t
     document.body.appendChild(ta)
@@ -162,11 +188,9 @@ async function copyText(t) {
     try {
       document.execCommand("copy")
       return true
-    }
-    catch (_) {
+    } catch (_) {
       return false
-    }
-    finally {
+    } finally {
       ta.remove()
     }
   }
@@ -246,23 +270,31 @@ chat.addEventListener("click", async (e) => {
 function notifyCompletion(title, body) {
   try {
     if (typeof Notification === "undefined") return false
-    if (!shouldNotifyCompletion(Notification.permission, document.hidden)) return false
+    if (!shouldNotifyCompletion(Notification.permission, document.hidden))
+      return false
     const n = new Notification(title, { body: truncStr(body || "", 140) })
     n.onclick = () => {
-      try { window.focus(); n.close(); } catch (e) {}
-    };
+      try {
+        window.focus()
+        n.close()
+      } catch (e) {}
+    }
     return true
-  } catch (e) { return false }
+  } catch (e) {
+    return false
+  }
 }
 function finishAiTurn(j, ph, goalMode) {
   sessionId = j.session_id || sessionId
-  let justDone = null, th = null
+  let justDone = null,
+    th = null
   if (goalMode) {
     const gf = goalFence(j.text || "", goalMode)
     const gcc = curConv()
     if (gcc && gcc.goal) {
       const was = gcc.goal.items.filter((x) => x.done).length
-      if (goalMode === "plan" && gf.data) gcc.goal.items = normGoalItems(gf.data)
+      if (goalMode === "plan" && gf.data)
+        gcc.goal.items = normGoalItems(gf.data)
       if (goalMode === "status" && gf.data) {
         const dn = gf.data.done ?? gf.data.completed ?? gf.data.finished
         if (dn === "all" || dn === "complete" || dn === "done")
@@ -272,7 +304,8 @@ function finishAiTurn(j, ph, goalMode) {
         else if (Array.isArray(dn))
           dn.forEach((i) => {
             const n = Number(i)
-            if (Number.isInteger(n) && gcc.goal.items[n]) gcc.goal.items[n].done = true
+            if (Number.isInteger(n) && gcc.goal.items[n])
+              gcc.goal.items[n].done = true
           })
       }
       const t = gcc.goal.items.length
@@ -300,7 +333,11 @@ function finishAiTurn(j, ph, goalMode) {
     th = collectThoughts(tbox)
   }
   ph.dataset.raw = j.text || "(빈 응답)"
-  ph.innerHTML = renderText(ph.dataset.raw) + '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>"
+  ph.innerHTML =
+    renderText(ph.dataset.raw) +
+    '<div class="acts"><button type="button" data-copy title="복사">' +
+    ICON_COPY +
+    "</button></div>"
   notifyCompletion("muse-gui · 응답 완료", ph.dataset.raw)
   if (tbox) ph.prepend(tbox)
   decorateCode(ph)
@@ -319,14 +356,18 @@ function sealAiTurn(ph, t0, fr) {
   }
 }
 async function postChatStream(message, sid, cwd, signal, onRun) {
-  const r = await fetch("/api/chat/stream", { method: "POST",
+  const r = await fetch("/api/chat/stream", {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, session_id: sid, cwd }),
-    signal: signal || undefined })
+    signal: signal || undefined,
+  })
   if (!r.ok || !r.body) throw new Error("HTTP " + r.status)
   const reader = r.body.getReader()
   const dec = new TextDecoder()
-  let buf = "", doneJ = null, gotDone = false
+  let buf = "",
+    doneJ = null,
+    gotDone = false
   for (;;) {
     const it = await reader.read()
     if (it.value) buf += dec.decode(it.value, { stream: true })
@@ -336,15 +377,23 @@ async function postChatStream(message, sid, cwd, signal, onRun) {
       buf = buf.slice(idx + 2)
       const m = frame.match(/^event: ([A-Za-z]+)\ndata: ([\s\S]*)$/)
       if (!m) continue
-      if (m[1] === "run") { try { onRun(JSON.parse(m[2])); } catch (e) {} }
-      else if (m[1] === "done") {
-        try { doneJ = JSON.parse(m[2]); } catch (e) { doneJ = null; }
+      if (m[1] === "run") {
+        try {
+          onRun(JSON.parse(m[2]))
+        } catch (e) {}
+      } else if (m[1] === "done") {
+        try {
+          doneJ = JSON.parse(m[2])
+        } catch (e) {
+          doneJ = null
+        }
         gotDone = true
       }
     }
     if (it.done) break
   }
-  if (!gotDone || !doneJ) throw new Error("스트림이 끝나기 전에 연결이 끊어졌습니다.")
+  if (!gotDone || !doneJ)
+    throw new Error("스트림이 끝나기 전에 연결이 끊어졌습니다.")
   return doneJ
 }
 async function runStreamTurn(full, sid, cwd, ph, t0, goalMode) {
@@ -352,8 +401,11 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode) {
   tbox.className = "thoughts"
   const thead = document.createElement("div")
   thead.className = "thead"
-  thead.innerHTML = '<span class="tspin"></span><span class="ttype" hidden>통합</span>' +
-    '<span class="tsum">' + esc(t("th.preparing")) + "</span>" +
+  thead.innerHTML =
+    '<span class="tspin"></span><span class="ttype" hidden>통합</span>' +
+    '<span class="tsum">' +
+    esc(t("th.preparing")) +
+    "</span>" +
     '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button>'
   const tbody = document.createElement("div")
   tbody.className = "tbody"
@@ -363,20 +415,32 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode) {
   ph._tbox = tbox
   const headTgl = thead.querySelector(".ttoggle")
   if (headTgl) headTgl.hidden = true
-  const tstate = { rows: new Map(), texts: [], body: tbody, tbox,
-    headSpin: thead.children[0], headSum: thead.children[2], headTgl, last: "" }
+  const tstate = {
+    rows: new Map(),
+    texts: [],
+    body: tbody,
+    tbox,
+    headSpin: thead.children[0],
+    headSum: thead.children[2],
+    headTgl,
+    last: "",
+  }
   tbox._tstate = tstate
   const ctl = new AbortController()
   activeStreamAbort = ctl
   setSendStop(true)
   try {
-    const j = await postChatStream(full, sid, cwd, ctl.signal, (ev) => updateThought(tbox, tstate, ev))
+    const j = await postChatStream(full, sid, cwd, ctl.signal, (ev) =>
+      updateThought(tbox, tstate, ev),
+    )
     const fr = finishAiTurn(j, ph, goalMode)
     sealAiTurn(ph, t0, fr)
   } catch (err) {
     const aborted = err && err.name === "AbortError"
     const base = tstate.texts.join("").trim()
-    const alt = base ? base + (aborted ? "\n\n[중단됨]" : "") : "전송 실패: " + err
+    const alt = base
+      ? base + (aborted ? "\n\n[중단됨]" : "")
+      : "전송 실패: " + err
     const fr = finishAiTurn({ text: alt, session_id: null }, ph, null)
     sealAiTurn(ph, t0, fr)
   } finally {
@@ -387,12 +451,20 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode) {
 $("#f").addEventListener("submit", async (e) => {
   e.preventDefault()
   try {
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+    if (
+      typeof Notification !== "undefined" &&
+      Notification.permission === "default"
+    ) {
       const pr = Notification.requestPermission()
       if (pr && pr.catch) pr.catch(() => {})
     }
   } catch (err) {}
-  if (activeStreamAbort) { try { activeStreamAbort.abort(); } catch (err) {} return; }
+  if (activeStreamAbort) {
+    try {
+      activeStreamAbort.abort()
+    } catch (err) {}
+    return
+  }
   const text = input.value.trim()
   if (!text) return
   if (inputGated()) {
@@ -400,7 +472,8 @@ $("#f").addEventListener("submit", async (e) => {
     return
   }
   if (text.startsWith("/")) pendingPrefix = null
-  let goalMode = null, sendText = null
+  let goalMode = null,
+    sendText = null
   if (text === "/help" || text.startsWith("/help ")) {
     input.value = ""
     slash.style.display = "none"
@@ -420,7 +493,11 @@ $("#f").addEventListener("submit", async (e) => {
     if (!obj) {
       const cc0 = curConv()
       if (cc0 && cc0.goal) openRside("goal")
-      else addMsg("ai", "진행 중인 목표가 없습니다. `/goal 목표 내용` 으로 시작하세요.")
+      else
+        addMsg(
+          "ai",
+          "진행 중인 목표가 없습니다. `/goal 목표 내용` 으로 시작하세요.",
+        )
       return
     }
     sendText = goalSetPrompt(obj)
@@ -463,9 +540,14 @@ $("#f").addEventListener("submit", async (e) => {
   saveConv(text.slice(0, 30))
   const meTs = Date.now()
   if (skipEcho) skipEcho = false
-  else { addMsg("me", text, null, timeStr(meTs)); saveMsg("me", text, { ts: meTs }); }
+  else {
+    addMsg("me", text, null, timeStr(meTs))
+    saveMsg("me", text, { ts: meTs })
+  }
   if (text === "/copy" || text.startsWith("/copy ")) {
-    const done = (await copyText(lastAiText())) ? "복사했습니다." : "복사할 답변이 없습니다."
+    const done = (await copyText(lastAiText()))
+      ? "복사했습니다."
+      : "복사할 답변이 없습니다."
     addMsg("ai", done)
     saveMsg("ai", done)
     drawConvs()
@@ -478,16 +560,28 @@ $("#f").addEventListener("submit", async (e) => {
     touchLive()
     const cwd = (cc0 && cc0.cwd) || serverCwd || ""
     if (text.startsWith("/") && sendText === null) {
-      const r = await fetch("/api/chat", { method: "POST",
+      const r = await fetch("/api/chat", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: full, session_id: sessionId, cwd }) })
+        body: JSON.stringify({ message: full, session_id: sessionId, cwd }),
+      })
       const j = await r.json()
       if (j.text === "__COPY__") {
-        const prev = [...chat.querySelectorAll(".msg.ai")].filter((n) => n !== ph).pop()
+        const prev = [...chat.querySelectorAll(".msg.ai")]
+          .filter((n) => n !== ph)
+          .pop()
         ph.dataset.raw = await copyText(prev ? prev.dataset.raw || "" : "")
         ph.innerHTML = esc(ph.dataset.raw)
-      } else if (j.new_session) { sessionId = null; convKey = null; userFreshStart = true; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); }
-      else {
+      } else if (j.new_session) {
+        sessionId = null
+        convKey = null
+        userFreshStart = true
+        chat.innerHTML = ""
+        $("#cwd").textContent = serverCwd
+        setRoute("/")
+        updateGate()
+        drawRside()
+      } else {
         const fr = finishAiTurn(j, ph, goalMode)
         sealAiTurn(ph, t0, fr)
       }

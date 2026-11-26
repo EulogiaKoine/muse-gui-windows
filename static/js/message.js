@@ -1,4 +1,4 @@
-"use strict";
+"use strict"
 // == muse-gui/js/message.js ==
 // Chat bubbles, fold, edit, decorate, link/table helpers.
 function addMsg(who, text, think, foot, withActs, extra) {
@@ -6,22 +6,45 @@ function addMsg(who, text, think, foot, withActs, extra) {
   d.className = "msg " + who
   d.dataset.raw = text
   d.dataset.mi = chat.querySelectorAll(".msg").length
-  let html = ((extra && extra.thoughts && extra.thoughts.length) ? renderThoughtsStatic(extra.thoughts) : "") +
-    renderText(text) + (think ? "<details><summary>상세</summary>" + esc(think) + "</details>" : "")
+  let html =
+    (extra && extra.thoughts && extra.thoughts.length
+      ? renderThoughtsStatic(extra.thoughts)
+      : "") +
+    renderText(text) +
+    (think
+      ? "<details><summary>상세</summary>" + esc(think) + "</details>"
+      : "")
   if (withActs === undefined) withActs = true
   if (who === "ai") {
-    chat.querySelectorAll('.msg.ai [data-retry]').forEach((b) => b.remove())
-    if (withActs) html += '<div class="acts"><button type="button" data-retry title="재시도 (마지막 질문을 새 세션으로 분기)">' + ICON_RETRY + '</button><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>"
-  }
-  else html += '<div class="acts"><button type="button" data-retry title="재시도 (이 메시지부터 새 세션으로 분기)">' + ICON_RETRY + '</button><button type="button" data-copy title="복사">' + ICON_COPY + '</button><button type="button" data-edit title="수정 후 다시 전송">✎</button></div>'
+    chat.querySelectorAll(".msg.ai [data-retry]").forEach((b) => b.remove())
+    if (withActs)
+      html +=
+        '<div class="acts"><button type="button" data-retry title="재시도 (마지막 질문을 새 세션으로 분기)">' +
+        ICON_RETRY +
+        '</button><button type="button" data-copy title="복사">' +
+        ICON_COPY +
+        "</button></div>"
+  } else
+    html +=
+      '<div class="acts"><button type="button" data-retry title="재시도 (이 메시지부터 새 세션으로 분기)">' +
+      ICON_RETRY +
+      '</button><button type="button" data-copy title="복사">' +
+      ICON_COPY +
+      '</button><button type="button" data-edit title="수정 후 다시 전송">✎</button></div>'
   if (foot) html += '<div class="meta">' + esc(foot) + "</div>"
   if (who === "me" && text.length >= 200) {
     d.classList.add("folded")
     const ai = html.indexOf('<div class="acts">')
     const content = ai >= 0 ? html.slice(0, ai) : html
     const rest = ai >= 0 ? html.slice(ai) : ""
-    html = '<div class="mfold">' + content + '<div class="foldfade"></div></div>' + rest +
-      '<button type="button" class="foldbtn" data-fold title="펼치기/접기">' + ICON_CHEVD + "</button>"
+    html =
+      '<div class="mfold">' +
+      content +
+      '<div class="foldfade"></div></div>' +
+      rest +
+      '<button type="button" class="foldbtn" data-fold title="펼치기/접기">' +
+      ICON_CHEVD +
+      "</button>"
   }
   d.innerHTML = html
   decorateCode(d)
@@ -35,8 +58,17 @@ function addMsg(who, text, think, foot, withActs, extra) {
 function resolveLinkPath(p) {
   p = (p || "").trim()
   if (!p) return ""
-  if (/^[A-Za-z]:[\\/]/.test(p) || p[0] === "/" || p[0] === "~" || p.startsWith("\\\\")) return p
-  const base = ((curConv() && curConv().cwd) || serverCwd || "").replace(/\/+$/, "")
+  if (
+    /^[A-Za-z]:[\\/]/.test(p) ||
+    p[0] === "/" ||
+    p[0] === "~" ||
+    p.startsWith("\\\\")
+  )
+    return p
+  const base = ((curConv() && curConv().cwd) || serverCwd || "").replace(
+    /\/+$/,
+    "",
+  )
   if (p.startsWith("./")) p = p.slice(2)
   return base ? base + "/" + p : p
 }
@@ -53,9 +85,11 @@ async function openPathLink(a) {
   const abs = a.dataset.abs || resolveLinkPath(a.dataset.path)
   if (!abs) return
   try {
-    const r = await fetch("/api/open-folder", { method: "POST",
+    const r = await fetch("/api/open-folder", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: abs }) })
+      body: JSON.stringify({ path: abs }),
+    })
     const j = await r.json()
     if (!j.ok) alert("열기 실패: " + (j.error || abs))
   } catch (e) {
@@ -99,7 +133,8 @@ function decorateTables(el) {
     const tbl = w.querySelector("table")
     if (!tbl || w.querySelector("[data-tblcopy]")) return
     const rows = [...tbl.rows].map((tr) =>
-      [...tr.cells].map((td) => td.textContent))
+      [...tr.cells].map((td) => td.textContent),
+    )
     const b = document.createElement("button")
     b.type = "button"
     b.setAttribute("data-tblcopy", "")
@@ -107,8 +142,11 @@ function decorateTables(el) {
     b.innerHTML = ICON_COPY
     const menu = document.createElement("div")
     menu.className = "tblmenu"
-    menu.hidden = true;
-    [["md", "마크다운"], ["csv", "CSV"]].forEach(([fmt, label]) => {
+    menu.hidden = true
+    ;[
+      ["md", "마크다운"],
+      ["csv", "CSV"],
+    ].forEach(([fmt, label]) => {
       const o = document.createElement("button")
       o.type = "button"
       o.textContent = label

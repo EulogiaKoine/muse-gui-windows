@@ -1,4 +1,4 @@
-"use strict";
+"use strict"
 // == muse-gui/js/i18n.js ==
 // STR dictionary, locale state, t(), applyLang().
 const STR = {
@@ -13,18 +13,21 @@ const STR = {
     "foot.model": "모델",
     "foot.effort": "effort",
     "plus.title": "기능 추가",
-    "yolo.warn": "사용자 승인 절차 제거 및 샌드박스 격리 해제(작업 디렉터리 바깥 전역 접근 가능).",
+    "yolo.warn":
+      "사용자 승인 절차 제거 및 샌드박스 격리 해제(작업 디렉터리 바깥 전역 접근 가능).",
     "settings.language": "언어",
     "gate.pickNew": "새 대화를 시작하려면 작업 디렉터리를 먼저 선택하세요.",
     "gate.pickBtn": "작업 디렉터리 선택",
     "gate.pick": "이 대화의 작업 디렉터리를 선택해야 입력할 수 있습니다.",
     "gate.resumePre": "세션 ",
-    "gate.resumePost": " — 이 디렉터리에서 내부 프로세스로 이어가려면 버튼을 누르세요.",
+    "gate.resumePost":
+      " — 이 디렉터리에서 내부 프로세스로 이어가려면 버튼을 누르세요.",
     "gate.resumeBtn": "이 세션 이어가기(내부 프로세스 재개)",
     "rside.empty": "열린 탭이 없습니다",
     "rside.emptyHint": "/goal · /help 로 탭을 여세요",
     "cwd.label": "작업 경로",
-    "goal.emptyHtml": "진행 중인 목표가 없습니다.<br><code>/goal 목표 내용</code> 으로 시작하세요.",
+    "goal.emptyHtml":
+      "진행 중인 목표가 없습니다.<br><code>/goal 목표 내용</code> 으로 시작하세요.",
     "chip.struct": "이 폴더 구조 설명해줘",
     "chip.viz": "viz-html 예시 보여줘",
     "th.thinking": "생각 중",
@@ -46,8 +49,10 @@ const STR = {
     "conv.sort.name": "이름순",
     "conv.sort.created": "생성순",
     "conv.adopted": "가져온 세션",
-    "conv.saveTrim": "저장 공간이 부족해 이전 대화의 세부 기록 일부를 줄여서 저장했습니다.",
-    "conv.saveFail": "저장 공간이 부족해 대화를 저장하지 못했습니다. 오래된 대화를 삭제해 주세요.",
+    "conv.saveTrim":
+      "저장 공간이 부족해 이전 대화의 세부 기록 일부를 줄여서 저장했습니다.",
+    "conv.saveFail":
+      "저장 공간이 부족해 대화를 저장하지 못했습니다. 오래된 대화를 삭제해 주세요.",
     "th.fulllog": "전체 로그 보기",
     "th.loading": "불러오는 중…",
     "th.cut": "잘림",
@@ -63,7 +68,8 @@ const STR = {
     "foot.model": "model",
     "foot.effort": "effort",
     "plus.title": "Add features",
-    "yolo.warn": "Removes user approval and sandbox isolation (global access outside the work directory possible).",
+    "yolo.warn":
+      "Removes user approval and sandbox isolation (global access outside the work directory possible).",
     "settings.language": "Language",
     "gate.pickNew": "Select a working directory to start a new chat.",
     "gate.pickBtn": "Select directory",
@@ -74,7 +80,8 @@ const STR = {
     "rside.empty": "No open tabs",
     "rside.emptyHint": "Open tabs with /goal · /help",
     "cwd.label": "Work dir",
-    "goal.emptyHtml": "No active goal.<br>Start with <code>/goal your goal</code>.",
+    "goal.emptyHtml":
+      "No active goal.<br>Start with <code>/goal your goal</code>.",
     "chip.struct": "Explain this folder structure",
     "chip.viz": "Show a viz-html example",
     "th.thinking": "Thinking",
@@ -96,12 +103,14 @@ const STR = {
     "conv.sort.name": "Name",
     "conv.sort.created": "Created",
     "conv.adopted": "Adopted session",
-    "conv.saveTrim": "Storage is low; older detail logs were trimmed when saving.",
-    "conv.saveFail": "Storage full; conversations could not be saved. Please delete old conversations.",
+    "conv.saveTrim":
+      "Storage is low; older detail logs were trimmed when saving.",
+    "conv.saveFail":
+      "Storage full; conversations could not be saved. Please delete old conversations.",
     "th.fulllog": "View full log",
     "th.loading": "Loading…",
     "th.cut": "cut",
-  }
+  },
 }
 let langCur = "ko"
 function t(k) {
@@ -118,7 +127,9 @@ function applyLang(l, save) {
   if (l !== "ko" && l !== "en") l = "ko"
   langCur = l
   if (save !== false) {
-    try { saveTheme({ lang: l }) } catch (e) {}
+    try {
+      saveTheme({ lang: l })
+    } catch (e) {}
   }
   setText("#lobbysub", t("lobby.sub"))
   const inp = $("#in")
@@ -129,7 +140,10 @@ function applyLang(l, save) {
   setText("#lab-model", t("foot.model"))
   setText("#lab-effort", t("foot.effort"))
   const plus = $("#plus")
-  if (plus) { plus.title = t("plus.title"); plus.setAttribute("aria-label", t("plus.title")) }
+  if (plus) {
+    plus.title = t("plus.title")
+    plus.setAttribute("aria-label", t("plus.title"))
+  }
   setText("#cwdlabel", t("cwd.label"))
   setText("#rsideempty1", t("rside.empty"))
   setText("#rsideempty2", t("rside.emptyHint"))

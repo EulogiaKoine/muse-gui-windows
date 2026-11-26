@@ -1,24 +1,42 @@
-"use strict";
+"use strict"
 // == muse-gui/js/conv.js ==
 // Conversation state, list, sort UI, rename, gate, open, fs picker, nav.
 "use strict"
 const $ = (s) => document.querySelector(s)
-const chat = $("#chat"), input = $("#in"), slash = $("#slash")
-let slashList = [], slashIdx = 0, sessionId = null, convKey = null, userFreshStart = false
+const chat = $("#chat"),
+  input = $("#in"),
+  slash = $("#slash")
+let slashList = [],
+  slashIdx = 0,
+  sessionId = null,
+  convKey = null,
+  userFreshStart = false
 const MAX_MSGS = 200
 function loadConvs() {
   try {
     const a = JSON.parse(localStorage.getItem("muse-gui-convs") || "[]")
     return a.map((c) => {
       const msgs = Array.isArray(c.msgs) ? c.msgs : []
-      return { k: c.k, t: c.t || "새 대화",
-        sid: c.sid || null, cwd: c.cwd || null, pin: !!c.pin, tManual: !!c.tManual,
-        goal: c.goal && c.goal.objective ? { objective: c.goal.objective,
-          items: normGoalItems(c.goal.items), active: !!c.goal.active } : null,
+      return {
+        k: c.k,
+        t: c.t || "새 대화",
+        sid: c.sid || null,
+        cwd: c.cwd || null,
+        pin: !!c.pin,
+        tManual: !!c.tManual,
+        goal:
+          c.goal && c.goal.objective
+            ? {
+                objective: c.goal.objective,
+                items: normGoalItems(c.goal.items),
+                active: !!c.goal.active,
+              }
+            : null,
         at: c.at || (msgs.length && msgs[msgs.length - 1].ts) || 0,
         createdAt: c.createdAt || null,
         scroll: typeof c.scroll === "number" ? c.scroll : null,
-        msgs }
+        msgs,
+      }
     })
   } catch (e) {
     return []
@@ -27,16 +45,45 @@ function loadConvs() {
 let convs = loadConvs()
 let persistWarned = false
 function persistConvs() {
-  const save = (data) => localStorage.setItem("muse-gui-convs", JSON.stringify(data))
+  const save = (data) =>
+    localStorage.setItem("muse-gui-convs", JSON.stringify(data))
   try {
     save(slimConvsForSave(convs))
     return
   } catch (e) {}
   try {
-    save(slimConvsForSave(convs).map((c) => ({ k: c.k, t: c.t, sid: c.sid, cwd: c.cwd, pin: c.pin, tManual: c.tManual, goal: null, at: c.at, createdAt: c.createdAt, scroll: null, msgs: (c.msgs || []).map((m) => ({ who: m.who, text: String(m.text || "").slice(0, 2000), ts: m.ts })) })))
-    if (!persistWarned) { persistWarned = true; try { alert(t("conv.saveTrim")) } catch (_) {} }
+    save(
+      slimConvsForSave(convs).map((c) => ({
+        k: c.k,
+        t: c.t,
+        sid: c.sid,
+        cwd: c.cwd,
+        pin: c.pin,
+        tManual: c.tManual,
+        goal: null,
+        at: c.at,
+        createdAt: c.createdAt,
+        scroll: null,
+        msgs: (c.msgs || []).map((m) => ({
+          who: m.who,
+          text: String(m.text || "").slice(0, 2000),
+          ts: m.ts,
+        })),
+      })),
+    )
+    if (!persistWarned) {
+      persistWarned = true
+      try {
+        alert(t("conv.saveTrim"))
+      } catch (_) {}
+    }
   } catch (_) {
-    if (!persistWarned) { persistWarned = true; try { alert(t("conv.saveFail")) } catch (_) {} }
+    if (!persistWarned) {
+      persistWarned = true
+      try {
+        alert(t("conv.saveFail"))
+      } catch (_) {}
+    }
   }
 }
 
@@ -45,49 +92,88 @@ function curConv() {
 }
 let serverCwd = ""
 function setRoute(p) {
-  try { history.replaceState(null, "", p); } catch (e) {}
+  try {
+    history.replaceState(null, "", p)
+  } catch (e) {}
 }
 function saveConv(title) {
-  convKey = convKey || ("c" + Date.now())
+  convKey = convKey || "c" + Date.now()
   const ex = curConv()
   if (ex) {
     if (title && !ex.tManual && (ex.msgs || []).length === 0) ex.t = title
-  }
-  else convs.unshift({ k: convKey, t: title || "새 대화", sid: null, cwd: serverCwd, msgs: [], at: Date.now(), createdAt: Date.now() })
+  } else
+    convs.unshift({
+      k: convKey,
+      t: title || "새 대화",
+      sid: null,
+      cwd: serverCwd,
+      msgs: [],
+      at: Date.now(),
+      createdAt: Date.now(),
+    })
   persistConvs()
   drawConvs()
 }
 function saveMsg(who, text, meta) {
   const c = curConv()
   if (!c) return
-  c.msgs.push({ who, text, ts: (meta && meta.ts) || Date.now(), el: (meta && meta.el) || "", th: (meta && meta.th) || null })
+  c.msgs.push({
+    who,
+    text,
+    ts: (meta && meta.ts) || Date.now(),
+    el: (meta && meta.el) || "",
+    th: (meta && meta.th) || null,
+  })
   if (c.msgs.length > MAX_MSGS) c.msgs.splice(0, c.msgs.length - MAX_MSGS)
   if (sessionId) c.sid = sessionId
   c.at = Date.now()
   persistConvs()
 }
-let liveSessions = [];
-try { liveSessions = JSON.parse(localStorage.getItem("muse-gui-live") || "[]"); } catch (e) { liveSessions = []; }
-if (!Array.isArray(liveSessions)) liveSessions = [];
+let liveSessions = []
+try {
+  liveSessions = JSON.parse(localStorage.getItem("muse-gui-live") || "[]")
+} catch (e) {
+  liveSessions = []
+}
+if (!Array.isArray(liveSessions)) liveSessions = []
 function persistLive() {
-  try { localStorage.setItem("muse-gui-live", JSON.stringify(liveSessions.slice(0, 5))); } catch (e) {}
+  try {
+    localStorage.setItem(
+      "muse-gui-live",
+      JSON.stringify(liveSessions.slice(0, 5)),
+    )
+  } catch (e) {}
 }
 // resume-consented convs (kept across tab switches, latest N)
 function keepN() {
-  const n = +((loadTheme().keepN ?? 3))
+  const n = +(loadTheme().keepN ?? 3)
   return Math.min(5, Math.max(1, n || 3))
 }
 function touchLive() {
   if (!convKey) return
-  liveSessions = [convKey, ...liveSessions.filter((x) => x !== convKey)].slice(0, keepN())
+  liveSessions = [convKey, ...liveSessions.filter((x) => x !== convKey)].slice(
+    0,
+    keepN(),
+  )
   persistLive()
 }
 function inputGated() {
   const c = curConv()
   const g = gateFor(c, !!c && liveSessions.includes(c.k))
-  if (g === "pick-new") return { msg: t("gate.pickNew"), btn: t("gate.pickBtn"), act: "pick-new" }
-  if (g === "resume") return { msg: t("gate.resumePre") + c.sid.slice(0, 8) + (c.cwd ? " · " + c.cwd : "") + t("gate.resumePost"), btn: t("gate.resumeBtn"), act: "resume" }
-  if (g === "pick") return { msg: t("gate.pick"), btn: t("gate.pickBtn"), act: "pick" }
+  if (g === "pick-new")
+    return { msg: t("gate.pickNew"), btn: t("gate.pickBtn"), act: "pick-new" }
+  if (g === "resume")
+    return {
+      msg:
+        t("gate.resumePre") +
+        c.sid.slice(0, 8) +
+        (c.cwd ? " · " + c.cwd : "") +
+        t("gate.resumePost"),
+      btn: t("gate.resumeBtn"),
+      act: "resume",
+    }
+  if (g === "pick")
+    return { msg: t("gate.pick"), btn: t("gate.pickBtn"), act: "pick" }
   return null
 }
 let serverPlatform = ""
@@ -99,16 +185,21 @@ function updateGate() {
   $("#gatemsg").textContent = g.msg
   $("#gatebtn").textContent = g.btn
   $("#gatebtn").dataset.act = g.act
-  $("#gateenv").innerHTML = (g.act === "resume" || !serverPlatform) ? "" :
-    '<span class="oschip">' + esc(serverPlatform) + "</span><span>" + esc(serverCwd || "") + "</span>"
+  $("#gateenv").innerHTML =
+    g.act === "resume" || !serverPlatform
+      ? ""
+      : '<span class="oschip">' +
+        esc(serverPlatform) +
+        "</span><span>" +
+        esc(serverCwd || "") +
+        "</span>"
 }
 function updateOsChip() {
   const c = $("#oschip")
   if (serverPlatform) {
     c.hidden = false
     c.textContent = serverPlatform
-  }
-  else c.hidden = true
+  } else c.hidden = true
 }
 let scrollSaveT = null
 function saveScroll() {
@@ -118,15 +209,18 @@ function saveScroll() {
   persistConvs()
 }
 function backfillCwd(c) {
-  fetch("/api/session_workspace?session_id=" + encodeURIComponent(c.sid)).then((r) => r.json()).then((j) => {
-    if (curConv() !== c) return
-    if (j.ok && j.cwd) {
-      c.cwd = j.cwd
-      persistConvs()
-      $("#cwd").textContent = j.cwd
-    }
-    updateGate()
-  }).catch(() => {})
+  fetch("/api/session_workspace?session_id=" + encodeURIComponent(c.sid))
+    .then((r) => r.json())
+    .then((j) => {
+      if (curConv() !== c) return
+      if (j.ok && j.cwd) {
+        c.cwd = j.cwd
+        persistConvs()
+        $("#cwd").textContent = j.cwd
+      }
+      updateGate()
+    })
+    .catch(() => {})
 }
 function openConv(k) {
   const c = convs.find((x) => x.k === k)
@@ -136,15 +230,27 @@ function openConv(k) {
   sessionId = c.sid || null
   $("#cwd").textContent = c.cwd || serverCwd || ""
   chat.innerHTML = ""
-  c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m), undefined, m.th ? { thoughts: m.th } : null))
-  chat.scrollTop = (typeof c.scroll === "number") ? c.scroll : chat.scrollHeight
+  c.msgs.forEach((m) =>
+    addMsg(
+      m.who,
+      m.text,
+      null,
+      footFor(m),
+      undefined,
+      m.th ? { thoughts: m.th } : null,
+    ),
+  )
+  chat.scrollTop = typeof c.scroll === "number" ? c.scroll : chat.scrollHeight
   setRoute("/" + (c.sid || c.k))
   drawConvs()
   updateGate()
   drawRside()
   if (c.sid && !c.cwd) backfillCwd(c)
 }
-let fsCb = null, fsCur = "", fsParent = null, fsEntries = []
+let fsCb = null,
+  fsCur = "",
+  fsParent = null,
+  fsEntries = []
 async function openFsPicker(cb) {
   fsCb = cb
   $("#fsfilter").value = ""
@@ -182,12 +288,14 @@ async function fsLoad(p) {
   try {
     const r = await fetch("/api/fs/list?path=" + encodeURIComponent(p))
     if (r.status === 404) {
-      box.innerHTML = '<div class="fempty">서버가 구버전입니다. muse-gui를 다시 시작하세요.</div>'
+      box.innerHTML =
+        '<div class="fempty">서버가 구버전입니다. muse-gui를 다시 시작하세요.</div>'
       return
     }
     const j = await r.json()
     if (!j.ok) {
-      box.innerHTML = '<div class="fempty">' + esc(j.error || "읽기 실패") + "</div>"
+      box.innerHTML =
+        '<div class="fempty">' + esc(j.error || "읽기 실패") + "</div>"
       return
     }
     fsCur = j.path
@@ -214,14 +322,17 @@ function renderFsCrumbs(path) {
   }
   mk("/", "/")
   let acc = ""
-  path.split("/").filter(Boolean).forEach((seg) => {
-    acc += "/" + seg
-    const s = document.createElement("span")
-    s.className = "sep"
-    s.textContent = "/"
-    box.appendChild(s)
-    mk(seg, acc)
-  })
+  path
+    .split("/")
+    .filter(Boolean)
+    .forEach((seg) => {
+      acc += "/" + seg
+      const s = document.createElement("span")
+      s.className = "sep"
+      s.textContent = "/"
+      box.appendChild(s)
+      mk(seg, acc)
+    })
 }
 function renderFsList() {
   const box = $("#fslist")
@@ -286,24 +397,25 @@ function drawConvs() {
           }
         }
         drawConvs()
-      };
+      }
       ok.onclick = (e) => {
         e.stopPropagation()
         done(true)
-      };
+      }
       ta.onkeydown = (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault()
           done(true)
-        }
-        else if (e.key === "Escape") done(false)
-      };
+        } else if (e.key === "Escape") done(false)
+      }
       ta.onblur = () => done(true)
       row.append(ta, ok)
       box.appendChild(row)
       setTimeout(() => {
         ta.focus()
-        try { ta.select(); } catch (e) {}
+        try {
+          ta.select()
+        } catch (e) {}
       }, 0)
       return
     }
@@ -312,7 +424,11 @@ function drawConvs() {
     b.type = "button"
     b.className = "ctitle"
     b.dataset.k = c.k
-    b.title = (c.sid ? c.sid.slice(0, 8) + " · " : "") + c.msgs.length + "개 메시지" + (c.cwd ? "\n" + c.cwd : "")
+    b.title =
+      (c.sid ? c.sid.slice(0, 8) + " · " : "") +
+      c.msgs.length +
+      "개 메시지" +
+      (c.cwd ? "\n" + c.cwd : "")
     if (c.k === convKey) b.classList.add("active")
     b.onclick = () => openConv(c.k)
     row.appendChild(b)
@@ -367,7 +483,13 @@ $("#ctx").addEventListener("click", (e) => {
     drawConvs()
   } else if (act.dataset.act === "export") {
     exportConv(c)
-  } else if (confirm('"' + c.t + '" 대화와 muse 세션 기록을 함께 삭제할까요?\n(실행 중인 세션은 삭제되지 않습니다)')) {
+  } else if (
+    confirm(
+      '"' +
+        c.t +
+        '" 대화와 muse 세션 기록을 함께 삭제할까요?\n(실행 중인 세션은 삭제되지 않습니다)',
+    )
+  ) {
     const sid = c.sid || null
     convs = convs.filter((x) => x.k !== c.k)
     liveSessions = liveSessions.filter((x) => x !== c.k)
@@ -382,9 +504,11 @@ $("#ctx").addEventListener("click", (e) => {
     updateGate()
     drawRside()
     if (sid) {
-      fetch("/api/session/delete", { method: "POST",
+      fetch("/api/session/delete", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sid }) })
+        body: JSON.stringify({ session_id: sid }),
+      })
         .then((r) => r.json())
         .then((j) => {
           if (!j.ok) alert("세션 기록 삭제 실패: " + (j.text || "?"))
@@ -414,7 +538,7 @@ function renderSortMenu() {
       saveTheme({ convSort: id })
       drawConvs()
       hideSortMenu()
-    };
+    }
     box.appendChild(b)
   })
 }
@@ -449,12 +573,15 @@ $("#newchat").onclick = () => {
   input.focus()
 }
 $("#cwd").onclick = async () => {
-  const p = (($("#cwd") && $("#cwd").textContent) || "").trim() || serverCwd || ""
+  const p =
+    (($("#cwd") && $("#cwd").textContent) || "").trim() || serverCwd || ""
   if (!p) return
   try {
-    const r = await fetch("/api/open-folder", { method: "POST",
+    const r = await fetch("/api/open-folder", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: p }) })
+      body: JSON.stringify({ path: p }),
+    })
     const j = await r.json()
     if (!j.ok) alert("폴더 열기 실패: " + (j.error || p))
   } catch (err) {
@@ -467,35 +594,46 @@ $("#gatebtn").onclick = () => {
     touchLive()
     updateGate()
     input.focus()
-  }
-  else openFsPicker((p) => {
-    if (act === "pick-new") {
-      convKey = "c" + Date.now()
-      sessionId = null
-      convs.unshift({ k: convKey, t: "새 대화", sid: null, cwd: p, msgs: [], at: Date.now(), createdAt: Date.now() })
-      persistConvs()
-      drawConvs()
-      openConv(convKey)
-      input.focus()
-    } else {
-      const c = curConv()
-      if (c) {
-        c.cwd = p
+  } else
+    openFsPicker((p) => {
+      if (act === "pick-new") {
+        convKey = "c" + Date.now()
+        sessionId = null
+        convs.unshift({
+          k: convKey,
+          t: "새 대화",
+          sid: null,
+          cwd: p,
+          msgs: [],
+          at: Date.now(),
+          createdAt: Date.now(),
+        })
         persistConvs()
         drawConvs()
+        openConv(convKey)
+        input.focus()
+      } else {
+        const c = curConv()
+        if (c) {
+          c.cwd = p
+          persistConvs()
+          drawConvs()
+        }
+        $("#cwd").textContent = p
+        updateGate()
+        input.focus()
       }
-      $("#cwd").textContent = p
-      updateGate()
-      input.focus()
-    }
-  })
+    })
 }
 $("#fsclose").onclick = hideFsPicker
 $("#fscancel").onclick = hideFsPicker
-$("#fsok").onclick = () => { if (fsCb && fsCur) { const cb = fsCb
-hideFsPicker()
-cb(fsCur)
-} }
+$("#fsok").onclick = () => {
+  if (fsCb && fsCur) {
+    const cb = fsCb
+    hideFsPicker()
+    cb(fsCur)
+  }
+}
 $("#fswin").onclick = async () => {
   const b = $("#fswin")
   b.disabled = true
@@ -504,7 +642,8 @@ $("#fswin").onclick = async () => {
   try {
     const r = await fetch("/api/fs/pick-native", { method: "POST" })
     if (r.status === 404) {
-      $("#fssel").textContent = "서버가 구버전입니다. muse-gui를 다시 시작하세요."
+      $("#fssel").textContent =
+        "서버가 구버전입니다. muse-gui를 다시 시작하세요."
       return
     }
     const j = await r.json()
@@ -512,12 +651,11 @@ $("#fswin").onclick = async () => {
       const cb = fsCb
       hideFsPicker()
       if (cb) cb(j.path)
-    }
-    else if (j.error && j.error !== "취소됨.") $("#fssel").textContent = j.error
+    } else if (j.error && j.error !== "취소됨.")
+      $("#fssel").textContent = j.error
   } catch (e) {
     $("#fssel").textContent = "서버 연결 실패"
-  }
-  finally {
+  } finally {
     b.disabled = false
     b.textContent = old
   }
