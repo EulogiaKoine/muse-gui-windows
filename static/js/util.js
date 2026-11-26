@@ -74,18 +74,28 @@ function normGoalItems(data) {
         },
   )
 }
-function convToMd(c) {
+function convToMd(c, mode) {
+  const compact = mode === "prompt"
   const lines = ["# " + (c.t || "대화"), ""]
   if (c.sid) lines.push("- 세션: " + String(c.sid).slice(0, 8), "")
-  if (c.cwd) lines.push("- 작업 디렉터리: " + c.cwd, "")
-  ;(c.msgs || []).forEach((m) => {
+  if (c.cwd) lines.push("- 작업 디렉터리: " + c.cwd, "");
+  let msgs = c.msgs || []
+  if (compact && msgs.length > 60) {
+    lines.push("[앞부분 " + (msgs.length - 60) + "개 메시지 생략]", "")
+    msgs = msgs.slice(-60)
+  }
+  msgs.forEach((m) => {
     let t = String(m.text || "")
     t = goalFence(t, "plan").clean
     t = goalFence(t, "status").clean
-    t = t
-      .replace(/[ \t]+$/gm, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim()
+    if (compact) {
+      let n = 0
+      t = t.replace(/```viz-html[^\n]*\n[\s\S]*?```/g, (blk) => {
+        n++
+        return "[시각화 " + n + " 내용 생략 (원문 약 " + blk.length + "자)]"
+      })
+    }
+    t = t.replace(/[ \t]+$/gm, "").replace(/\n{3,}/g, "\n\n").trim()
     if (!t) return
     lines.push(m.who === "me" ? "## User" : "## Assistant", "")
     // timeStr is outside the test slice; guarded call (always present in browser)
@@ -95,7 +105,12 @@ function convToMd(c) {
     }
     lines.push(t, "")
   })
-  return lines.join("\n").trim() + "\n"
+  let out = lines.join("\n").trim() + "\n"
+  if (compact && out.length > 12000) {
+    const cut = out.length - 12000
+    out = "[앞부분 약 " + cut + "자 생략]\n" + out.slice(cut)
+  }
+  return out
 }
 function truncStr(s, n) {
   s = String(s == null ? "" : s)

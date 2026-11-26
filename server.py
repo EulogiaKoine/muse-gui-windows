@@ -417,6 +417,38 @@ def running_session_ids():
             if isinstance(s, dict)}
 
 
+SESSION_DIR_CACHE = {}
+SESSION_DIR_CACHE_MAX = 500
+SESSIONS_JSON_CACHE = {"at": 0.0, "data": None}
+SESSIONS_JSON_TTL = 10.0
+
+
+def sessions_json_live():
+    """`muse sessions --json` 결과를 TTL 캐시와 함께 돌려준다.
+
+    표시용 조회 전용이다. 삭제·보관의 실행 중 검사는 신선함이
+    필요하므로 running_session_ids()를 그대로 쓴다."""
+    now = time.monotonic()
+    hit = SESSIONS_JSON_CACHE["data"]
+    if hit is not None and now - SESSIONS_JSON_CACHE["at"] < SESSIONS_JSON_TTL:
+        return hit
+    try:
+        proc = subprocess.run(["muse", "sessions", "--json"],
+                              capture_output=True, text=True, timeout=30,
+                              stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    try:
+        data = json.loads(proc.stdout or "{}")
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    SESSIONS_JSON_CACHE["at"] = now
+    SESSIONS_JSON_CACHE["data"] = data
+    return data
+
+
 MAX_SUBAGENT_SIDS = 100
 MAX_SESSION_LOG_BYTES = 100 * 1024 * 1024
 SUBAGENT_CACHE = {}
@@ -539,15 +571,8 @@ def subagent_records(sids, cwd=None):
 
 def live_agents():
     """`muse sessions --json`를 사이드바용으로 정규화한다."""
-    try:
-        proc = subprocess.run(["muse", "sessions", "--json"],
-                              capture_output=True, text=True, timeout=30,
-                              stdin=subprocess.DEVNULL)
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    try:
-        data = json.loads(proc.stdout or "{}")
-    except json.JSONDecodeError:
+    data = sessions_json_live()
+    if data is None:
         return None
     out = []
     for s in data.get("sessions", []):
@@ -646,9 +671,23 @@ def usage_report():
 
 
 def find_session_dirs(sids):
-    """원장 sid들의 로그 디렉터리를 한 번의 walk로 찾는다."""
+    """원장 sid들의 로그 디렉터리를 한 번의 walk로 찾는다.
+
+    세션 디렉터리는 생성 후 이동하지 않으므로 찾은 경로는 캐시한다.
+    캐시 적중분은 디렉터리 존재 여부만 확인한다."""
+    want = set(sids)
+    found = {}
+    for s in list(want):
+        p = SESSION_DIR_CACHE.get(s)
+        if p is not None:
+            if os.path.isdir(p):
+                found[s] = p
+                want.discard(s)
+            else:
+                del SESSION_DIR_CACHE[s]
+    if not want:
+        return found
     root = os.path.realpath(sessions_root())
-    want, found = set(sids), {}
     for dirpath, dirnames, _ in os.walk(root):
         for d in list(dirnames):
             if d in want:
@@ -658,6 +697,10 @@ def find_session_dirs(sids):
             break
         dirnames[:] = [d for d in dirnames
                        if d not in ("subagent", "tool-outputs")]
+    for s, p in found.items():
+        SESSION_DIR_CACHE[s] = p
+        while len(SESSION_DIR_CACHE) > SESSION_DIR_CACHE_MAX:
+            SESSION_DIR_CACHE.pop(next(iter(SESSION_DIR_CACHE)))
     return found
 
 
@@ -1030,6 +1073,7 @@ def delete_session(sid):
         shutil.rmtree(real)
     except OSError as e:
         return False, "삭제 실패: %s" % e
+    SESSION_DIR_CACHE.pop(sid, None)
     return True, "세션 기록 삭제됨: %s" % real
 
 
@@ -1065,6 +1109,7 @@ def archive_session(sid, cwd):
         shutil.move(os.path.realpath(found), dest)
     except OSError as e:
         return False, "이동 실패: %s" % e
+    SESSION_DIR_CACHE.pop(sid, None)
     return True, "보관됨: %s" % dest
 
 
@@ -1509,7 +1554,8 @@ def prepare_workdir(cwd):
     for _d in (os.path.join(workdir, ".agent"),
                os.path.join(workdir, ".agent", "tmp"),
                os.path.join(workdir, ".agent", "memory"),
-               os.path.join(workdir, ".agent", "attachments")):
+               os.path.join(workdir, ".agent", "attachments"),
+               os.path.join(workdir, ".agent", "download")):
         try:
             os.makedirs(_d, exist_ok=True)
         except OSError:

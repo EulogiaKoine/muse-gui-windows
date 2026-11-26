@@ -295,52 +295,28 @@ t(
   "",
 )
 t("goalFence miss", R.goalFence("본문", "plan").data === null, "")
-t(
-  "normGoalItems",
-  (() => {
-    const a = R.normGoalItems(["a", { t: "b", done: 1 }])
-    return a.length === 2 && a[0].t === "a" && !a[0].done && a[1].done
-  })(),
-  "",
-)
-t(
-  "thoughtKind",
-  R.thoughtKind("model.meta.response") === "reason" &&
-    R.thoughtKind("tool.bash") === "terminal" &&
-    R.thoughtKind("tool:bash") === "terminal" &&
-    R.thoughtKind("tool.web_search") === "web" &&
-    R.thoughtKind("tool.read") === "file" &&
-    R.thoughtKind("reminder.agent.x") === "system" &&
-    R.thoughtKind("") === "system" &&
-    R.thoughtKind("tool.unknown_xyz") === "tool",
-  "",
-)
-t(
-  "truncStr",
-  R.truncStr("abcdef", 3) === "abc…" && R.truncStr("ab", 3) === "ab",
-  "",
-)
-t(
-  "convToMd",
-  (() => {
-    const md = R.convToMd({
-      t: "T",
-      sid: "s1abcd",
-      cwd: "/w",
-      msgs: [
-        { who: "me", text: "질문", ts: 1000 },
-        { who: "ai", text: '답\n```goal-plan\n[{"t":"a"}]\n```\n끝', ts: 2000 },
-      ],
-    })
-    return (
-      md.includes("## User") &&
-      md.includes("## Assistant") &&
-      md.includes("질문") &&
-      !md.includes("goal-plan")
-    )
-  })(),
-  "",
-)
+t("normGoalItems", (() => { const a = R.normGoalItems(["a", { t: "b", done: 1 }])
+return a.length === 2 && a[0].t === "a" && !a[0].done && a[1].done
+})(), "")
+t("thoughtKind", R.thoughtKind("model.meta.response") === "reason" && R.thoughtKind("tool.bash") === "terminal" && R.thoughtKind("tool:bash") === "terminal" && R.thoughtKind("tool.web_search") === "web" && R.thoughtKind("tool.read") === "file" && R.thoughtKind("reminder.agent.x") === "system" && R.thoughtKind("") === "system" && R.thoughtKind("tool.unknown_xyz") === "tool", "")
+t("truncStr", R.truncStr("abcdef", 3) === "abc…" && R.truncStr("ab", 3) === "ab", "")
+t("convToMd", (() => { const md = R.convToMd({ t: "T", sid: "s1abcd", cwd: "/w", msgs: [
+  { who: "me", text: "질문", ts: 1000 },
+  { who: "ai", text: "답\n```goal-plan\n[{\"t\":\"a\"}]\n```\n끝", ts: 2000 }] })
+  return md.includes("## User") && md.includes("## Assistant") && md.includes("질문") && !md.includes("goal-plan")
+  })(), "")
+t("convToMd prompt viz", (() => { const md = R.convToMd({ t: "T", msgs: [
+  { who: "ai", text: "그림\n```viz-html:360\n" + "x".repeat(5000) + "\n```\n끝" }] }, "prompt")
+  return md.includes("[시각화 1 내용 생략") && !md.includes("xxxx") && md.includes("끝")
+  })(), "")
+t("convToMd prompt cap", (() => { const msgs = []; for (let i = 0; i < 70; i++) msgs.push({ who: "me", text: "m" + i })
+  const md = R.convToMd({ t: "T", msgs }, "prompt")
+  return md.includes("10개 메시지 생략") && !md.includes("\nm0\n") && md.includes("m69")
+  })(), "")
+t("convToMd full keeps viz", (() => { const md = R.convToMd({ t: "T", msgs: [
+  { who: "ai", text: "a\n```viz-html\nzzz\n```" }] })
+  return md.includes("```viz-html") && md.includes("zzz")
+  })(), "")
 t("diff add", R.diffLineClass("+foo") === "td-add", "")
 t("diff del", R.diffLineClass("-foo") === "td-del", "")
 t("diff hunk", R.diffLineClass("@@ -1 +1 @@") === "td-hunk", "")
