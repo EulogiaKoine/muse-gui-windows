@@ -37,12 +37,37 @@ function startEdit(msgEl) {
   const old = msgEl.dataset.raw || ""
   msgEl.dataset.orig = msgEl.innerHTML
   msgEl.classList.add("editing")
-  msgEl.innerHTML =
-    '<textarea class="medit">' +
-    esc(old) +
-    "</textarea>" +
+  const mi0 = +(msgEl.dataset.mi ?? -1)
+  const cc0 = (typeof curConv === "function") ? curConv() : null
+  const srcAtts = (cc0 && cc0.msgs[mi0] && cc0.msgs[mi0].atts) || []
+  msgEl._editAtts = srcAtts.slice()
+  msgEl.innerHTML = '<div class="editatt"></div><textarea class="medit">' + esc(old) + "</textarea>" +
     '<div class="meditbar"><button type="button" class="optbtn" data-msave>저장</button>' +
     '<button type="button" class="optbtn" data-mcancel>취소</button></div>'
+  const renderEditAtts = () => {
+    const box = msgEl.querySelector(".editatt")
+    if (!box) return
+    box.innerHTML = ""
+    if (!msgEl._editAtts.length) { box.style.display = "none"; return }
+    box.style.display = ""
+    msgEl._editAtts.forEach((a, i) => {
+      const s = document.createElement("span")
+      s.className = "achip"
+      s.innerHTML = "<span>" + esc((a && a.name) || "?") + "</span> "
+      const x = document.createElement("button")
+      x.type = "button"
+      x.textContent = "×"
+      x.title = "제거"
+      x.onclick = (e) => {
+        e.stopPropagation()
+        msgEl._editAtts.splice(i, 1)
+        renderEditAtts()
+      }
+      s.appendChild(x)
+      box.appendChild(s)
+    })
+  }
+  renderEditAtts()
   const ta = msgEl.querySelector(".medit")
   if (ta) {
     ta.focus()
@@ -92,12 +117,13 @@ async function saveEditedMessage(msgEl, mi, newText) {
     cancelEdit(msgEl)
     return
   }
-  branchFromMessage(c, mi, newText)
+  branchFromMessage(c, mi, newText, (msgEl._editAtts || []).slice())
 }
-async function branchFromMessage(c, mi, newText) {
+async function branchFromMessage(c, mi, newText, atts) {
   const oldSid = c.sid || sessionId
-  c.msgs[mi] = { who: "me", text: newText, ts: Date.now(), el: "" }
+  c.msgs[mi] = { who: "me", text: newText, ts: Date.now(), el: "", atts: (atts && atts.length) ? atts : null }
   c.msgs.length = mi + 1
+  pendingAtts = ((atts && atts.length) ? atts.slice() : []).concat(pendingAtts)
   c.sid = null
   sessionId = null
   c.at = Date.now()
@@ -121,16 +147,12 @@ async function branchFromMessage(c, mi, newText) {
   skipEcho = true
   editingEl = null
   chat.innerHTML = ""
-  c.msgs.forEach((m) =>
-    addMsg(
-      m.who,
-      m.text,
-      null,
-      footFor(m),
-      undefined,
-      m.th ? { thoughts: m.th } : null,
-    ),
-  )
+  c.msgs.forEach((m) => {
+    const ex = {}
+    if (m.th) ex.thoughts = m.th
+    if (m.atts && m.atts.length) ex.atts = m.atts
+    addMsg(m.who, m.text, null, footFor(m), undefined, Object.keys(ex).length ? ex : null)
+  })
   chat.scrollTop = chat.scrollHeight
   setRoute("/" + c.k)
   input.value = newText
@@ -208,6 +230,12 @@ chat.addEventListener("click", async (e) => {
     toggleThoughtDetail(tgl)
     return
   }
+  const hd = e.target.closest(".thead, .tsubhead")
+  if (hd) {
+    const btn = hd.querySelector("[data-ttoggle]")
+    if (btn && !btn.hidden) toggleThoughtDetail(btn)
+    return
+  }
   const fb = e.target.closest("[data-fold]")
   if (fb) {
     const m = fb.closest(".msg")
@@ -242,7 +270,7 @@ chat.addEventListener("click", async (e) => {
       if (c && mi >= 0) {
         if (editingEl) cancelEdit(editingEl)
         if (c.msgs[mi] && c.msgs[mi].who === "me") {
-          branchFromMessage(c, mi, c.msgs[mi].text)
+          branchFromMessage(c, mi, c.msgs[mi].text, (c.msgs[mi].atts || []).slice())
         } else if (msgEl.classList.contains("ai")) {
           let qi = -1
           for (let q = Math.min(mi, c.msgs.length - 1); q >= 0; q--) {
@@ -251,7 +279,7 @@ chat.addEventListener("click", async (e) => {
               break
             }
           }
-          if (qi >= 0) branchFromMessage(c, qi, c.msgs[qi].text)
+          if (qi >= 0) branchFromMessage(c, qi, c.msgs[qi].text, (c.msgs[qi].atts || []).slice())
         }
       }
     }
@@ -261,6 +289,11 @@ chat.addEventListener("click", async (e) => {
   if (pl) {
     e.preventDefault()
     openPathLink(pl)
+    return
+  }
+  const oa = e.target.closest("[data-openatt]")
+  if (oa) {
+    openAgentFile(oa.dataset.openatt || "")
     return
   }
   const b = e.target.closest("[data-copy]")
@@ -284,13 +317,31 @@ function notifyCompletion(title, body) {
     return false
   }
 }
-function finishAiTurn(j, ph, goalMode) {
-  sessionId = j.session_id || sessionId
-  let justDone = null,
-    th = null
+const busyConvs = new Set()
+let activeTurnConv = null
+function turnIsCurrent(conv) {
+  return !conv || conv === curConv()
+}
+function famRoot(c) {
+  return (c && c.sub && c.sub.parent) || (c && c.k)
+}
+function isFamilyConv(a, b) {
+  if (!a || !b || a.k === b.k) return false
+  const ra = famRoot(a), rb = famRoot(b)
+  return ra === b.k || rb === a.k || ra === rb
+}
+function goalPendingIn(cc) {
+  const g = cc && cc.goal
+  return (g && g.active && g.items && g.items.some((x) => !x.done)) ? g : null
+}
+function finishAiTurn(j, ph, goalMode, conv) {
+  const cc = conv || curConv()
+  if (cc && j.session_id) cc.sid = j.session_id
+  if (turnIsCurrent(conv)) sessionId = j.session_id || sessionId
+  let justDone = null, th = null
   if (goalMode) {
     const gf = goalFence(j.text || "", goalMode)
-    const gcc = curConv()
+    const gcc = cc
     if (gcc && gcc.goal) {
       const was = gcc.goal.items.filter((x) => x.done).length
       if (goalMode === "plan" && gf.data)
@@ -320,12 +371,11 @@ function finishAiTurn(j, ph, goalMode) {
     drawRside()
   }
   if (j.cwd) {
-    const cc = curConv()
     if (cc) {
       cc.cwd = j.cwd
       persistConvs()
     }
-    $("#cwd").textContent = j.cwd
+    if (turnIsCurrent(conv)) $("#cwd").textContent = j.cwd
   }
   const tbox = ph._tbox || null
   if (tbox) {
@@ -333,35 +383,44 @@ function finishAiTurn(j, ph, goalMode) {
     th = collectThoughts(tbox)
   }
   ph.dataset.raw = j.text || "(빈 응답)"
-  ph.innerHTML =
-    renderText(ph.dataset.raw) +
-    '<div class="acts"><button type="button" data-copy title="복사">' +
-    ICON_COPY +
-    "</button></div>"
-  notifyCompletion("muse-gui · 응답 완료", ph.dataset.raw)
+  ph.innerHTML = renderText(ph.dataset.raw) + '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>"
+  if (!(goalMode && goalPendingIn(cc))) notifyCompletion("muse-gui · 응답 완료", ph.dataset.raw)
   if (tbox) ph.prepend(tbox)
   decorateCode(ph)
   decorateMath(ph)
   decorateTables(ph)
   return { justDone, th }
 }
-function sealAiTurn(ph, t0, fr) {
+function saveMsgTo(c, who, text, meta) {
+  if (!c) { saveMsg(who, text, meta); return }
+  const keepKey = convKey, keepSid = sessionId
+  try {
+    const idx = convs.findIndex((x) => x.k === c.k)
+    if (idx < 0) { saveMsg(who, text, meta); return }
+    convKey = c.k
+    sessionId = c.sid || null
+    saveMsg(who, text, meta)
+  } finally {
+    convKey = keepKey
+    sessionId = keepSid
+  }
+}
+function sealAiTurn(ph, t0, fr, conv) {
   const el = ((Date.now() - t0) / 1000).toFixed(1)
   const foot = timeStr(t0) + " · " + el + "초"
   ph.innerHTML += '<div class="meta">' + esc(foot) + "</div>"
-  saveMsg("ai", ph.dataset.raw || "", { ts: t0, el, th: fr.th })
+  saveMsgTo(conv || curConv(), "ai", ph.dataset.raw || "", { ts: t0, el, th: fr.th })
   if (fr.justDone) {
-    addMsg("ai", "🏁 목표 달성: " + fr.justDone)
-    saveMsg("ai", "🏁 목표 달성: " + fr.justDone, { ts: Date.now() })
+    if (turnIsCurrent(conv)) addMsg("ai", "🏁 목표 달성: " + fr.justDone)
+    saveMsgTo(conv || curConv(), "ai", "🏁 목표 달성: " + fr.justDone, { ts: Date.now() })
   }
 }
-async function postChatStream(message, sid, cwd, signal, onRun) {
-  const r = await fetch("/api/chat/stream", {
-    method: "POST",
+async function postChatStream(message, sid, cwd, signal, onRun, atts) {
+  const r = await fetch("/api/chat/stream", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, session_id: sid, cwd }),
-    signal: signal || undefined,
-  })
+    body: JSON.stringify({ message, session_id: sid, cwd,
+      attachments: atts || [] }),
+    signal: signal || undefined })
   if (!r.ok || !r.body) throw new Error("HTTP " + r.status)
   const reader = r.body.getReader()
   const dec = new TextDecoder()
@@ -396,7 +455,62 @@ async function postChatStream(message, sid, cwd, signal, onRun) {
     throw new Error("스트림이 끝나기 전에 연결이 끊어졌습니다.")
   return doneJ
 }
-async function runStreamTurn(full, sid, cwd, ph, t0, goalMode) {
+let goalAutoN = 0
+const GOAL_AUTO_CAP = 6
+function goalPending() {
+  const c = (typeof curConv === "function") ? curConv() : null
+  const g = c && c.goal
+  return (g && g.active && g.items && g.items.some((x) => !x.done)) ? g : null
+}
+function makeTurnPh(turnConv) {
+  if (turnIsCurrent(turnConv)) return addMsg("ai", "응답 생성 중…", null, null, false)
+  const d = document.createElement("div")
+  d.className = "msg ai"
+  d.dataset.raw = "응답 생성 중…"
+  return d
+}
+function markBusy(conv, on) {
+  if (!conv) return
+  if (on) busyConvs.add(conv.k)
+  else busyConvs.delete(conv.k)
+  drawConvs()
+}
+async function goalAutoChain(goalMode, j, conv) {
+  if (!goalMode) return
+  const cc = conv || curConv()
+  const g = goalPendingIn(cc)
+  if (!g) { goalAutoN = 0; return }
+  if (goalAutoN >= GOAL_AUTO_CAP) {
+    goalAutoN = 0
+    const msg = t("goal.autoCap")
+    if (turnIsCurrent(conv)) {
+      addMsg("ai", msg)
+      chat.scrollTop = chat.scrollHeight
+    }
+    saveMsgTo(cc, "ai", msg)
+    drawConvs()
+    notifyCompletion("muse-gui · 응답 완료", msg)
+    return
+  }
+  if (/실패|시간 초과|전송 실패|empty/i.test(j.text || "")) {
+    goalAutoN = 0
+    notifyCompletion("muse-gui · 응답 완료", j.text || "")
+    return
+  }
+  goalAutoN++
+  const cwd = (cc && cc.cwd) || serverCwd || ""
+  const ph = makeTurnPh(cc)
+  const t0 = Date.now()
+  try {
+    touchLive()
+    await runStreamTurn(goalTurnPrompt(g, "이어서 계속 진행하라. 사용자에게 되묻지 말고 다음 단계로 넘어가고, 각 단계 완료 시 goal-status 펜스를 출력하라."), (cc && cc.sid) || sessionId, cwd, ph, t0, "status", null, cc)
+  } catch (err) {
+    const alt = "자동 계속 실패: " + err
+    finishAiTurn({ text: alt, session_id: null }, ph, null, cc)
+    sealAiTurn(ph, t0, { text: alt, session_id: null }, cc)
+  }
+}
+async function runStreamTurn(full, sid, cwd, ph, t0, goalMode, atts, turnConv) {
   const tbox = document.createElement("div")
   tbox.className = "thoughts"
   const thead = document.createElement("div")
@@ -426,26 +540,29 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode) {
     last: "",
   }
   tbox._tstate = tstate
+  const tc = turnConv || curConv()
   const ctl = new AbortController()
   activeStreamAbort = ctl
+  activeTurnConv = tc
   setSendStop(true)
+  markBusy(tc, true)
   try {
-    const j = await postChatStream(full, sid, cwd, ctl.signal, (ev) =>
-      updateThought(tbox, tstate, ev),
-    )
-    const fr = finishAiTurn(j, ph, goalMode)
-    sealAiTurn(ph, t0, fr)
+    const j = await postChatStream(full, sid, cwd, ctl.signal, (ev) => updateThought(tbox, tstate, ev), atts)
+    clearSentAtts(atts)
+    const fr = finishAiTurn(j, ph, goalMode, tc)
+    sealAiTurn(ph, t0, fr, tc)
+    await goalAutoChain(goalMode, j, tc)
   } catch (err) {
     const aborted = err && err.name === "AbortError"
     const base = tstate.texts.join("").trim()
-    const alt = base
-      ? base + (aborted ? "\n\n[중단됨]" : "")
-      : "전송 실패: " + err
-    const fr = finishAiTurn({ text: alt, session_id: null }, ph, null)
-    sealAiTurn(ph, t0, fr)
+    const alt = base ? base + (aborted ? "\n\n[중단됨]" : "") : "전송 실패: " + err
+    const fr = finishAiTurn({ text: alt, session_id: null }, ph, null, tc)
+    sealAiTurn(ph, t0, fr, tc)
   } finally {
     if (activeStreamAbort === ctl) activeStreamAbort = null
+    if (activeTurnConv === tc) activeTurnConv = null
     setSendStop(false)
+    markBusy(tc, false)
   }
 }
 $("#f").addEventListener("submit", async (e) => {
@@ -460,11 +577,15 @@ $("#f").addEventListener("submit", async (e) => {
     }
   } catch (err) {}
   if (activeStreamAbort) {
-    try {
-      activeStreamAbort.abort()
-    } catch (err) {}
-    return
+    const cur = curConv()
+    if (input.value.trim() && activeTurnConv && cur && isFamilyConv(activeTurnConv, cur)) {
+      addMsg("ai", t("send.famBusy"))
+      chat.scrollTop = chat.scrollHeight
+      return
+    }
+    try { activeStreamAbort.abort(); } catch (err) {} return
   }
+  goalAutoN = 0
   const text = input.value.trim()
   if (!text) return
   if (inputGated()) {
@@ -537,13 +658,14 @@ $("#f").addEventListener("submit", async (e) => {
     }
     return
   }
+  const isSlashCmd = text.startsWith("/") && sendText === null
+  const atts = isSlashCmd ? [] : pendingAtts.slice()
+  const cc0 = curConv()
+  const seedPre = (!isSlashCmd && cc0 && cc0.sub && !cc0.sub.used && cc0.sub.seed) ? cc0.sub.seed + "\n\n" : ""
   saveConv(text.slice(0, 30))
   const meTs = Date.now()
   if (skipEcho) skipEcho = false
-  else {
-    addMsg("me", text, null, timeStr(meTs))
-    saveMsg("me", text, { ts: meTs })
-  }
+  else { addMsg("me", text, null, timeStr(meTs), true, atts.length ? { atts } : null); saveMsg("me", text, { ts: meTs, atts: atts.length ? atts : null }); }
   if (text === "/copy" || text.startsWith("/copy ")) {
     const done = (await copyText(lastAiText()))
       ? "복사했습니다."
@@ -555,41 +677,38 @@ $("#f").addEventListener("submit", async (e) => {
   }
   const ph = addMsg("ai", "응답 생성 중…", null, null, false)
   const t0 = Date.now()
+  const tc0 = curConv()
+  activeTurnConv = tc0
+  markBusy(tc0, true)
   try {
     const cc0 = curConv()
     touchLive()
     const cwd = (cc0 && cc0.cwd) || serverCwd || ""
+    if (seedPre && cc0 && cc0.sub) { cc0.sub.used = true; persistConvs() }
     if (text.startsWith("/") && sendText === null) {
       const r = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: full, session_id: sessionId, cwd }),
-      })
+        body: JSON.stringify({ message: seedPre + full, session_id: sessionId, cwd,
+          attachments: atts }) })
       const j = await r.json()
+      clearSentAtts(atts)
       if (j.text === "__COPY__") {
         const prev = [...chat.querySelectorAll(".msg.ai")]
           .filter((n) => n !== ph)
           .pop()
         ph.dataset.raw = await copyText(prev ? prev.dataset.raw || "" : "")
         ph.innerHTML = esc(ph.dataset.raw)
-      } else if (j.new_session) {
-        sessionId = null
-        convKey = null
-        userFreshStart = true
-        chat.innerHTML = ""
-        $("#cwd").textContent = serverCwd
-        setRoute("/")
-        updateGate()
-        drawRside()
-      } else {
-        const fr = finishAiTurn(j, ph, goalMode)
-        sealAiTurn(ph, t0, fr)
+      } else if (j.new_session) { sessionId = null; convKey = null; userFreshStart = true; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); }
+      else {
+        const fr = finishAiTurn(j, ph, goalMode, tc0)
+        sealAiTurn(ph, t0, fr, tc0)
       }
       drawConvs()
       refreshPrefs()
       chat.scrollTop = chat.scrollHeight
     } else {
-      await runStreamTurn(full, sessionId, cwd, ph, t0, goalMode)
+      await runStreamTurn(seedPre + full, sessionId, cwd, ph, t0, goalMode, atts, tc0)
       drawConvs()
       refreshPrefs()
       chat.scrollTop = chat.scrollHeight
@@ -600,6 +719,9 @@ $("#f").addEventListener("submit", async (e) => {
     decorateCode(ph)
     decorateMath(ph)
     decorateTables(ph)
-    saveMsg("ai", ph.dataset.raw)
+    saveMsgTo(tc0, "ai", ph.dataset.raw)
+  } finally {
+    if (activeTurnConv === tc0) activeTurnConv = null
+    markBusy(tc0, false)
   }
 })

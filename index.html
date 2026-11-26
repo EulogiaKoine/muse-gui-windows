@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/static/css/thoughts.css?v=__GUI_VERSION__">
 <link rel="stylesheet" href="/static/css/content.css?v=__GUI_VERSION__">
 <link rel="stylesheet" href="/static/css/ui.css?v=__GUI_VERSION__">
+<link rel="stylesheet" href="/static/vendor/katex/katex.min.css?v=__GUI_VERSION__">
 </head>
 <body>
 <aside>
@@ -98,23 +99,26 @@
 </div>
 </div></div>
 <main>
-<header><span id="status"></span><span id="cwdwrap"><span id="oschip" class="oschip" hidden></span><span id="cwdlabel">작업 경로</span><span id="cwd" title="작업 디렉터리 — 클릭하면 탐색기로 열기"></span></span><button id="rsideopen" type="button" title="사이드바 펼치기" aria-label="사이드바 펼치기" hidden><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button></header>
+<header><span id="status"></span><span id="cwdwrap"><span id="oschip" class="oschip" hidden></span><span id="cwdlabel">작업 경로</span><span id="cwd" title="작업 디렉터리 — 클릭하면 탐색기로 열기"></span></span><button id="filesbtn" type="button">파일</button><button id="rsideopen" type="button" title="사이드바 펼치기" aria-label="사이드바 펼치기" hidden><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button></header>
 <div id="lobby"><h1>muse-gui</h1><p id="lobbysub">WSL의 muse 에이전트와 대화하세요</p><div class="chips" id="chips"></div></div>
 <div id="chat" aria-live="polite"></div>
 <form id="f">
 <div id="slash" role="listbox"></div>
-<div id="inwrap"><div id="inbox"><textarea id="in" placeholder="메시지 입력 (Enter 줄바꿈, / 자동완성)" autocomplete="off"></textarea><span id="sendhint" title="Ctrl+Enter로 전송">Ctrl + Enter</span></div><div id="feats"></div></div>
+<div id="inwrap"><div id="attachbar" hidden></div><div id="inbox"><textarea id="in" placeholder="메시지 입력 (Enter 줄바꿈, / 자동완성)" autocomplete="off"></textarea><span id="sendhint" title="Ctrl+Enter로 전송">Ctrl + Enter</span></div><div id="feats"></div></div>
 <button type="submit" title="전송 (Ctrl+Enter)" aria-label="전송"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
 <div id="inputgate" hidden><div id="gatebox"><div id="gateenv"></div><p id="gatemsg"></p><button id="gatebtn" type="button" class="optbtn"></button></div></div>
 </form>
 <footer><button id="plus" type="button" title="기능 추가" aria-label="기능 추가">+</button><div id="plusmenu" hidden></div><label><span id="lab-model">모델</span> <select id="model"></select></label><label><span id="lab-effort">effort</span> <select id="effort"></select></label><button id="yolo" type="button" aria-pressed="true" title="사용자 승인 절차 제거 및 샌드박스 격리 해제(작업 디렉터리 바깥 전역 접근 가능)."><span class="ycheck" aria-hidden="true">☑</span> yolo</button></footer>
 </main>
 <aside id="rside">
-<div id="rsidehead"><button id="rsidetoggle" type="button" title="사이드바 접기" aria-label="사이드바 접기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button><div id="rsidetabs" role="tablist"></div></div>
+<div id="rsidehead"><button id="rsidetoggle" type="button" title="사이드바 접기" aria-label="사이드바 접기"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button><button id="rtabmenu" type="button" title="탭 목록" aria-label="탭 목록"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="8" cy="18" r="1.6" fill="currentColor" stroke="none"/><line x1="12" y1="18" x2="20" y2="18"/></svg></button><button id="rtabadd" type="button" title="탭 열기" aria-label="탭 열기">+</button><div id="rsidetabs" role="tablist"></div><div id="tabmenu" hidden></div></div>
 <section id="rsidegoal" data-rpane="goal"></section>
 <section id="rsidehelp" data-rpane="help" hidden></section>
+<section id="rsidefiles" data-rpane="files" hidden></section>
+<section id="rsidesubagents" data-rpane="subagents" hidden></section>
 <section id="rsideempty" data-rpane="empty" hidden><div class="emptybox"><p id="rsideempty1">열린 탭이 없습니다</p><p class="hint" id="rsideempty2">/goal · /help 로 탭을 여세요</p></div></section>
 </aside>
+<script src="/static/vendor/katex/katex.min.js?v=__GUI_VERSION__"></script>
 <script src="/static/js/util.js?v=__GUI_VERSION__"></script>
 <script src="/static/js/conv.js?v=__GUI_VERSION__"></script>
 <script src="/static/js/icons.js?v=__GUI_VERSION__"></script>

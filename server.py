@@ -417,6 +417,151 @@ def running_session_ids():
             if isinstance(s, dict)}
 
 
+MAX_SUBAGENT_SIDS = 100
+MAX_SESSION_LOG_BYTES = 100 * 1024 * 1024
+SUBAGENT_CACHE = {}
+SUBAGENT_CACHE_MAX = 200
+
+
+def subagent_registry(cwd):
+    """워크플로우 자식 기록 파일(.agent/subagents.json)을 읽는다.
+
+    네이티브 스폰과 달리 워크플로우 자식은 세션 로그에 구조적 기록이
+    남지 않으므로, 워크플로우 스크립트가 직접 남긴 레지스트리를 본다.
+    {parent_sid: [record]}. 없거나 깨졌으면 {}."""
+    if not cwd:
+        return {}
+    p = os.path.join(cwd, ".agent", "subagents.json")
+    try:
+        if os.path.getsize(p) > 1024 * 1024:
+            return {}
+        with open(p, encoding="utf-8") as f:
+            d = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return d if isinstance(d, dict) else {}
+
+
+def subagent_records(sids, cwd=None):
+    """부모 세션 로그에서 서브에이전트 스폰 기록을 묶는다.
+
+    {sid: [{subagent_id, agent_path, task_ref, at, state, stages}]}.
+    state는 마지막 관측 기준: done(결과 회수) / active(시작 관측) /
+    spawned(스폰 접수). 워크플로우 레지스트리 기록도 합친다."""
+    want = [s for s in (sids or []) if SID_RE.match(s or "")][:MAX_SUBAGENT_SIDS]
+    found = find_session_dirs(want)
+    out = {}
+    for sid, d in found.items():
+        p = os.path.join(d, "session.jsonl")
+        try:
+            st = os.stat(p)
+            if st.st_size > MAX_SESSION_LOG_BYTES:
+                continue
+        except OSError:
+            continue
+        key = (st.st_mtime_ns, st.st_size)
+        hit = SUBAGENT_CACHE.get(sid)
+        if hit and hit[0] == key:
+            out[sid] = hit[1]
+            continue
+        try:
+            f = open(p, encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        spawns, chains = {}, {}
+        with f:
+            for line in f:
+                if "subagent_id" not in line and "task_ref" not in line:
+                    continue
+                try:
+                    o = json.loads(line)
+                except ValueError:
+                    continue
+                pl = o.get("payload") or {}
+                if (pl.get("kind") == "task"
+                        and isinstance((pl.get("event") or {}).get("chunk"),
+                                     str)):
+                    try:
+                        dd = json.loads(pl["event"]["chunk"])
+                    except ValueError:
+                        dd = None
+                    if isinstance(dd, dict) and dd.get("subagent_id"):
+                        sa = dd["subagent_id"]
+                        spawns.setdefault(sa, {
+                            "subagent_id": sa,
+                            "agent_path": dd.get("agent_path") or "",
+                            "task_ref": dd.get("task_ref") or "",
+                            "at": o.get("recorded_at") or 0})
+                elif pl.get("kind") == "subagent_control":
+                    r = pl.get("record") or {}
+                    sa = r.get("subagent_id") or ""
+                    if sa:
+                        chains.setdefault(sa, []).append(r.get("kind") or "")
+        recs = []
+        for sa, s in spawns.items():
+            ch = chains.get(sa, [])
+            state = ("done" if "result_ready" in ch
+                     else "active" if ("start_attested" in ch
+                                       or "status_updated" in ch)
+                     else "spawned")
+            recs.append({"subagent_id": sa, "agent_path": s["agent_path"],
+                         "task_ref": s["task_ref"], "at": s["at"],
+                         "state": state, "stages": ch})
+        recs.sort(key=lambda r: r["at"])
+        out[sid] = recs
+        SUBAGENT_CACHE[sid] = (key, recs)
+        while len(SUBAGENT_CACHE) > SUBAGENT_CACHE_MAX:
+            SUBAGENT_CACHE.pop(next(iter(SUBAGENT_CACHE)))
+    if cwd:
+        reg = subagent_registry(cwd if os.path.isdir(cwd) else None)
+        for sid, recs in reg.items():
+            if not SID_RE.match(sid or "") or not isinstance(recs, list):
+                continue
+            if sid in want:
+                seen = {r.get("subagent_id") for r in out.get(sid, [])}
+                for r in recs:
+                    if (isinstance(r, dict) and r.get("subagent_id")
+                            and r["subagent_id"] not in seen):
+                        seen.add(r["subagent_id"])
+                        out.setdefault(sid, []).append({
+                            "subagent_id": r["subagent_id"],
+                            "agent_path": r.get("agent_path") or "",
+                            "task_ref": r.get("task_ref") or "",
+                            "at": r.get("at") or 0,
+                            "state": (r.get("state") if r.get("state") in
+                                      ("done", "active", "spawned") else "spawned"),
+                            "stages": [],
+                            "source": "workflow",
+                        })
+                out.get(sid, []).sort(key=lambda r: r["at"])
+    return out
+
+
+def live_agents():
+    """`muse sessions --json`를 사이드바용으로 정규화한다."""
+    try:
+        proc = subprocess.run(["muse", "sessions", "--json"],
+                              capture_output=True, text=True, timeout=30,
+                              stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    try:
+        data = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError:
+        return None
+    out = []
+    for s in data.get("sessions", []):
+        if not isinstance(s, dict):
+            continue
+        out.append({"id": s.get("sessionId") or "",
+                    "name": s.get("name") or "",
+                    "workspace": s.get("workspaceLabel") or "",
+                    "openedBy": s.get("openedBy") or "",
+                    "attachable": bool(s.get("attachable")),
+                    "sideOf": s.get("sideOf") or ""})
+    return out
+
+
 PRICES_FILE = os.path.join(BASE_DIR, "prices.json")
 
 DEFAULT_PRICES = {
@@ -1363,7 +1508,8 @@ def prepare_workdir(cwd):
     # 에이전트 내부 파일 저장소: <작업 디렉터리>/.agent (없으면 생성)
     for _d in (os.path.join(workdir, ".agent"),
                os.path.join(workdir, ".agent", "tmp"),
-               os.path.join(workdir, ".agent", "memory")):
+               os.path.join(workdir, ".agent", "memory"),
+               os.path.join(workdir, ".agent", "attachments")):
         try:
             os.makedirs(_d, exist_ok=True)
         except OSError:
@@ -1371,7 +1517,140 @@ def prepare_workdir(cwd):
     return workdir
 
 
-def build_muse_cmd(prompt, session_id, workdir):
+ATTACH_SUBDIR = os.path.join(".agent", "attachments")
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+MAX_FILE_BYTES = 15 * 1024 * 1024
+
+
+def safe_attach_name(name):
+    """업로드 파일명을 .agent/attachments 안에 둘 수 있게 정리한다."""
+    base = (os.path.basename(name or "").strip() or "upload.bin")
+    if base in (".", ".."):
+        base = "upload.bin"
+    return base[:120] or "upload.bin"
+
+
+def save_upload(workdir, fname, data):
+    """첨부 바이트를 저장하고 (workdir 상대경로, 크기)를 돌려준다."""
+    d = os.path.join(workdir, ATTACH_SUBDIR)
+    os.makedirs(d, exist_ok=True)
+    name = safe_attach_name(fname)
+    stem, dot, ext = name.rpartition(".")
+    cand = name
+    i = 0
+    while os.path.exists(os.path.join(d, cand)):
+        i += 1
+        cand = ("%s-%d.%s" % (stem or "file", i, ext)
+                if dot else "%s-%d" % (name, i))
+    with open(os.path.join(d, cand), "wb") as f:
+        f.write(data)
+    rel = os.path.join(ATTACH_SUBDIR, cand)
+    return rel, os.path.getsize(os.path.join(d, cand))
+
+
+def parse_multipart(body, ctype):
+    """multipart/form-data를 stdlib email로 나눈다. (필드, 파일 목록)."""
+    from email.parser import BytesParser
+    from email import policy
+    head = ("Content-Type: " + (ctype or "")
+            + "\r\nMIME-Version: 1.0\r\n\r\n").encode("latin-1")
+    try:
+        msg = BytesParser(policy=policy.default).parsebytes(
+            head + (body or b""))
+    except Exception:
+        return {}, []
+    if not msg.is_multipart():
+        return {}, []
+    fields, files = {}, []
+    for part in msg.iter_parts():
+        name = part.get_param("name", header="content-disposition")
+        filename = part.get_filename()
+        payload = part.get_payload(decode=True) or b""
+        if filename:
+            files.append({"field": name, "filename": filename,
+                          "content_type": part.get_content_type(),
+                          "data": payload})
+        elif name:
+            try:
+                fields[name] = payload.decode("utf-8")
+            except UnicodeDecodeError:
+                fields[name] = ""
+    return fields, files
+
+
+def split_attachments(workdir, atts):
+    """첨부 목록을 (이미지 절대경로, 본문 참조줄)로 나눈다.
+
+    .agent/attachments 밖을 가리키는 항목은 버린다."""
+    root = os.path.realpath(os.path.join(workdir, ATTACH_SUBDIR))
+    imgs, refs = [], []
+    for a in (atts or []):
+        if not isinstance(a, dict):
+            continue
+        rel = (a.get("path") or "").replace("\\", "/")
+        if not rel.startswith(".agent/attachments/"):
+            continue
+        ap = os.path.realpath(os.path.join(workdir, rel))
+        try:
+            inside = os.path.commonpath([root, ap]) == root
+        except ValueError:
+            inside = False
+        if not inside or not os.path.isfile(ap):
+            continue
+        name = a.get("name") or os.path.basename(ap)
+        refs.append("- %s (%s)" % (name, rel))
+        mime = (a.get("mime") or "")
+        if (mime.startswith("image/")
+                or os.path.splitext(ap)[1].lower() in IMAGE_EXTS):
+            imgs.append(ap)
+    return imgs, refs
+
+
+def resolve_agent_file(workdir, rel):
+    """files 탭 경로를 .agent 안 실파일로 바꾼다. 밖이면 None."""
+    rel = (rel or "").replace("\\", "/")
+    root = os.path.realpath(os.path.join(workdir, ".agent"))
+    ap = os.path.realpath(os.path.join(workdir, rel))
+    ok = rel.startswith(".agent/") and ap != root
+    try:
+        ok = ok and os.path.commonpath([root, ap]) == root
+    except ValueError:
+        ok = False
+    if not ok or not os.path.isfile(ap):
+        return None
+    return ap
+
+
+def agent_file_groups(workdir):
+    """files 탭용: .agent 공개 하위 폴더별 파일 묶음."""
+    groups = [("attachments", "첨부파일"), ("memory", "메모리"),
+              ("sessions", "이전 세션 로그"), ("tmp", "임시 파일")]
+    out = []
+    for sub, label in groups:
+        d = os.path.join(workdir, ".agent", sub)
+        files = []
+        try:
+            names = sorted(os.listdir(d))
+        except OSError:
+            names = []
+        for nm in names:
+            p = os.path.join(d, nm)
+            try:
+                if not os.path.isfile(p):
+                    continue
+                st = os.stat(p)
+            except OSError:
+                continue
+            files.append({"name": nm,
+                          "path": ".agent/%s/%s" % (sub, nm),
+                          "size": st.st_size,
+                          "mtime": int(st.st_mtime)})
+        out.append({"id": sub, "label": label, "files": files})
+    return out
+
+
+def build_muse_cmd(prompt, session_id, workdir, images=()):
     """`muse exec` 호출 argv를 만든다."""
     cmd = ["muse", "exec", "--json"] + MUSE_ARGS
     # --yolo는 기본 켜짐이다. GUI 토글로 끄면 그 턴부터 제외한다.
@@ -1399,6 +1678,8 @@ def build_muse_cmd(prompt, session_id, workdir):
     elif not flag_value(MUSE_ARGS, "--workspace"):
         # 새 세션만 대화별 작업 디렉터리로 시작한다.
         cmd += ["--workspace", workdir]
+    for p in (images or ()):
+        cmd += ["--image", p]
     cmd.append(prompt)
     return cmd
 
@@ -1428,14 +1709,18 @@ def process_exec_event(ev, state):
         record_usage(state["sid"], payload)
 
 
-def run_muse_exec(prompt, session_id=None, cwd=None):
+def run_muse_exec(prompt, session_id=None, cwd=None, attachments=None):
     """Run `muse exec --json` and collect the assistant text.
 
     cwd: 새 세션의 작업 디렉터리. 이어쓰기(session_id 있음)는 세션 고유
     작업 공간을 유지하므로 --workspace를 붙이지 않는다.
-    (sid, text, workdir)를 돌려준다."""
+    attachments: [{path, name, mime}] — 이미지는 --image로, 전체는
+    본문 참조로 전달한다. (sid, text, workdir)를 돌려준다."""
     workdir = prepare_workdir(cwd)
-    cmd = build_muse_cmd(prompt, session_id, workdir)
+    imgs, refs = split_attachments(workdir, attachments)
+    if refs:
+        prompt = prompt + "\n\n[첨부파일]\n" + "\n".join(refs)
+    cmd = build_muse_cmd(prompt, session_id, workdir, imgs)
     try:
         proc = subprocess.run(
             cmd, capture_output=True, text=True, timeout=600, cwd=workdir
@@ -1486,7 +1771,8 @@ class Handler(BaseHTTPRequestHandler):
                 ConnectionAbortedError):
             return False
 
-    def handle_chat_stream(self, message, session_id, cwd):
+    def handle_chat_stream(self, message, session_id, cwd,
+                           attachments=None):
         """`muse exec` JSONL을 SSE로 중계한다.
 
         run 원본 이벤트를 그대로 흘리고, 종료 시 done으로 집계 결과
@@ -1496,7 +1782,10 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, json.dumps({"ok": False, "error": "empty"}))
             return
         workdir = prepare_workdir(cwd)
-        cmd = build_muse_cmd(message, session_id, workdir)
+        imgs, refs = split_attachments(workdir, attachments)
+        if refs:
+            message = message + "\n\n[첨부파일]\n" + "\n".join(refs)
+        cmd = build_muse_cmd(message, session_id, workdir, imgs)
         try:
             errf = tempfile.TemporaryFile(mode="w+")
         except OSError:
@@ -1599,6 +1888,23 @@ class Handler(BaseHTTPRequestHandler):
             self.serve_index()
         elif path.startswith("/static/"):
             name = path[len("/static/"):]
+            vm = re.fullmatch(r"vendor/katex/(katex\.min\.(js|css)|fonts/KaTeX_[A-Za-z0-9-]+\.woff2)", name)
+            if vm:
+                if name.endswith(".js"):
+                    ctype = "text/javascript; charset=utf-8"
+                elif name.endswith(".css"):
+                    ctype = "text/css; charset=utf-8"
+                else:
+                    ctype = "font/woff2"
+                try:
+                    with open(os.path.join(BASE_DIR, "static", name),
+                              "rb") as f:
+                        data = f.read()
+                except OSError:
+                    self._send(404, "not found")
+                    return
+                self._send(200, data, ctype)
+                return
             m = re.fullmatch(r"(js|css)/([A-Za-z0-9_-]+)\.(js|css)", name)
             if not m or (m.group(1) == "js") != (m.group(3) == "js"):
                 self._send(404, "not found")
@@ -1652,6 +1958,14 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/models":
             self._send(200, json.dumps(list_models(),
                                       ensure_ascii=False))
+        elif path == "/api/agents":
+            agents = live_agents()
+            if agents is None:
+                self._send(200, json.dumps({"ok": False,
+                                            "error": "sessions fail"}))
+            else:
+                self._send(200, json.dumps({"ok": True, "agents": agents},
+                                           ensure_ascii=False))
         elif path.startswith("/api/session_workspace"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             sid = (q.get("session_id") or [""])[0]
@@ -1674,6 +1988,38 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_chat_stream((q.get("message") or [""])[0],
                                     (q.get("session_id") or [""])[0] or None,
                                     (q.get("cwd") or [""])[0])
+        elif path == "/api/agent-files":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            workdir = prepare_workdir((q.get("cwd") or [""])[0])
+            self._send(200, json.dumps(
+                {"ok": True, "groups": agent_file_groups(workdir),
+                 "cwd": workdir}, ensure_ascii=False))
+        elif path == "/api/file":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            workdir = prepare_workdir((q.get("cwd") or [""])[0])
+            ap = resolve_agent_file(
+                workdir, ((q.get("path") or [""])[0] or ""))
+            if ap is None:
+                self._send(404, "not found")
+                return
+            try:
+                if os.path.getsize(ap) > MAX_FILE_BYTES:
+                    self._send(413, "too large")
+                    return
+                with open(ap, "rb") as f:
+                    data = f.read()
+            except OSError:
+                self._send(404, "not found")
+                return
+            ext = os.path.splitext(ap)[1].lower()
+            if ext in IMAGE_EXTS:
+                ctype = ("image/jpeg" if ext in (".jpg", ".jpeg")
+                         else "image/" + ext[1:])
+            elif ext in (".md", ".txt", ".log", ".json"):
+                ctype = "text/plain; charset=utf-8"
+            else:
+                ctype = "application/octet-stream"
+            self._send(200, data, ctype)
         elif path == "/api/fs/roots":
             self._send(200, json.dumps(fs_roots(), ensure_ascii=False))
         elif path.startswith("/api/fs/list"):
@@ -1700,12 +2046,51 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._send(404, "not found")
 
+    def handle_upload(self, length):
+        """multipart 파일을 .agent/attachments에 저장한다."""
+        if length <= 0 or length > 64 * 1024 * 1024:
+            self._send(400, json.dumps({"ok": False,
+                                        "error": "bad upload size"}))
+            return
+        try:
+            raw = self.rfile.read(length)
+        except OSError:
+            self._send(400, json.dumps({"ok": False, "error": "read fail"}))
+            return
+        fields, files = parse_multipart(
+            raw, self.headers.get("Content-Type", ""))
+        if not files:
+            self._send(400, json.dumps({"ok": False, "error": "no files"}))
+            return
+        workdir = prepare_workdir(fields.get("cwd") or "")
+        saved = []
+        for f in files:
+            if len(f["data"]) > MAX_UPLOAD_BYTES:
+                self._send(413, json.dumps(
+                    {"ok": False, "error": "too large: " + f["filename"]},
+                    ensure_ascii=False))
+                return
+            try:
+                rel, size = save_upload(workdir, f["filename"], f["data"])
+            except OSError:
+                self._send(500, json.dumps({"ok": False,
+                                            "error": "save fail"}))
+                return
+            saved.append({"path": rel.replace(os.sep, "/"),
+                          "name": os.path.basename(rel),
+                          "size": size, "mime": f["content_type"]})
+        self._send(200, json.dumps({"ok": True, "files": saved,
+                                    "cwd": workdir}, ensure_ascii=False))
+
     def do_POST(self):
         path = urllib.parse.urlparse(self.path).path
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
             length = 0
+        if path == "/api/upload":
+            self.handle_upload(length)
+            return
         try:
             body = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -1781,6 +2166,40 @@ class Handler(BaseHTTPRequestHandler):
                 {"ok": ok, "error": None if ok else msg},
                 ensure_ascii=False))
             return
+        if path in ("/api/file/open", "/api/file/delete"):
+            workdir = prepare_workdir(body.get("cwd") or "")
+            ap = resolve_agent_file(workdir, body.get("path") or "")
+            if ap is None:
+                self._send(200, json.dumps({"ok": False,
+                                            "error": "not found"}))
+                return
+            if path == "/api/file/delete":
+                try:
+                    os.remove(ap)
+                except OSError as e:
+                    self._send(200, json.dumps({"ok": False,
+                                                "error": str(e)}))
+                    return
+                self._send(200, json.dumps({"ok": True,
+                                            "error": None}))
+                return
+            ok, msg = open_folder(ap)
+            self._send(200, json.dumps(
+                {"ok": ok, "error": None if ok else msg},
+                ensure_ascii=False))
+            return
+        if path == "/api/subagents":
+            if not isinstance(body.get("sids"), list):
+                self._send(400, json.dumps({"ok": False,
+                                            "error": "bad sids"}))
+                return
+            self._send(200, json.dumps(
+                {"ok": True,
+                 "parents": subagent_records(
+                     body.get("sids"),
+                     prepare_workdir(body.get("cwd") or ""))},
+                ensure_ascii=False))
+            return
         if path == "/api/skills/create":
             try:
                 b = json.loads(self.rfile.read(
@@ -1806,7 +2225,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/chat/stream":
             self.handle_chat_stream(body.get("message") or "",
                                     body.get("session_id") or None,
-                                    body.get("cwd") or "")
+                                    body.get("cwd") or "",
+                                    body.get("attachments"))
             return
         if path != "/api/chat":
             self._send(404, "not found")
@@ -1828,7 +2248,8 @@ class Handler(BaseHTTPRequestHandler):
                                            ensure_ascii=False))
             return
         sid, text, workdir = run_muse_exec(message, session_id,
-                                               body.get("cwd"))
+                                               body.get("cwd"),
+                                               body.get("attachments"))
         ws = session_workspace(sid) or workdir
         self._send(200, json.dumps({"ok": True, "text": text,
                                     "session_id": sid, "cwd": ws},

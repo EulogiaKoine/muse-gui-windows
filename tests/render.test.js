@@ -49,6 +49,15 @@ t(
 )
 h = R.renderText("\\(a \\leq b\\)")
 t("paren math", h.includes('class="math"'), h.slice(0, 200))
+function mathBody(h) { return h.replace(/^<span[^>]*>/, "").replace(/<\/span>$/, ""); }
+h = mathBody(R.renderMath("\\quad", false))
+t("math quad", h.indexOf("\\quad") < 0 && h.indexOf("\u2003") >= 0, h.slice(0, 200))
+h = mathBody(R.renderMath("\\cos^2 x + \\sin^2 x", false))
+t("math trig", h.indexOf("\\cos") < 0 && h.indexOf("\\sin") < 0 && h.indexOf("cos<sup>2</sup>") >= 0, h.slice(0, 200))
+h = mathBody(R.renderMath("A \\Rightarrow B", false))
+t("math implies", h.indexOf("⇒") >= 0 && h.indexOf("Rightarrow") < 0, h.slice(0, 200))
+h = mathBody(R.renderMath("a \\; b", false))
+t("math thickspace", h.indexOf("\\;") < 0, h.slice(0, 200))
 h = R.renderText("```viz-html:500\n<b>hi</b>\n```")
 t(
   "viz iframe",
@@ -270,191 +279,58 @@ t(
   "",
 )
 t("goalFence miss", R.goalFence("본문", "plan").data === null, "")
-t(
-  "normGoalItems",
-  (() => {
-    const a = R.normGoalItems(["a", { t: "b", done: 1 }])
-    return a.length === 2 && a[0].t === "a" && !a[0].done && a[1].done
-  })(),
-  "",
-)
-t(
-  "thoughtKind",
-  R.thoughtKind("model.meta.response") === "reason" &&
-    R.thoughtKind("tool.bash") === "terminal" &&
-    R.thoughtKind("tool:bash") === "terminal" &&
-    R.thoughtKind("tool.web_search") === "web" &&
-    R.thoughtKind("tool.read") === "file" &&
-    R.thoughtKind("reminder.agent.x") === "system" &&
-    R.thoughtKind("") === "system" &&
-    R.thoughtKind("tool.unknown_xyz") === "tool",
-  "",
-)
-t(
-  "truncStr",
-  R.truncStr("abcdef", 3) === "abc…" && R.truncStr("ab", 3) === "ab",
-  "",
-)
-t(
-  "convToMd",
-  (() => {
-    const md = R.convToMd({
-      t: "T",
-      sid: "s1abcd",
-      cwd: "/w",
-      msgs: [
-        { who: "me", text: "질문", ts: 1000 },
-        { who: "ai", text: '답\n```goal-plan\n[{"t":"a"}]\n```\n끝', ts: 2000 },
-      ],
-    })
-    return (
-      md.includes("## 사용자") &&
-      md.includes("## 어시스턴트") &&
-      md.includes("질문") &&
-      !md.includes("goal-plan")
-    )
-  })(),
-  "",
-)
+t("normGoalItems", (() => { const a = R.normGoalItems(["a", { t: "b", done: 1 }])
+return a.length === 2 && a[0].t === "a" && !a[0].done && a[1].done
+})(), "")
+t("thoughtKind", R.thoughtKind("model.meta.response") === "reason" && R.thoughtKind("tool.bash") === "terminal" && R.thoughtKind("tool:bash") === "terminal" && R.thoughtKind("tool.web_search") === "web" && R.thoughtKind("tool.read") === "file" && R.thoughtKind("reminder.agent.x") === "system" && R.thoughtKind("") === "system" && R.thoughtKind("tool.unknown_xyz") === "tool", "")
+t("truncStr", R.truncStr("abcdef", 3) === "abc…" && R.truncStr("ab", 3) === "ab", "")
+t("convToMd", (() => { const md = R.convToMd({ t: "T", sid: "s1abcd", cwd: "/w", msgs: [
+  { who: "me", text: "질문", ts: 1000 },
+  { who: "ai", text: "답\n```goal-plan\n[{\"t\":\"a\"}]\n```\n끝", ts: 2000 }] })
+  return md.includes("## User") && md.includes("## Assistant") && md.includes("질문") && !md.includes("goal-plan")
+  })(), "")
 t("diff add", R.diffLineClass("+foo") === "td-add", "")
 t("diff del", R.diffLineClass("-foo") === "td-del", "")
 t("diff hunk", R.diffLineClass("@@ -1 +1 @@") === "td-hunk", "")
-t(
-  "diff meta",
-  R.diffLineClass("+++ b/f") === "td-meta" &&
-    R.diffLineClass("--- a/f") === "td-meta" &&
-    R.diffLineClass("diff --git a b") === "td-meta",
-  "",
-)
-t(
-  "diff plain",
-  R.diffLineClass("context line") === "" && R.diffLineClass("") === "",
-  "",
-)
-t(
-  "isDiff",
-  R.isDiffText("diff --git a b\n@@ -1 +1 @@") &&
-    R.isDiffText("x\n@@ -1 +1 @@") &&
-    !R.isDiffText("hello\nworld"),
-  "",
-)
-t(
-  "diff html",
-  (() => {
-    const h = R.diffLinesHtml("+a\n-b\n@@ -1 +1 @@\n ctx\n<script>")
-    return (
-      h.includes('<span class="td-add">+a</span>') &&
-      h.includes('<span class="td-del">-b</span>') &&
-      h.includes('<span class="td-hunk">') &&
-      h.includes('<span class="td-ctx"> ctx</span>') &&
-      !h.includes("<script>") &&
-      !h.includes("\n")
-    )
-  })(),
-  "",
-)
-t(
-  "diffOnly",
-  R.diffOnly(
-    "edited\nchanged lines: line 1\n--- original\n+++ updated\n@@\n-a\n+b",
-  ) === "--- original\n+++ updated\n@@\n-a\n+b" &&
-    R.diffOnly("plain text") === "plain text",
-  "",
-)
-t(
-  "notify gate",
-  R.shouldNotifyCompletion("granted", true) &&
-    !R.shouldNotifyCompletion("granted", false) &&
-    !R.shouldNotifyCompletion("denied", true) &&
-    !R.shouldNotifyCompletion("default", true),
-  "",
-)
-t(
-  "thoughtSummary",
-  R.thoughtSummary(false, { terminal: 2, file: 1, reason: 3, other: 0 }) ===
-    "명령 2개 실행, 파일 1개 작업, 3단계 추론" &&
-    R.thoughtSummary(true, { terminal: 1, file: 0, reason: 0, other: 2 }) ===
-      "1 command run, 2 others" &&
-    R.thoughtSummary(false, {}) === "완료" &&
-    R.thoughtSummary(true, {}) === "done",
-  "",
-)
-t(
-  "isOutputTruncated",
-  R.isOutputTruncated({ truncated: true, output: "x" }) &&
-    R.isOutputTruncated({
-      original_output_bytes: 9000,
-      output: "x".repeat(100),
-    }) &&
-    !R.isOutputTruncated({ original_output_bytes: 8, output: "rawtest\n" }) &&
-    !R.isOutputTruncated(null) &&
-    !R.isOutputTruncated({}),
-  "",
-)
-t(
-  "sortConvs",
-  (() => {
-    const cs = [
-      { k: "c3", t: "b", at: 3, createdAt: "c3" },
-      { k: "c1", t: "c", at: 1, createdAt: "c1", pin: true },
-      { k: "c2", t: "a", at: 2, createdAt: "c2" },
-    ]
-    const byRecent = R.sortConvs(cs, "recent")
-      .map((c) => c.k)
-      .join(",")
-    const byName = R.sortConvs(cs, "name")
-      .map((c) => c.k)
-      .join(",")
-    const byCreated = R.sortConvs(cs, "created")
-      .map((c) => c.k)
-      .join(",")
-    return (
-      byRecent === "c1,c3,c2" &&
-      byName === "c1,c2,c3" &&
-      byCreated === "c1,c2,c3"
-    )
-  })(),
-  "",
-)
-t(
-  "gateFor",
-  R.gateFor(null, false) === "pick-new" &&
-    R.gateFor({ sid: "s1" }, false) === "resume" &&
-    R.gateFor({ sid: null, cwd: null }, false) === "pick" &&
-    R.gateFor({ sid: null, cwd: "/w" }, false) === "" &&
-    R.gateFor({ sid: "s1" }, true) === "",
-  "",
-)
-t(
-  "slimSave",
-  (() => {
-    const cs = [
-      {
-        k: "c1",
-        t: "t",
-        sid: "s",
-        cwd: "/w",
-        pin: 1,
-        msgs: [
-          {
-            who: "me",
-            text: "hi",
-            ts: 1,
-            el: "",
-            th: [{ k: "file", s: "sum", d: [{ h: "h", b: "x".repeat(500) }] }],
-          },
-        ],
-      },
-    ]
-    const out = R.slimConvsForSave(cs)
-    const b = out[0].msgs[0].th[0].d[0].b
-    return (
-      out.length === 1 &&
-      b.length <= 300 &&
-      cs[0].msgs[0].th[0].d[0].b.length === 500
-    )
-  })(),
-  "",
-)
+t("diff meta", R.diffLineClass("+++ b/f") === "td-meta" && R.diffLineClass("--- a/f") === "td-meta" && R.diffLineClass("diff --git a b") === "td-meta", "")
+t("diff plain", R.diffLineClass("context line") === "" && R.diffLineClass("") === "", "")
+t("isDiff", R.isDiffText("diff --git a b\n@@ -1 +1 @@") && R.isDiffText("x\n@@ -1 +1 @@") && !R.isDiffText("hello\nworld"), "")
+t("diff html", (() => { const h = R.diffLinesHtml("+a\n-b\n@@ -1 +1 @@\n ctx\n<script>")
+  return h.includes('<span class="td-add">+a</span>') && h.includes('<span class="td-del">-b</span>') && h.includes('<span class="td-hunk">') && h.includes('<span class="td-ctx"> ctx</span>') && !h.includes("<script>") && !h.includes("\n")
+  })(), "")
+t("diffOnly", R.diffOnly("edited\nchanged lines: line 1\n--- original\n+++ updated\n@@\n-a\n+b") === "--- original\n+++ updated\n@@\n-a\n+b" && R.diffOnly("plain text") === "plain text", "")
+t("notify gate", R.shouldNotifyCompletion("granted", true) && !R.shouldNotifyCompletion("granted", false) && !R.shouldNotifyCompletion("denied", true) && !R.shouldNotifyCompletion("default", true), "")
+t("thoughtSummary", R.thoughtSummary(false, { terminal: 2, file: 1, reason: 3, other: 0 }) === "명령 2개 실행, 파일 1개 작업, 3단계 추론" && R.thoughtSummary(true, { terminal: 1, file: 0, reason: 0, other: 2 }) === "1 command run, 2 others" && R.thoughtSummary(false, {}) === "완료" && R.thoughtSummary(true, {}) === "done", "")
+t("isOutputTruncated", R.isOutputTruncated({ truncated: true, output: "x" }) && R.isOutputTruncated({ original_output_bytes: 9000, output: "x".repeat(100) }) && !R.isOutputTruncated({ original_output_bytes: 8, output: "rawtest\n" }) && !R.isOutputTruncated(null) && !R.isOutputTruncated({}), "")
+t("sortConvs", (() => {
+  const cs = [{ k: "c3", t: "b", at: 3, createdAt: "c3" }, { k: "c1", t: "c", at: 1, createdAt: "c1", pin: true }, { k: "c2", t: "a", at: 2, createdAt: "c2" }]
+  const byRecent = R.sortConvs(cs, "recent").map((c) => c.k).join(",")
+  const byName = R.sortConvs(cs, "name").map((c) => c.k).join(",")
+  const byCreated = R.sortConvs(cs, "created").map((c) => c.k).join(",")
+  return byRecent === "c1,c3,c2" && byName === "c1,c2,c3" && byCreated === "c1,c2,c3"
+})(), "")
+t("gateFor", R.gateFor(null, false) === "pick-new" && R.gateFor({ sid: "s1" }, false) === "resume" && R.gateFor({ sid: null, cwd: null }, false) === "pick" && R.gateFor({ sid: null, cwd: "/w" }, false) === "" && R.gateFor({ sid: "s1" }, true) === "", "")
+t("slimSave", (() => { const cs = [{ k: "c1", t: "t", sid: "s", cwd: "/w", pin: 1, msgs: [{ who: "me", text: "hi", ts: 1, el: "", th: [{ k: "file", s: "sum", d: [{ h: "h", b: "x".repeat(500) }] }] }] }]; const out = R.slimConvsForSave(cs); const b = out[0].msgs[0].th[0].d[0].b; return out.length === 1 && b.length <= 300 && cs[0].msgs[0].th[0].d[0].b.length === 500 })(), "")
+try {
+  const vsb = require("vm").createContext({ console });
+  vsb.window = vsb; vsb.self = vsb
+  const katexSrc = fs.readFileSync(path.join(__dirname, "..", "static", "vendor", "katex", "katex.min.js"), "utf8")
+  require("vm").runInContext(katexSrc, vsb, { filename: "katex.min.js" })
+  require("vm").runInContext(src, vsb, { filename: "render-with-katex.js" })
+  const KR = require("vm").runInContext("({ renderMath, renderMathLegacy })", vsb)
+  const kstrip = (h) => String(h).replace(/^<span[^>]*>/, "").replace(/<\/span>$/, "")
+  let kh = KR.renderMath("\\frac{a}{b}", false)
+  t("katex frac", kh.indexOf('class="katex"') >= 0 && kstrip(kh).indexOf("\\frac") < 0, kh.slice(0, 200))
+  kh = KR.renderMath("\\cos^2 x + \\sin^2 x = 1", false)
+  t("katex trig", kstrip(kh).indexOf("\\cos") < 0 && kstrip(kh).indexOf("cos") >= 0, kh.slice(0, 200))
+  kh = KR.renderMath("A \\Rightarrow B", false)
+  t("katex implies", kstrip(kh).indexOf("katex-error") < 0, kh.slice(0, 200))
+  kh = KR.renderMath("\\unknowncmd xyz", false)
+  t("katex unknown falls back", kh.indexOf("katex-error") < 0 && kstrip(kh).indexOf("\\") < 0, kh.slice(0, 200))
+  kh = kstrip(KR.renderMathLegacy("\\quad", false))
+  t("legacy quad", kh.indexOf("\\quad") < 0 && kh.indexOf("\u2003") >= 0, kh.slice(0, 200))
+} catch (e) {
+  t("katex suite", false, String((e && e.message) || e))
+}
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)
