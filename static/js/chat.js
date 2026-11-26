@@ -299,12 +299,31 @@ function notifyCompletion(title, body) {
     return true
   } catch (e) { return false }
 }
-function finishAiTurn(j, ph, goalMode) {
-  sessionId = j.session_id || sessionId
+const busyConvs = new Set()
+let activeTurnConv = null
+function turnIsCurrent(conv) {
+  return !conv || conv === curConv()
+}
+function famRoot(c) {
+  return (c && c.sub && c.sub.parent) || (c && c.k)
+}
+function isFamilyConv(a, b) {
+  if (!a || !b || a.k === b.k) return false
+  const ra = famRoot(a), rb = famRoot(b)
+  return ra === b.k || rb === a.k || ra === rb
+}
+function goalPendingIn(cc) {
+  const g = cc && cc.goal
+  return (g && g.active && g.items && g.items.some((x) => !x.done)) ? g : null
+}
+function finishAiTurn(j, ph, goalMode, conv) {
+  const cc = conv || curConv()
+  if (cc && j.session_id) cc.sid = j.session_id
+  if (turnIsCurrent(conv)) sessionId = j.session_id || sessionId
   let justDone = null, th = null
   if (goalMode) {
     const gf = goalFence(j.text || "", goalMode)
-    const gcc = curConv()
+    const gcc = cc
     if (gcc && gcc.goal) {
       const was = gcc.goal.items.filter((x) => x.done).length
       if (goalMode === "plan" && gf.data) gcc.goal.items = normGoalItems(gf.data)
@@ -332,12 +351,11 @@ function finishAiTurn(j, ph, goalMode) {
     drawRside()
   }
   if (j.cwd) {
-    const cc = curConv()
     if (cc) {
       cc.cwd = j.cwd
       persistConvs()
     }
-    $("#cwd").textContent = j.cwd
+    if (turnIsCurrent(conv)) $("#cwd").textContent = j.cwd
   }
   const tbox = ph._tbox || null
   if (tbox) {
@@ -346,21 +364,35 @@ function finishAiTurn(j, ph, goalMode) {
   }
   ph.dataset.raw = j.text || "(빈 응답)"
   ph.innerHTML = renderText(ph.dataset.raw) + '<div class="acts"><button type="button" data-copy title="복사">' + ICON_COPY + "</button></div>"
-  if (!(goalMode && goalPending())) notifyCompletion("muse-gui · 응답 완료", ph.dataset.raw)
+  if (!(goalMode && goalPendingIn(cc))) notifyCompletion("muse-gui · 응답 완료", ph.dataset.raw)
   if (tbox) ph.prepend(tbox)
   decorateCode(ph)
   decorateMath(ph)
   decorateTables(ph)
   return { justDone, th }
 }
-function sealAiTurn(ph, t0, fr) {
+function saveMsgTo(c, who, text, meta) {
+  if (!c) { saveMsg(who, text, meta); return }
+  const keepKey = convKey, keepSid = sessionId
+  try {
+    const idx = convs.findIndex((x) => x.k === c.k)
+    if (idx < 0) { saveMsg(who, text, meta); return }
+    convKey = c.k
+    sessionId = c.sid || null
+    saveMsg(who, text, meta)
+  } finally {
+    convKey = keepKey
+    sessionId = keepSid
+  }
+}
+function sealAiTurn(ph, t0, fr, conv) {
   const el = ((Date.now() - t0) / 1000).toFixed(1)
   const foot = timeStr(t0) + " · " + el + "초"
   ph.innerHTML += '<div class="meta">' + esc(foot) + "</div>"
-  saveMsg("ai", ph.dataset.raw || "", { ts: t0, el, th: fr.th })
+  saveMsgTo(conv || curConv(), "ai", ph.dataset.raw || "", { ts: t0, el, th: fr.th })
   if (fr.justDone) {
-    addMsg("ai", "🏁 목표 달성: " + fr.justDone)
-    saveMsg("ai", "🏁 목표 달성: " + fr.justDone, { ts: Date.now() })
+    if (turnIsCurrent(conv)) addMsg("ai", "🏁 목표 달성: " + fr.justDone)
+    saveMsgTo(conv || curConv(), "ai", "🏁 목표 달성: " + fr.justDone, { ts: Date.now() })
   }
 }
 async function postChatStream(message, sid, cwd, signal, onRun, atts) {
@@ -400,18 +432,34 @@ function goalPending() {
   const g = c && c.goal
   return (g && g.active && g.items && g.items.some((x) => !x.done)) ? g : null
 }
-async function goalAutoChain(goalMode, j) {
+function makeTurnPh(turnConv) {
+  if (turnIsCurrent(turnConv)) return addMsg("ai", "응답 생성 중…", null, null, false)
+  const d = document.createElement("div")
+  d.className = "msg ai"
+  d.dataset.raw = "응답 생성 중…"
+  return d
+}
+function markBusy(conv, on) {
+  if (!conv) return
+  if (on) busyConvs.add(conv.k)
+  else busyConvs.delete(conv.k)
+  drawConvs()
+}
+async function goalAutoChain(goalMode, j, conv) {
   if (!goalMode) return
-  const g = goalPending()
+  const cc = conv || curConv()
+  const g = goalPendingIn(cc)
   if (!g) { goalAutoN = 0; return }
   if (goalAutoN >= GOAL_AUTO_CAP) {
     goalAutoN = 0
     const msg = t("goal.autoCap")
-    addMsg("ai", msg)
-    saveMsg("ai", msg)
+    if (turnIsCurrent(conv)) {
+      addMsg("ai", msg)
+      chat.scrollTop = chat.scrollHeight
+    }
+    saveMsgTo(cc, "ai", msg)
     drawConvs()
     notifyCompletion("muse-gui · 응답 완료", msg)
-    chat.scrollTop = chat.scrollHeight
     return
   }
   if (/실패|시간 초과|전송 실패|empty/i.test(j.text || "")) {
@@ -420,19 +468,19 @@ async function goalAutoChain(goalMode, j) {
     return
   }
   goalAutoN++
-  const cwd = (curConv() && curConv().cwd) || serverCwd || ""
-  const ph = addMsg("ai", "응답 생성 중…", null, null, false)
+  const cwd = (cc && cc.cwd) || serverCwd || ""
+  const ph = makeTurnPh(cc)
   const t0 = Date.now()
   try {
     touchLive()
-    await runStreamTurn(goalTurnPrompt(g, "이어서 계속 진행하라. 사용자에게 되묻지 말고 다음 단계로 넘어가고, 각 단계 완료 시 goal-status 펜스를 출력하라."), sessionId, cwd, ph, t0, "status")
+    await runStreamTurn(goalTurnPrompt(g, "이어서 계속 진행하라. 사용자에게 되묻지 말고 다음 단계로 넘어가고, 각 단계 완료 시 goal-status 펜스를 출력하라."), (cc && cc.sid) || sessionId, cwd, ph, t0, "status", null, cc)
   } catch (err) {
     const alt = "자동 계속 실패: " + err
-    finishAiTurn({ text: alt, session_id: null }, ph, null)
-    sealAiTurn(ph, t0, { text: alt, session_id: null })
+    finishAiTurn({ text: alt, session_id: null }, ph, null, cc)
+    sealAiTurn(ph, t0, { text: alt, session_id: null }, cc)
   }
 }
-async function runStreamTurn(full, sid, cwd, ph, t0, goalMode, atts) {
+async function runStreamTurn(full, sid, cwd, ph, t0, goalMode, atts, turnConv) {
   const tbox = document.createElement("div")
   tbox.className = "thoughts"
   const thead = document.createElement("div")
@@ -451,24 +499,29 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode, atts) {
   const tstate = { rows: new Map(), texts: [], body: tbody, tbox,
     headSpin: thead.children[0], headSum: thead.children[2], headTgl, last: "" }
   tbox._tstate = tstate
+  const tc = turnConv || curConv()
   const ctl = new AbortController()
   activeStreamAbort = ctl
+  activeTurnConv = tc
   setSendStop(true)
+  markBusy(tc, true)
   try {
     const j = await postChatStream(full, sid, cwd, ctl.signal, (ev) => updateThought(tbox, tstate, ev), atts)
-    if (atts && atts.length) clearAtts()
-    const fr = finishAiTurn(j, ph, goalMode)
-    sealAiTurn(ph, t0, fr)
-    await goalAutoChain(goalMode, j)
+    if (atts && atts.length && turnIsCurrent(tc)) clearAtts()
+    const fr = finishAiTurn(j, ph, goalMode, tc)
+    sealAiTurn(ph, t0, fr, tc)
+    await goalAutoChain(goalMode, j, tc)
   } catch (err) {
     const aborted = err && err.name === "AbortError"
     const base = tstate.texts.join("").trim()
     const alt = base ? base + (aborted ? "\n\n[중단됨]" : "") : "전송 실패: " + err
-    const fr = finishAiTurn({ text: alt, session_id: null }, ph, null)
-    sealAiTurn(ph, t0, fr)
+    const fr = finishAiTurn({ text: alt, session_id: null }, ph, null, tc)
+    sealAiTurn(ph, t0, fr, tc)
   } finally {
     if (activeStreamAbort === ctl) activeStreamAbort = null
+    if (activeTurnConv === tc) activeTurnConv = null
     setSendStop(false)
+    markBusy(tc, false)
   }
 }
 $("#f").addEventListener("submit", async (e) => {
@@ -479,7 +532,15 @@ $("#f").addEventListener("submit", async (e) => {
       if (pr && pr.catch) pr.catch(() => {})
     }
   } catch (err) {}
-  if (activeStreamAbort) { try { activeStreamAbort.abort(); } catch (err) {} return; }
+  if (activeStreamAbort) {
+    const cur = curConv()
+    if (input.value.trim() && activeTurnConv && cur && isFamilyConv(activeTurnConv, cur)) {
+      addMsg("ai", t("send.famBusy"))
+      chat.scrollTop = chat.scrollHeight
+      return
+    }
+    try { activeStreamAbort.abort(); } catch (err) {} return
+  }
   goalAutoN = 0
   const text = input.value.trim()
   if (!text) return
@@ -565,6 +626,9 @@ $("#f").addEventListener("submit", async (e) => {
   }
   const ph = addMsg("ai", "응답 생성 중…", null, null, false)
   const t0 = Date.now()
+  const tc0 = curConv()
+  activeTurnConv = tc0
+  markBusy(tc0, true)
   try {
     const cc0 = curConv()
     touchLive()
@@ -583,14 +647,14 @@ $("#f").addEventListener("submit", async (e) => {
         ph.innerHTML = esc(ph.dataset.raw)
       } else if (j.new_session) { sessionId = null; convKey = null; userFreshStart = true; chat.innerHTML = ""; $("#cwd").textContent = serverCwd; setRoute("/"); updateGate(); drawRside(); }
       else {
-        const fr = finishAiTurn(j, ph, goalMode)
-        sealAiTurn(ph, t0, fr)
+        const fr = finishAiTurn(j, ph, goalMode, tc0)
+        sealAiTurn(ph, t0, fr, tc0)
       }
       drawConvs()
       refreshPrefs()
       chat.scrollTop = chat.scrollHeight
     } else {
-      await runStreamTurn(seedPre + full, sessionId, cwd, ph, t0, goalMode, atts)
+      await runStreamTurn(seedPre + full, sessionId, cwd, ph, t0, goalMode, atts, tc0)
       drawConvs()
       refreshPrefs()
       chat.scrollTop = chat.scrollHeight
@@ -601,6 +665,9 @@ $("#f").addEventListener("submit", async (e) => {
     decorateCode(ph)
     decorateMath(ph)
     decorateTables(ph)
-    saveMsg("ai", ph.dataset.raw)
+    saveMsgTo(tc0, "ai", ph.dataset.raw)
+  } finally {
+    if (activeTurnConv === tc0) activeTurnConv = null
+    markBusy(tc0, false)
   }
 })

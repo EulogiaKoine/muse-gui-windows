@@ -419,6 +419,8 @@ def running_session_ids():
 
 MAX_SUBAGENT_SIDS = 100
 MAX_SESSION_LOG_BYTES = 100 * 1024 * 1024
+SUBAGENT_CACHE = {}
+SUBAGENT_CACHE_MAX = 200
 
 
 def subagent_records(sids):
@@ -433,8 +435,17 @@ def subagent_records(sids):
     for sid, d in found.items():
         p = os.path.join(d, "session.jsonl")
         try:
-            if os.path.getsize(p) > MAX_SESSION_LOG_BYTES:
+            st = os.stat(p)
+            if st.st_size > MAX_SESSION_LOG_BYTES:
                 continue
+        except OSError:
+            continue
+        key = (st.st_mtime_ns, st.st_size)
+        hit = SUBAGENT_CACHE.get(sid)
+        if hit and hit[0] == key:
+            out[sid] = hit[1]
+            continue
+        try:
             f = open(p, encoding="utf-8", errors="ignore")
         except OSError:
             continue
@@ -479,6 +490,9 @@ def subagent_records(sids):
                          "state": state, "stages": ch})
         recs.sort(key=lambda r: r["at"])
         out[sid] = recs
+        SUBAGENT_CACHE[sid] = (key, recs)
+        while len(SUBAGENT_CACHE) > SUBAGENT_CACHE_MAX:
+            SUBAGENT_CACHE.pop(next(iter(SUBAGENT_CACHE)))
     return out
 
 

@@ -368,6 +368,12 @@ function drawConvs() {
         row.appendChild(xb)
       }
     }
+    if (typeof busyConvs !== "undefined" && busyConvs.has(c.k)) {
+      const sp = document.createElement("span")
+      sp.className = "busyspin"
+      sp.title = t("conv.working")
+      row.appendChild(sp)
+    }
     row.appendChild(dots)
     box.appendChild(row)
     if (typeof pollAgentsForList === "function") pollAgentsForList()
