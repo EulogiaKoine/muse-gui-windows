@@ -15,10 +15,8 @@ refreshPrefs()
 setMode()
 updateGate()
 drawRside()
-applyLang(
-  langCur,
-  false,
-)(function () {
+applyLang(langCur, false)
+;(function () {
   const rid = routeId(location.pathname)
   if (!rid) return
   const c = convs.find((x) => x.k === rid || x.sid === rid)

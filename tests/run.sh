@@ -29,3 +29,4 @@ fi
 node tests/render.test.js
 node tests/usage.test.js
 node tests/interaction.test.js
+node tests/boot.test.js
