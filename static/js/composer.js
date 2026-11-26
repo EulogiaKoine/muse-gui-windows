@@ -68,7 +68,7 @@ const FEAT_ICONS = {
   upload: '<span class="ficon"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 1 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></span>'
 }
 const FEATS = {
-  viz: { chip: "시각화", prefix: "[시각화 요청] 답변에 인터랙티브 시각화가 필요하면 설명과 함께 아래 형식 코드블록을 포함하라.\n```viz-html\n(외부 CDN 없이 동작하는 단일 HTML 문서. <script> 사용 가능. sandbox라서 same-origin 접근·팝업·다운로드 불가)\n```\n높이는 ```viz-html:높이 로 지정(기본 360). 시각화가 필요 없으면 생략해도 된다." },
+  viz: { chip: "시각화", prefix: "[시각화 요청] 답변에 인터랙티브 시각화가 필요하면 설명과 함께 아래 형식 코드블록을 포함하라.\n```viz-html\n(외부 CDN 없이 동작하는 단일 HTML 문서. <script> 사용 가능. sandbox라서 same-origin 접근·팝업·다운로드 불가)\n```\n높이는 ```viz-html:높이 로 지정(기본 360). 시각화가 필요 없으면 생략해도 된다. 시각화 문서의 페이지 배경은 투명(transparent)으로 하여 채팅 배경과 어울리게 하라." },
   web: { chip: "웹 검색", prefix: "[웹 검색 필수] 아래 요청에 답하기 전에 반드시 웹 검색을 수행하고 검색 결과와 함께 답하라. 검색 없이 알던 내용으로 답하지 마라. 사용한 검색어와 핵심 근거를 밝혀라. 근거가 된 문장 끝에는 [출처: 사이트명](URL) 형태로 표기하라." },
   autoanswer: { chip: "자동 응답", prefix: "[자동 응답] 작업 중 선택이 필요하면 사용자에게 묻지 말고 권장(기본) 선택지로 진행하고, 무엇을 선택했는지 결과에 밝혀라. 되돌릴 수 없는 파괴적 조치는 제외하고, 그 경우에만 질문하라." }
 }
@@ -241,10 +241,6 @@ function renderAttachBar() {
 function clearAtts() {
   pendingAtts = []
   renderAttachBar()
-}
-function attEchoSuffix() {
-  if (!pendingAtts.length) return ""
-  return "\n[첨부: " + pendingAtts.map((a) => a.name).join(", ") + "]"
 }
 document.querySelector("main").addEventListener("dragover", (e) => {
   if (!e.dataTransfer || ![...(e.dataTransfer.types || [])].includes("Files")) return

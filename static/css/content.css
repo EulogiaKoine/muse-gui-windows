@@ -1,6 +1,7 @@
 /* == muse-gui/css/content.css ==
    Message content: code, tables, headings, links, edit UI. */
 .msg pre { overflow-x: auto; background: var(--panel); border: 1px solid var(--bd); border-radius: 8px; padding: 8px; font-size: 13px; }
+.msg iframe.viz { width: 100%; border: 0; border-radius: 8px; background: transparent; }
 .msg details { margin-top: 6px; font-size: 13px; opacity: .85; }
 footer { position: relative; border-top: 1px solid var(--bd); padding: 6px 12px; font-size: 13px; display: flex; gap: 8px; align-items: center; color: var(--muted); }
 footer select { font-size: 13px; max-width: 220px; background: var(--panel); color: var(--text); border: 1px solid var(--bd); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
@@ -28,6 +29,14 @@ form { padding: 10px 12px; display: flex; gap: 8px; position: relative; align-it
 .tblmenu button { display: block; width: 100%; text-align: left; border: 0; border-radius: 6px; background: none; color: var(--text); padding: 7px 10px; cursor: pointer; font-size: 13px; }
 .tblmenu button:hover { background: var(--hover); }
 .msg th, .msg td { border: 1px solid var(--bd); padding: 4px 8px; }
+.attrow { align-self: flex-end; display: flex; gap: 6px; justify-content: flex-end; max-width: 78ch; overflow-x: auto; padding-bottom: 4px; }
+.att { flex: none; display: inline-flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--bd); border-radius: 10px; padding: 4px 10px 4px 4px; cursor: pointer; font-size: 12px; color: var(--text); max-width: 220px; }
+.att img { width: 34px; height: 34px; object-fit: cover; border-radius: 6px; flex: none; }
+.att .attico { font-size: 20px; line-height: 1; flex: none; }
+.att span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.att:hover { border-color: var(--me); }
+.editatt { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.editatt:empty { display: none; }
 .msg code { background: var(--code-tint); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
 .msg a { color: var(--me); text-decoration: none; }
 .msg a:hover { text-decoration: underline; }

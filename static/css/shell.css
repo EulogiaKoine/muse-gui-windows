@@ -38,6 +38,12 @@ body.rside-hidden #rside { display: none; }
 .flist li { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .flist a { color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .flist a:hover { color: var(--me); text-decoration: underline; }
+.frow { position: relative; align-items: center; }
+.fname { background: none; border: 0; padding: 0; color: var(--text); cursor: pointer; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.fname:hover { color: var(--me); text-decoration: underline; }
+.frow .fdel { display: none; margin-left: 6px; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 2px; line-height: 0; border-radius: 6px; flex: none; }
+.frow:hover .fdel { display: inline-flex; }
+.frow .fdel:hover { color: var(--err); background: var(--hover); }
 .fsize { margin-left: auto; flex: none; font-size: 11px; color: var(--muted); }
 #rside section[data-rpane] { flex: 1; min-height: 0; overflow-y: auto; font-size: 13px; }
 #rside section[data-rpane][hidden] { display: none; }

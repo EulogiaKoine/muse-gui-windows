@@ -1,11 +1,50 @@
 "use strict";
 // == muse-gui/js/message.js ==
 // Chat bubbles, fold, edit, decorate, link/table helpers.
+function agentFileUrl(rel) {
+  const c = (typeof curConv === "function") ? curConv() : null
+  const cwd = (c && c.cwd) || ((typeof serverCwd !== "undefined") ? serverCwd : "") || ""
+  return "/api/file?cwd=" + encodeURIComponent(cwd) + "&path=" + encodeURIComponent(rel || "")
+}
+async function openAgentFile(rel) {
+  const c = (typeof curConv === "function") ? curConv() : null
+  const cwd = (c && c.cwd) || ((typeof serverCwd !== "undefined") ? serverCwd : "") || ""
+  try {
+    const r = await fetch("/api/file/open", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cwd, path: rel }) })
+    const j = await r.json()
+    if (!j.ok) alert("열기 실패: " + (j.error || rel))
+  } catch (e) {
+    alert("열기 실패: " + rel)
+  }
+}
+function attRowHtml(atts) {
+  if (!atts || !atts.length) return ""
+  let h = ""
+  atts.forEach((a) => {
+    const nm = (a && a.name) || "?"
+    const img = /\.(png|jpe?g|webp|gif|bmp)$/i.test(nm)
+    h += '<button type="button" class="att" data-openatt="' + escAttr((a && a.path) || "") +
+      '" title="' + escAttr(nm) + '">' +
+      (img ? "<img loading='lazy' src='" + escAttr(agentFileUrl(a.path)) + "' alt=''>" :
+        '<span class="attico">📄</span>') +
+      "<span>" + esc(nm) + "</span></button>"
+  })
+  return h
+}
 function addMsg(who, text, think, foot, withActs, extra) {
   const d = document.createElement("div")
   d.className = "msg " + who
   d.dataset.raw = text
   d.dataset.mi = chat.querySelectorAll(".msg").length
+  if (who === "me" && extra && extra.atts && extra.atts.length) {
+    const ar = document.createElement("div")
+    ar.className = "attrow"
+    ar.dataset.mi = d.dataset.mi
+    ar.innerHTML = attRowHtml(extra.atts)
+    chat.appendChild(ar)
+  }
   let html = ((extra && extra.thoughts && extra.thoughts.length) ? renderThoughtsStatic(extra.thoughts) : "") +
     renderText(text) + (think ? "<details><summary>상세</summary>" + esc(think) + "</details>" : "")
   if (withActs === undefined) withActs = true

@@ -60,7 +60,7 @@ function saveConv(title) {
 function saveMsg(who, text, meta) {
   const c = curConv()
   if (!c) return
-  c.msgs.push({ who, text, ts: (meta && meta.ts) || Date.now(), el: (meta && meta.el) || "", th: (meta && meta.th) || null })
+  c.msgs.push({ who, text, ts: (meta && meta.ts) || Date.now(), el: (meta && meta.el) || "", th: (meta && meta.th) || null, atts: (meta && meta.atts) || null })
   if (c.msgs.length > MAX_MSGS) c.msgs.splice(0, c.msgs.length - MAX_MSGS)
   if (sessionId) c.sid = sessionId
   c.at = Date.now()

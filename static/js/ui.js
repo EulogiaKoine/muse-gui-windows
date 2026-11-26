@@ -147,6 +147,28 @@ function renderHelp() {
   box.innerHTML = html
 }
 const FOLDER_ICON = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+const TRASH_ICON = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
+document.querySelector("#rsidefiles").addEventListener("click", async (e) => {
+  const del = e.target.closest("[data-fdel]")
+  if (del) {
+    if (!confirm(t("files.delAsk") + "\n" + (del.dataset.fname || ""))) return
+    const c = (typeof curConv === "function") ? curConv() : null
+    const cwd = (c && c.cwd) || ((typeof serverCwd !== "undefined") ? serverCwd : "") || ""
+    try {
+      const r = await fetch("/api/file/delete", { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cwd, path: del.dataset.fdel }) })
+      const j = await r.json()
+      if (!j.ok) alert("삭제 실패: " + (j.error || ""))
+    } catch (err) {
+      alert("삭제 실패")
+    }
+    renderFiles()
+    return
+  }
+  const op = e.target.closest("[data-fopen]")
+  if (op) openAgentFile(op.dataset.fopen || "")
+})
 function fmtSize(n) {
   n = +n || 0
   if (n < 1024) return n + " B"
@@ -178,10 +200,14 @@ async function renderFiles() {
     } else {
       html += "<ul class='flist'>"
       g.files.forEach((f) => {
-        const u = "/api/file?cwd=" + encodeURIComponent(base) + "&path=" + encodeURIComponent(f.path)
         const img = /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name)
-        html += "<li><a href='" + escAttr(u) + "' target='_blank' rel='noreferrer'>" +
-          (img ? "🖼 " : "📄 ") + esc(f.name) + "</a> <span class='fsize'>" + esc(fmtSize(f.size)) + "</span></li>"
+        html += "<li class='frow'><button type='button' class='fname' data-fopen='" +
+          escAttr(f.path) + "'>" +
+          (img ? "🖼 " : "📄 ") + esc(f.name) + "</button> <span class='fsize'>" +
+          esc(fmtSize(f.size)) + "</span>" +
+          "<button type='button' class='fdel' data-fdel='" + escAttr(f.path) +
+          "' data-fname='" + escAttr(f.name) + "' title='" + escAttr(t("files.del")) + "'>" +
+          TRASH_ICON + "</button></li>"
       })
       html += "</ul>"
     }

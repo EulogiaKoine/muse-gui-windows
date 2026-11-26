@@ -37,9 +37,37 @@ function startEdit(msgEl) {
   const old = msgEl.dataset.raw || ""
   msgEl.dataset.orig = msgEl.innerHTML
   msgEl.classList.add("editing")
-  msgEl.innerHTML = '<textarea class="medit">' + esc(old) + "</textarea>" +
+  const mi0 = +(msgEl.dataset.mi ?? -1)
+  const cc0 = (typeof curConv === "function") ? curConv() : null
+  const srcAtts = (cc0 && cc0.msgs[mi0] && cc0.msgs[mi0].atts) || []
+  msgEl._editAtts = srcAtts.slice()
+  msgEl.innerHTML = '<div class="editatt"></div><textarea class="medit">' + esc(old) + "</textarea>" +
     '<div class="meditbar"><button type="button" class="optbtn" data-msave>저장</button>' +
     '<button type="button" class="optbtn" data-mcancel>취소</button></div>'
+  const renderEditAtts = () => {
+    const box = msgEl.querySelector(".editatt")
+    if (!box) return
+    box.innerHTML = ""
+    if (!msgEl._editAtts.length) { box.style.display = "none"; return }
+    box.style.display = ""
+    msgEl._editAtts.forEach((a, i) => {
+      const s = document.createElement("span")
+      s.className = "achip"
+      s.innerHTML = "<span>" + esc((a && a.name) || "?") + "</span> "
+      const x = document.createElement("button")
+      x.type = "button"
+      x.textContent = "×"
+      x.title = "제거"
+      x.onclick = (e) => {
+        e.stopPropagation()
+        msgEl._editAtts.splice(i, 1)
+        renderEditAtts()
+      }
+      s.appendChild(x)
+      box.appendChild(s)
+    })
+  }
+  renderEditAtts()
   const ta = msgEl.querySelector(".medit")
   if (ta) {
     ta.focus()
@@ -87,12 +115,13 @@ async function saveEditedMessage(msgEl, mi, newText) {
     cancelEdit(msgEl)
     return
   }
-  branchFromMessage(c, mi, newText)
+  branchFromMessage(c, mi, newText, (msgEl._editAtts || []).slice())
 }
-async function branchFromMessage(c, mi, newText) {
+async function branchFromMessage(c, mi, newText, atts) {
   const oldSid = c.sid || sessionId
-  c.msgs[mi] = { who: "me", text: newText, ts: Date.now(), el: "" }
+  c.msgs[mi] = { who: "me", text: newText, ts: Date.now(), el: "", atts: (atts && atts.length) ? atts : null }
   c.msgs.length = mi + 1
+  pendingAtts = ((atts && atts.length) ? atts.slice() : []).concat(pendingAtts)
   c.sid = null
   sessionId = null
   c.at = Date.now()
@@ -109,7 +138,12 @@ async function branchFromMessage(c, mi, newText) {
   skipEcho = true
   editingEl = null
   chat.innerHTML = ""
-  c.msgs.forEach((m) => addMsg(m.who, m.text, null, footFor(m), undefined, m.th ? { thoughts: m.th } : null))
+  c.msgs.forEach((m) => {
+    const ex = {}
+    if (m.th) ex.thoughts = m.th
+    if (m.atts && m.atts.length) ex.atts = m.atts
+    addMsg(m.who, m.text, null, footFor(m), undefined, Object.keys(ex).length ? ex : null)
+  })
   chat.scrollTop = chat.scrollHeight
   setRoute("/" + c.k)
   input.value = newText
@@ -218,7 +252,7 @@ chat.addEventListener("click", async (e) => {
       if (c && mi >= 0) {
         if (editingEl) cancelEdit(editingEl)
         if (c.msgs[mi] && c.msgs[mi].who === "me") {
-          branchFromMessage(c, mi, c.msgs[mi].text)
+          branchFromMessage(c, mi, c.msgs[mi].text, (c.msgs[mi].atts || []).slice())
         } else if (msgEl.classList.contains("ai")) {
           let qi = -1
           for (let q = Math.min(mi, c.msgs.length - 1); q >= 0; q--) {
@@ -227,7 +261,7 @@ chat.addEventListener("click", async (e) => {
               break
             }
           }
-          if (qi >= 0) branchFromMessage(c, qi, c.msgs[qi].text)
+          if (qi >= 0) branchFromMessage(c, qi, c.msgs[qi].text, (c.msgs[qi].atts || []).slice())
         }
       }
     }
@@ -237,6 +271,11 @@ chat.addEventListener("click", async (e) => {
   if (pl) {
     e.preventDefault()
     openPathLink(pl)
+    return
+  }
+  const oa = e.target.closest("[data-openatt]")
+  if (oa) {
+    openAgentFile(oa.dataset.openatt || "")
     return
   }
   const b = e.target.closest("[data-copy]")
@@ -348,6 +387,40 @@ async function postChatStream(message, sid, cwd, signal, onRun, atts) {
   if (!gotDone || !doneJ) throw new Error("스트림이 끝나기 전에 연결이 끊어졌습니다.")
   return doneJ
 }
+let goalAutoN = 0
+const GOAL_AUTO_CAP = 6
+function goalPending() {
+  const c = (typeof curConv === "function") ? curConv() : null
+  const g = c && c.goal
+  return (g && g.active && g.items && g.items.some((x) => !x.done)) ? g : null
+}
+async function goalAutoChain(goalMode, j) {
+  if (!goalMode) return
+  const g = goalPending()
+  if (!g) { goalAutoN = 0; return }
+  if (goalAutoN >= GOAL_AUTO_CAP) {
+    goalAutoN = 0
+    const msg = t("goal.autoCap")
+    addMsg("ai", msg)
+    saveMsg("ai", msg)
+    drawConvs()
+    chat.scrollTop = chat.scrollHeight
+    return
+  }
+  if (/실패|시간 초과|전송 실패|empty/i.test(j.text || "")) { goalAutoN = 0; return }
+  goalAutoN++
+  const cwd = (curConv() && curConv().cwd) || serverCwd || ""
+  const ph = addMsg("ai", "응답 생성 중…", null, null, false)
+  const t0 = Date.now()
+  try {
+    touchLive()
+    await runStreamTurn(goalTurnPrompt(g, "이어서 계속 진행하라. 사용자에게 되묻지 말고 다음 단계로 넘어가고, 각 단계 완료 시 goal-status 펜스를 출력하라."), sessionId, cwd, ph, t0, "status")
+  } catch (err) {
+    const alt = "자동 계속 실패: " + err
+    finishAiTurn({ text: alt, session_id: null }, ph, null)
+    sealAiTurn(ph, t0, { text: alt, session_id: null })
+  }
+}
 async function runStreamTurn(full, sid, cwd, ph, t0, goalMode, atts) {
   const tbox = document.createElement("div")
   tbox.className = "thoughts"
@@ -375,6 +448,7 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode, atts) {
     if (atts && atts.length) clearAtts()
     const fr = finishAiTurn(j, ph, goalMode)
     sealAiTurn(ph, t0, fr)
+    await goalAutoChain(goalMode, j)
   } catch (err) {
     const aborted = err && err.name === "AbortError"
     const base = tstate.texts.join("").trim()
@@ -395,6 +469,7 @@ $("#f").addEventListener("submit", async (e) => {
     }
   } catch (err) {}
   if (activeStreamAbort) { try { activeStreamAbort.abort(); } catch (err) {} return; }
+  goalAutoN = 0
   const text = input.value.trim()
   if (!text) return
   if (inputGated()) {
@@ -464,11 +539,10 @@ $("#f").addEventListener("submit", async (e) => {
   }
   const isSlashCmd = text.startsWith("/") && sendText === null
   const atts = isSlashCmd ? [] : pendingAtts.slice()
-  const echoSuffix = atts.length ? "\n[첨부: " + atts.map((a) => a.name).join(", ") + "]" : ""
   saveConv(text.slice(0, 30))
   const meTs = Date.now()
   if (skipEcho) skipEcho = false
-  else { addMsg("me", text + echoSuffix, null, timeStr(meTs)); saveMsg("me", text + echoSuffix, { ts: meTs }); }
+  else { addMsg("me", text, null, timeStr(meTs), true, atts.length ? { atts } : null); saveMsg("me", text, { ts: meTs, atts: atts.length ? atts : null }); }
   if (text === "/copy" || text.startsWith("/copy ")) {
     const done = (await copyText(lastAiText())) ? "복사했습니다." : "복사할 답변이 없습니다."
     addMsg("ai", done)

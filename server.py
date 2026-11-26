@@ -1462,6 +1462,21 @@ def split_attachments(workdir, atts):
     return imgs, refs
 
 
+def resolve_agent_file(workdir, rel):
+    """files 탭 경로를 .agent 안 실파일로 바꾼다. 밖이면 None."""
+    rel = (rel or "").replace("\\", "/")
+    root = os.path.realpath(os.path.join(workdir, ".agent"))
+    ap = os.path.realpath(os.path.join(workdir, rel))
+    ok = rel.startswith(".agent/") and ap != root
+    try:
+        ok = ok and os.path.commonpath([root, ap]) == root
+    except ValueError:
+        ok = False
+    if not ok or not os.path.isfile(ap):
+        return None
+    return ap
+
+
 def agent_file_groups(workdir):
     """files 탭용: .agent 공개 하위 폴더별 파일 묶음."""
     groups = [("attachments", "첨부파일"), ("memory", "메모리"),
@@ -1812,15 +1827,9 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/file":
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             workdir = prepare_workdir((q.get("cwd") or [""])[0])
-            rel = ((q.get("path") or [""])[0] or "").replace("\\", "/")
-            root = os.path.realpath(os.path.join(workdir, ".agent"))
-            ap = os.path.realpath(os.path.join(workdir, rel))
-            ok = rel.startswith(".agent/") and ap != root
-            try:
-                ok = ok and os.path.commonpath([root, ap]) == root
-            except ValueError:
-                ok = False
-            if not ok or not os.path.isfile(ap):
+            ap = resolve_agent_file(
+                workdir, ((q.get("path") or [""])[0] or ""))
+            if ap is None:
                 self._send(404, "not found")
                 return
             try:
@@ -1983,6 +1992,28 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/open-folder":
             ok, msg = open_folder(body.get("path") or "")
+            self._send(200, json.dumps(
+                {"ok": ok, "error": None if ok else msg},
+                ensure_ascii=False))
+            return
+        if path in ("/api/file/open", "/api/file/delete"):
+            workdir = prepare_workdir(body.get("cwd") or "")
+            ap = resolve_agent_file(workdir, body.get("path") or "")
+            if ap is None:
+                self._send(200, json.dumps({"ok": False,
+                                            "error": "not found"}))
+                return
+            if path == "/api/file/delete":
+                try:
+                    os.remove(ap)
+                except OSError as e:
+                    self._send(200, json.dumps({"ok": False,
+                                                "error": str(e)}))
+                    return
+                self._send(200, json.dumps({"ok": True,
+                                            "error": None}))
+                return
+            ok, msg = open_folder(ap)
             self._send(200, json.dumps(
                 {"ok": ok, "error": None if ok else msg},
                 ensure_ascii=False))
