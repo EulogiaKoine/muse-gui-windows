@@ -15,7 +15,7 @@ const sandbox = {}
 require("vm").createContext(sandbox)
 require("vm").runInContext(
   src +
-    "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd, thoughtKind, truncStr, diffLineClass, isDiffText, diffLinesHtml, diffOnly, shouldNotifyCompletion, thoughtSummary, isOutputTruncated, sortConvs, gateFor, slimConvsForSave };",
+    "\nglobalThis.__R = { renderText, renderMath, mathCopyText, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd, thoughtKind, truncStr, diffLineClass, isDiffText, diffLinesHtml, diffOnly, shouldNotifyCompletion, thoughtSummary, isOutputTruncated, sortConvs, gateFor, slimConvsForSave };",
   sandbox,
 )
 const R = sandbox.__R
@@ -116,6 +116,34 @@ t(
   "display math raw",
   h.includes("data-tex=") && h.includes("math-block"),
   h.slice(0, 300),
+)
+t(
+  "mathcopy display delimited",
+  R.mathCopyText("\\frac{a}{b}", true) === "$$\n\\frac{a}{b}\n$$",
+  "",
+)
+t(
+  "mathcopy inline delimited",
+  R.mathCopyText("x^2", false) === "$x^2$",
+  "",
+)
+t(
+  "mathcopy trims",
+  R.mathCopyText("  y  \n", true) === "$$\ny\n$$",
+  "",
+)
+t(
+  "mathcopy block repastes as block",
+  (() => {
+    const h2 = R.renderText(R.mathCopyText("\\frac{a}{b}", true))
+    return h2.includes("math-block") && h2.includes('data-tex="\\frac{a}{b}"')
+  })(),
+  "",
+)
+t(
+  "mathcopy inline repastes",
+  R.renderText(R.mathCopyText("x^2", false)).includes('data-tex="x^2"'),
+  "",
 )
 h = R.renderText("| a | b |\n|---|---|\n| 1 | 2 |")
 t(
