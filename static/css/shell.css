@@ -15,11 +15,21 @@ header { border-bottom: 1px solid var(--bd); padding: 8px 14px; font-size: 13px;
 body.rside-hidden #rside { display: none; }
 #rsidehead { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 #rsidetabs { display: flex; gap: 4px; flex: 1; min-width: 0; }
-#rsidetabs button { flex: 1; border: 1px solid transparent; background: none; color: var(--muted); border-radius: 8px; padding: 7px 4px; cursor: pointer; font-size: 13px; }
+#rsidetabs button { flex: 1; border: 1px solid transparent; background: none; color: var(--muted); border-radius: 8px 8px 0 0; padding: 7px 4px; cursor: pointer; font-size: 13px; min-width: 0; }
 #rsidetabs button:hover { color: var(--text); background: var(--hover); }
-#rsidetabs button.sel { background: var(--bg); color: var(--text); font-weight: 600; border-color: var(--bd); }
-#rsidetabs button .tx { margin-left: 6px; color: var(--muted); border-radius: 4px; padding: 0 2px; font-size: 1.5em; line-height: 1; }
-#rsidetabs button .tx:hover { color: var(--err); background: var(--hover); }
+#rsidetabs button.sel { background: var(--bg); color: var(--text); font-weight: 600; border-color: var(--bd); border-bottom-color: var(--bg); }
+#rsidetabs button .tlab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#rsidetabs button .tx { display: none; margin-left: 6px; color: var(--muted); border-radius: 4px; padding: 0 2px; font-size: 1.5em; line-height: 1; flex: none; }
+#rsidetabs button:hover .tx { display: inline-block; }
+#rsidetabs button .tx:hover { color: var(--text); background: var(--bd); }
+#rsidetabs button.pinned .tlab::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--me); margin-right: 5px; vertical-align: 1px; }
+#rtabmenu, #rtabadd { border: 1px solid transparent; background: none; color: var(--muted); border-radius: 8px; padding: 4px 6px; cursor: pointer; flex: none; line-height: 1; font-size: 14px; }
+#rtabmenu:hover, #rtabadd:hover { color: var(--text); background: var(--hover); }
+#tabmenu { position: fixed; z-index: 30; border: 1px solid var(--bd); background: var(--bubble); border-radius: 8px; box-shadow: 0 8px 24px #0003; padding: 4px; min-width: 150px; }
+#tabmenu[hidden] { display: none; }
+#tabmenu button { display: block; width: 100%; text-align: left; border: 0; border-radius: 6px; background: none; color: var(--text); padding: 8px 10px; cursor: pointer; font-size: 13px; }
+#tabmenu button:hover { background: var(--hover); }
+#tabmenu button.sel { color: var(--me); font-weight: 600; }
 #rsidetoggle, #rsideopen { border: 1px solid var(--bd); background: var(--bg); border-radius: 8px; padding: 4px 6px; cursor: pointer; color: var(--muted); line-height: 0; flex: none; }
 #rsidetoggle:hover, #rsideopen:hover { border-color: var(--me); color: var(--me); }
 #rsideopen { margin-left: auto; }

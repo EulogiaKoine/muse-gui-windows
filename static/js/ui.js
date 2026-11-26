@@ -43,28 +43,63 @@ function availTabs() {
   t.push("subagents")
   return t
 }
+const RTAB_KEY = "muse-gui-rtabs"
+function loadRTabs() {
+  try {
+    const d = JSON.parse(localStorage.getItem(RTAB_KEY) || "{}")
+    return (d && typeof d === "object") ? d : {}
+  } catch (e) { return {} }
+}
+function saveRTabs() {
+  try {
+    localStorage.setItem(RTAB_KEY, JSON.stringify({
+      open: openTabs, closed: [...closedTabs],
+      labels: tabLabels, pinned: tabPinned,
+    }))
+  } catch (e) {}
+}
+let openTabs = (loadRTabs().open || []).slice()
+let closedTabs = new Set(loadRTabs().closed || [])
+let tabLabels = loadRTabs().labels || {}
+let tabPinned = (loadRTabs().pinned || []).slice()
+function tabLabel(id) {
+  return tabLabels[id] || (RSIDE_TABS[id] ? RSIDE_TABS[id].label : id)
+}
+function openTabIds() {
+  const av = availTabs()
+  openTabs = openTabs.filter((id) => av.includes(id))
+  av.forEach((id) => {
+    if (!openTabs.includes(id) && !closedTabs.has(id)) openTabs.push(id)
+  })
+  return openTabs.slice()
+}
 function renderRsideTabs() {
   const box = $("#rsidetabs")
   if (!box) return
   box.innerHTML = ""
-  availTabs().forEach((id) => {
-    const t = RSIDE_TABS[id]
+  const ids = openTabIds()
+  const pinned = ids.filter((id) => tabPinned.includes(id))
+  const rest = ids.filter((id) => !tabPinned.includes(id))
+  pinned.concat(rest).forEach((id) => {
     const b = document.createElement("button")
     b.type = "button"
     b.setAttribute("role", "tab")
+    b.dataset.tab = id
+    if (tabPinned.includes(id)) b.classList.add("pinned")
     const lab = document.createElement("span")
-    lab.textContent = t.label
+    lab.className = "tlab"
+    lab.textContent = tabLabel(id)
     b.appendChild(lab)
     if (id === rsideTab) b.classList.add("sel")
-    b.onclick = () => {
-      rsideTab = id
-      drawRside()
+    b.onclick = (e) => {
+      if (e.target.closest(".tx")) return
+      openTabMenu(id, b)
     }
-    if (t.closable) {
+    if (!tabPinned.includes(id)) {
       const x = document.createElement("span")
       x.className = "tx"
       x.textContent = "×"
-      x.title = "탭 닫기"
+      x.title = t("rtab.close")
       x.onclick = (e) => {
         e.stopPropagation()
         closeRsideTab(id)
@@ -77,11 +112,90 @@ function renderRsideTabs() {
     s.hidden = s.dataset.rpane !== (rsideTab || "empty")
   })
 }
+function activateRsideTab(id) {
+  if (!openTabs.includes(id)) openTabs.push(id)
+  closedTabs.delete(id)
+  rsideTab = id
+  rsideHold = false
+  saveRTabs()
+  drawRside()
+}
 function closeRsideTab(id) {
   const t = RSIDE_TABS[id]
   if (t && t.onClose) t.onClose()
-  else if (id === "help") helpOpen = false
+  const ix = openTabs.indexOf(id)
+  const next = ix >= 0
+    ? (openTabs[ix + 1] || openTabs[ix - 1] || null)
+    : (openTabs[openTabs.length - 1] || null)
+  openTabs = openTabs.filter((x) => x !== id)
+  if (availTabs().includes(id)) closedTabs.add(id)
+  tabPinned = tabPinned.filter((x) => x !== id)
+  rsideTab = (next && next !== id && openTabs.includes(next)) ? next : (openTabs[openTabs.length - 1] || null)
+  saveRTabs()
   drawRside()
+}
+function openTabMenu(id, anchor) {
+  hideTabMenu()
+  const m = $("#tabmenu")
+  const items = [
+    { k: "open", label: t("rtab.open") },
+    { k: "rename", label: t("rtab.rename") },
+    { k: tabPinned.includes(id) ? "unpin" : "pin", label: tabPinned.includes(id) ? t("rtab.unpin") : t("rtab.pin") },
+  ]
+  items.forEach((it) => {
+    const b = document.createElement("button")
+    b.type = "button"
+    b.textContent = it.label
+    b.onclick = (e) => {
+      e.stopPropagation()
+      hideTabMenu()
+      if (it.k === "open") activateRsideTab(id)
+      else if (it.k === "rename") renameRsideTab(id)
+      else if (it.k === "pin" && !tabPinned.includes(id)) { tabPinned.push(id); saveRTabs(); drawRside() }
+      else if (it.k === "unpin") { tabPinned = tabPinned.filter((x) => x !== id); saveRTabs(); drawRside() }
+    }
+    m.appendChild(b)
+  })
+  const r = anchor.getBoundingClientRect()
+  m.style.left = Math.min(r.left, window.innerWidth - 170) + "px"
+  m.style.top = (r.bottom + 4) + "px"
+  m.hidden = false
+}
+function hideTabMenu() {
+  const m = $("#tabmenu")
+  if (m) { m.hidden = true; m.innerHTML = "" }
+}
+function renameRsideTab(id) {
+  const cur = tabLabel(id)
+  let next = null
+  try { next = prompt(t("rtab.renameAsk"), cur) } catch (e) { return }
+  if (next === null) return
+  next = String(next).trim().slice(0, 24)
+  if (!next) delete tabLabels[id]
+  else tabLabels[id] = next
+  saveRTabs()
+  drawRside()
+}
+function openTabList() {
+  hideTabMenu()
+  const m = $("#tabmenu")
+  availTabs().forEach((id) => {
+    const b = document.createElement("button")
+    b.type = "button"
+    b.className = openTabs.includes(id) ? "sel" : ""
+    b.textContent = (openTabs.includes(id) ? "● " : "○ ") + tabLabel(id)
+    b.onclick = (e) => {
+      e.stopPropagation()
+      hideTabMenu()
+      if (openTabs.includes(id)) activateRsideTab(id)
+      else { closedTabs.delete(id); activateRsideTab(id) }
+    }
+    m.appendChild(b)
+  })
+  const r = $("#rtabmenu").getBoundingClientRect()
+  m.style.left = Math.min(r.left, window.innerWidth - 170) + "px"
+  m.style.top = (r.bottom + 4) + "px"
+  m.hidden = false
 }
 function applyRside(hidden) {
   document.body.classList.toggle("rside-hidden", !!hidden)
@@ -90,19 +204,23 @@ function applyRside(hidden) {
 }
 function setRside(hidden) { rsideHold = !!hidden; applyRside(hidden); saveTheme({ rside: !!hidden }); }
 function openRside(tab) {
+  if (!tab || !RSIDE_TABS[tab]) return
   if (tab === "help") helpOpen = true
-  if (tab) rsideTab = tab
+  closedTabs.delete(tab)
+  if (!openTabs.includes(tab)) openTabs.push(tab)
+  rsideTab = tab
   rsideHold = false
+  saveRTabs()
   drawRside()
 }
 function drawRside() {
-  const tabs = availTabs()
-  if (!tabs.length) {
+  const ids = openTabIds()
+  if (!ids.length) {
     rsideTab = null
     renderRsideTabs()
     return
   }
-  if (!tabs.includes(rsideTab)) rsideTab = tabs[0]
+  if (!ids.includes(rsideTab)) rsideTab = ids[0]
   if (document.body.classList.contains("rside-hidden") && !rsideHold) applyRside(false)
   renderRsideTabs()
   RSIDE_TABS[rsideTab].render()
@@ -171,6 +289,79 @@ document.querySelector("#rsidefiles").addEventListener("click", async (e) => {
   const op = e.target.closest("[data-fopen]")
   if (op) openAgentFile(op.dataset.fopen || "")
 })
+document.querySelector("#rtabmenu").addEventListener("click", (e) => {
+  e.stopPropagation()
+  const m = $("#tabmenu")
+  if (m && !m.hidden) { hideTabMenu(); return }
+  openTabList()
+});
+document.querySelector("#rtabadd").addEventListener("click", (e) => {
+  e.stopPropagation()
+  const next = availTabs().find((id) => !openTabs.includes(id))
+  if (next) activateRsideTab(next)
+  else openTabList()
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#tabmenu") && !e.target.closest("#rsidehead")) hideTabMenu()
+});
+function sideEdgeHit(e) {
+  if (!e.target || !e.target.closest) return null
+  const el = e.target.closest("aside, #rside")
+  if (!el) return null
+  const hid = el.id === "rside" ? "rside-hidden" : "side-hidden"
+  if (document.body.classList.contains(hid)) return null
+  if (e.target.closest("button, input, textarea, select, a, summary, .tblwrap")) return null
+  const r = el.getBoundingClientRect()
+  const isR = el.id === "rside"
+  const ok = isR ? (e.clientX >= r.left - 2 && e.clientX <= r.left + 6)
+    : (e.clientX >= r.right - 6 && e.clientX <= r.right + 2)
+  return ok ? { el, isR } : null
+}
+function initSideResize() {
+  let drag = null
+  document.addEventListener("mousedown", (e) => {
+    if ((e.button || 0) !== 0 || drag) return
+    const hit = sideEdgeHit(e)
+    if (!hit) return
+    e.preventDefault()
+    drag = { el: hit.el, isR: hit.isR, x0: e.clientX, w0: hit.el.getBoundingClientRect().width }
+    hit.el.style.flex = "none"
+    document.body.style.cursor = "ew-resize"
+    document.body.style.userSelect = "none"
+  })
+  document.addEventListener("mousemove", (e) => {
+    if (!drag) {
+      if (e.target && e.target.closest && e.target.closest("aside, #rside") && sideEdgeHit(e)) document.body.style.cursor = "ew-resize"
+      else if (document.body.style.cursor === "ew-resize") document.body.style.cursor = ""
+      return
+    }
+    const dx = e.clientX - drag.x0
+    let w = drag.isR ? drag.w0 - dx : drag.w0 + dx
+    w = Math.max(drag.isR ? 220 : 180, Math.min(drag.isR ? 560 : 440, Math.round(w)))
+    drag.el.style.width = w + "px"
+  })
+  const stop = () => {
+    if (!drag) return
+    const w = parseInt(drag.el.style.width, 10) || 0
+    const isR = drag.isR
+    drag = null
+    document.body.style.cursor = ""
+    document.body.style.userSelect = ""
+    if (w > 0) { try { saveTheme(isR ? { rsideW: w } : { sideW: w }) } catch (e) {} }
+  }
+  document.addEventListener("mouseup", stop)
+  document.addEventListener("mouseleave", stop)
+}
+function applySideWidths() {
+  let t = {}
+  try { t = loadTheme() } catch (e) {}
+  const a = document.querySelector("aside")
+  if (a && +t.sideW >= 180) { a.style.width = t.sideW + "px"; a.style.flex = "none" }
+  const r = document.querySelector("#rside")
+  if (r && +t.rsideW >= 220) { r.style.width = t.rsideW + "px" }
+}
+initSideResize()
+applySideWidths()
 document.querySelector("#rsidesubagents").addEventListener("click", async (e) => {
   const ss = e.target.closest("[data-ssenter]")
   if (ss) {

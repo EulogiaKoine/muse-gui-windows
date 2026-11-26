@@ -66,6 +66,14 @@ const STR = {
     "agents.toggle": "서브에이전트 펼치기/접기",
     "agents.enter": "이 세션으로 들어가기",
     "agents.noCwd": "작업 디렉터리를 알 수 없어 들어갈 수 없습니다.",
+    "rtab.close": "탭 닫기",
+    "rtab.open": "이 탭 열기",
+    "rtab.rename": "이름 변경",
+    "rtab.renameAsk": "탭 새 이름 (지우면 기본값)",
+    "rtab.pin": "고정",
+    "rtab.unpin": "고정 해제",
+    "rtab.list": "탭 목록",
+    "rtab.add": "탭 열기",
     "agents.active": "실행 중",
     "agents.idle": "대기",
     "agents.state_done": "완료(결과 회수)",
@@ -139,6 +147,14 @@ const STR = {
     "agents.toggle": "Expand/collapse subagents",
     "agents.enter": "Enter this session",
     "agents.noCwd": "Cannot enter: unknown working directory.",
+    "rtab.close": "Close tab",
+    "rtab.open": "Open this tab",
+    "rtab.rename": "Rename",
+    "rtab.renameAsk": "New tab name (clear for default)",
+    "rtab.pin": "Pin",
+    "rtab.unpin": "Unpin",
+    "rtab.list": "Tab list",
+    "rtab.add": "Open tab",
     "agents.active": "active",
     "agents.idle": "idle",
     "agents.state_done": "done (result collected)",
@@ -179,6 +195,10 @@ function applyLang(l, save) {
   setText("#cwdlabel", t("cwd.label"))
   setText("#rsideempty1", t("rside.empty"))
   setText("#rsideempty2", t("rside.emptyHint"))
+  const rtm = $("#rtabmenu")
+  if (rtm) { rtm.title = t("rtab.list"); rtm.setAttribute("aria-label", t("rtab.list")) }
+  const rta = $("#rtabadd")
+  if (rta) { rta.title = t("rtab.add"); rta.setAttribute("aria-label", t("rtab.add")) }
   setText("#filesbtn", t("files.btn"))
   setText("#langhead", t("settings.language"))
   document.querySelectorAll("#langrow [data-lang]").forEach((b) => {
