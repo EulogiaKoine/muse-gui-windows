@@ -1389,7 +1389,7 @@ public static class ModernPicker
     public static string PickFolder(string title)
     {
         Guid clsid = new Guid("DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7");
-        Guid iid = new Guid("DC1C5A9C-E88A-4DDE-A5A1-60F82A20AEF7");
+        Guid iid = new Guid("d57c7288-d4ad-4768-be02-9d969532d960");
         object unk;
         int hr = CoCreateInstance(ref clsid, IntPtr.Zero, 1, ref iid, out unk);
         if (hr != 0 || unk == null) throw new COMException("CoCreateInstance failed", hr);
@@ -1398,11 +1398,16 @@ public static class ModernPicker
         dlg.GetOptions(out opts);
         dlg.SetOptions(opts | 0x20u | 0x40u | 0x800u);
         dlg.SetTitle(title);
-        if (dlg.Show(IntPtr.Zero) != 0) return null;
-        IShellItem item = dlg.GetResult();
-        string path;
-        item.GetDisplayName(SIGDN.FILESYSPATH, out path);
-        return path;
+        int showHr = dlg.Show(IntPtr.Zero);
+        if (showHr == 0)
+        {
+            IShellItem item = dlg.GetResult();
+            string path;
+            item.GetDisplayName(SIGDN.FILESYSPATH, out path);
+            return path;
+        }
+        if (showHr == unchecked((int)0x800704C7)) return null;
+        throw new COMException("Show failed", showHr);
     }
 }
 """
@@ -1415,12 +1420,18 @@ PICK_NATIVE_PS = (
     + "  $r = [ModernPicker]::PickFolder('muse-gui 작업 디렉터리 선택')\n"
     + "  if ($r) { $r } else { exit 2 }\n"
     + "} catch {\n"
-    + "  Add-Type -AssemblyName System.Windows.Forms\n"
-    + "  $d = New-Object System.Windows.Forms.FolderBrowserDialog\n"
-    + "  $d.Description = 'muse-gui 작업 디렉터리 선택'\n"
-    + "  $d.ShowNewFolderButton = $true\n"
-    + "  if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK)\n"
-    + "  { $d.SelectedPath } else { exit 2 }\n"
+    + "  $detail = $_.Exception.Message\n"
+    + "  try {\n"
+    + "    Add-Type -AssemblyName System.Windows.Forms\n"
+    + "    $d = New-Object System.Windows.Forms.FolderBrowserDialog\n"
+    + "    $d.Description = 'muse-gui 작업 디렉터리 선택'\n"
+    + "    $d.ShowNewFolderButton = $true\n"
+    + "    if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK)\n"
+    + "    { $d.SelectedPath } else { exit 2 }\n"
+    + "  } catch {\n"
+    + "    if ($detail) { [Console]::Error.WriteLine($detail) }\n"
+    + "    exit 1\n"
+    + "  }\n"
     + "}\n")
 
 
@@ -1436,12 +1447,13 @@ def pick_native_folder():
             ["powershell.exe", "-NoProfile", "-STA",
              "-ExecutionPolicy", "Bypass",
              "-Command", PICK_NATIVE_PS],
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL, text=True)
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            stdin=subprocess.DEVNULL, text=True, errors="replace")
     except OSError as e:
         return False, "powershell.exe 실행 실패: %s" % e
     try:
-        out = proc.communicate(timeout=FS_PICK_TIMEOUT)[0] or ""
+        out, err = proc.communicate(timeout=FS_PICK_TIMEOUT)
+        out, err = out or "", err or ""
     except subprocess.TimeoutExpired:
         proc.kill()
         try:
@@ -1452,7 +1464,10 @@ def pick_native_folder():
     if proc.returncode == 2:
         return False, "취소됨."
     if proc.returncode != 0:
-        return False, "선택 실패 (exit %d)." % proc.returncode
+        tail = " ".join(
+            clean_ansi(err).strip().split())[-200:]
+        detail = ": " + tail if tail else ""
+        return False, "선택 실패 (exit %d)%s." % (proc.returncode, detail)
     win = out.strip()
     if not win:
         return False, "선택 실패 (빈 경로)."
