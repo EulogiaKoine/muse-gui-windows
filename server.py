@@ -393,6 +393,7 @@ def list_models():
 
 
 SID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+CALL_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
 def sessions_root():
@@ -513,6 +514,61 @@ def find_session_dirs(sids):
         dirnames[:] = [d for d in dirnames
                        if d not in ("subagent", "tool-outputs")]
     return found
+
+
+def find_tool_output(call_id, sid=None):
+    """세션 저장소에서 call_id의 도구 출력 전문을 찾는다.
+
+    잘린 터미널 출력(truncated)의 전체 본문을 같은 머신의 로그에서
+    읽어오는 용도. (sid, call_id)는 검증된 토큰만 사용한다."""
+    if not isinstance(call_id, str) or not CALL_RE.match(call_id):
+        return None, "호출 id 형식이 아닙니다."
+    root = os.path.realpath(sessions_root())
+    scope = None
+    if isinstance(sid, str) and SID_RE.match(sid):
+        for dirpath, dirnames, _ in os.walk(root):
+            if sid in dirnames:
+                scope = os.path.join(dirpath, sid)
+                break
+            dirnames[:] = [d for d in dirnames if d != "subagent"]
+    prefix = call_id + "-"
+    best = None
+    def consider(base):
+        nonlocal best
+        try:
+            names = os.listdir(base)
+        except OSError:
+            return
+        for fn in names:
+            if not fn.startswith(prefix):
+                continue
+            p = os.path.realpath(os.path.join(base, fn))
+            if not (p + os.sep).startswith(root + os.sep):
+                continue
+            try:
+                mt = os.path.getmtime(p)
+            except OSError:
+                continue
+            if best is None or mt > best[0]:
+                best = (mt, p)
+    if scope is not None:
+        for dirpath, dirnames, _ in os.walk(scope):
+            consider(dirpath)
+            dirnames[:] = [d for d in dirnames if d != "subagent"]
+    else:
+        for dirpath, dirnames, _ in os.walk(root):
+            consider(dirpath)
+            dirnames[:] = [d for d in dirnames if d != "subagent"]
+    if best is None:
+        return None, "전체 로그를 찾지 못했습니다."
+    try:
+        with open(best[1], "rb") as f:
+            raw = f.read(200 * 1024 + 1)
+    except OSError:
+        return None, "로그를 읽지 못했습니다."
+    cut = len(raw) > 200 * 1024
+    return {"text": raw[:200 * 1024].decode("utf-8", errors="replace"),
+            "truncated": cut}, ""
 
 
 def daily_usage(sids):
@@ -1595,6 +1651,17 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/models":
             self._send(200, json.dumps(list_models(),
                                       ensure_ascii=False))
+        elif path.startswith("/api/tool_output"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            got, err = find_tool_output((q.get("call_id") or [""])[0],
+                                        (q.get("session_id") or [""])[0] or None)
+            if got is None:
+                self._send(200, json.dumps({"ok": False, "error": err},
+                                            ensure_ascii=False))
+            else:
+                self._send(200, json.dumps({"ok": True, "text": got["text"],
+                                            "truncated": got["truncated"]},
+                                           ensure_ascii=False))
         elif path == "/api/chat/stream":
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             self.handle_chat_stream((q.get("message") or [""])[0],

@@ -173,6 +173,9 @@ body.rside-hidden #rside { display: none; }
 .tsubhead .tsum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tsubhead .ttoggle { color: var(--muted); font-size: 1.75em; line-height: 1; }
 .tsubbody[hidden] { display: none; }
+.tsubbody .tfullbtn { margin: 2px 12px 8px; border: 1px solid var(--bd); background: none; color: var(--muted); border-radius: 999px; padding: 3px 12px; cursor: pointer; font-size: 12px; }
+.tsubbody .tfullbtn:hover:not(:disabled) { color: var(--me); border-color: var(--me); }
+.tsubbody .tfullbtn:disabled { opacity: .6; cursor: default; }
 .tlog { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow-y: auto; padding: 8px 12px; color: var(--text); }
 .tsub-terminal .tlog { background: #20242e; color: #dbe1ec; border-radius: 8px; }
 [data-theme="dark"] .tsub-terminal .tlog { background: #2c3342; color: #e8eaf0; }

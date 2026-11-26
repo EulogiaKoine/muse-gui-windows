@@ -15,7 +15,7 @@ if (start < 0 || end < 0 || end < start) {
 const sandbox = {}
 require("vm").createContext(sandbox)
 require("vm").runInContext(
-  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd, thoughtKind, truncStr, diffLineClass, isDiffText, diffLinesHtml, diffOnly, shouldNotifyCompletion, thoughtSummary };",
+  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd, thoughtKind, truncStr, diffLineClass, isDiffText, diffLinesHtml, diffOnly, shouldNotifyCompletion, thoughtSummary, isOutputTruncated };",
   sandbox)
 const R = sandbox.__R
 let pass = 0, fail = 0
@@ -153,5 +153,6 @@ t("diff html", (() => { const h = R.diffLinesHtml("+a\n-b\n@@ -1 +1 @@\n ctx\n<s
 t("diffOnly", R.diffOnly("edited\nchanged lines: line 1\n--- original\n+++ updated\n@@\n-a\n+b") === "--- original\n+++ updated\n@@\n-a\n+b" && R.diffOnly("plain text") === "plain text", "")
 t("notify gate", R.shouldNotifyCompletion("granted", true) && !R.shouldNotifyCompletion("granted", false) && !R.shouldNotifyCompletion("denied", true) && !R.shouldNotifyCompletion("default", true), "")
 t("thoughtSummary", R.thoughtSummary(false, { terminal: 2, file: 1, reason: 3, other: 0 }) === "명령 2개 실행, 파일 1개 작업, 3단계 추론" && R.thoughtSummary(true, { terminal: 1, file: 0, reason: 0, other: 2 }) === "1 command run, 2 others" && R.thoughtSummary(false, {}) === "완료" && R.thoughtSummary(true, {}) === "done", "")
+t("isOutputTruncated", R.isOutputTruncated({ truncated: true, output: "x" }) && R.isOutputTruncated({ original_output_bytes: 9000, output: "x".repeat(100) }) && !R.isOutputTruncated({ original_output_bytes: 8, output: "rawtest\n" }) && !R.isOutputTruncated(null) && !R.isOutputTruncated({}), "")
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)

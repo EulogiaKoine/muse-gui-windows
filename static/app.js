@@ -388,6 +388,14 @@ function thoughtSummary(en, counts) {
   if (n(c.other)) parts.push(en ? n(c.other) + " others" : "기타 " + n(c.other) + "개")
   return parts.join(", ") || (en ? "done" : "완료")
 }
+function isOutputTruncated(o) {
+  if (!o || typeof o !== "object") return false
+  if (o.truncated === true) return true
+  if (typeof o.original_output_bytes === "number" && typeof o.output === "string") {
+    return o.original_output_bytes > o.output.length * 2 + 2048
+  }
+  return false
+}
 function diffOnly(s) {
   const full = String(s == null ? "" : s)
   const lines = full.split("\n")
@@ -723,6 +731,9 @@ const STR = {
     "th.type.file": "파일 작업",
     "th.type.system": "시스템",
     "th.type.tool": "도구",
+    "th.fulllog": "전체 로그 보기",
+    "th.loading": "불러오는 중…",
+    "th.cut": "잘림",
   },
   en: {
     "lobby.sub": "Chat with the muse agent on WSL",
@@ -764,6 +775,9 @@ const STR = {
     "th.type.file": "Files",
     "th.type.system": "System",
     "th.type.tool": "Tool",
+    "th.fulllog": "View full log",
+    "th.loading": "Loading…",
+    "th.cut": "cut",
   }
 }
 let langCur = "ko"
@@ -936,7 +950,22 @@ function syncThoughtHead(tbox) {
 function updateThoughtHead(tstate) {
   if (tstate && tstate.tbox) syncThoughtHead(tstate.tbox)
 }
-function addThoughtLog(r, head, body) {
+function loadFullLog(btn, callId) {
+  btn.disabled = true
+  btn.textContent = t("th.loading")
+  const q = "call_id=" + encodeURIComponent(callId) + (sessionId ? "&session_id=" + encodeURIComponent(sessionId) : "")
+  fetch("/api/tool_output?" + q).then((r) => r.json()).then((j) => {
+    if (!j.ok) throw new Error(j.error || "failed")
+    const box = btn.closest(".tsubbody")
+    const log = box ? box.querySelector(".tlog") : null
+    if (log) log.textContent = j.text + (j.truncated ? "\n[" + t("th.cut") + "]" : "")
+    btn.remove()
+  }).catch((e) => {
+    btn.textContent = String((e && e.message) || e)
+    btn.disabled = false
+  })
+}
+function addThoughtLog(r, head, body, extra) {
   const det = r.det
   while (det.children.length >= 60) det.removeChild(det.firstChild)
   const sub = document.createElement("div")
@@ -962,6 +991,15 @@ function addThoughtLog(r, head, body) {
   if (r.type === "file" && isDiffText(txt)) { pre.innerHTML = diffLinesHtml(txt); pre.classList.add("diff"); }
   else pre.textContent = txt;
   bd.appendChild(pre)
+  if (extra && extra.callId) {
+    const btn = document.createElement("button")
+    btn.type = "button"
+    btn.className = "tfullbtn"
+    btn.textContent = t("th.fulllog")
+    btn.dataset.call = extra.callId
+    btn.onclick = () => loadFullLog(btn, extra.callId)
+    bd.appendChild(btn)
+  }
   sub.append(hb, bd)
   det.appendChild(sub)
   if (r.tgl) r.tgl.hidden = false
@@ -1029,7 +1067,7 @@ function updateThought(tbox, tstate, ev) {
     return
   }
   if (ek === "output" && typeof te.chunk === "string") {
-    let sum = null, body = te.chunk
+    let sum = null, body = te.chunk, fullKey = ""
     try {
       const o = JSON.parse(te.chunk)
       if (o && typeof o === "object") {
@@ -1037,13 +1075,19 @@ function updateThought(tbox, tstate, ev) {
         const desc = o.description || o.desc || ""
         sum = (desc || cmd || t("th.output")) +
           (o.exit_code !== undefined && o.exit_code !== null ? t("th.exit") + o.exit_code : "")
-        if (r.type === "terminal" && typeof o.output === "string") body = (cmd ? "$ " + cmd + "\n" : "") + o.output
+        if (r.type === "terminal" && typeof o.output === "string") {
+          body = (cmd ? "$ " + cmd + "\n" : "") + o.output
+          if (isOutputTruncated(o)) {
+            const ck = String(r.idem || "").replace(/^tool:/, "")
+            if (/^[A-Za-z0-9_-]+$/.test(ck)) fullKey = ck
+          }
+        }
       }
     } catch (e) {}
     if (r.type === "file") body = diffOnly(body)
     if (sum) setRowSummary(r, sum)
     tstate.last = sum || t("th.output")
-    addThoughtLog(r, sum || t("th.output"), body)
+    addThoughtLog(r, sum || t("th.output"), body, fullKey ? { callId: fullKey } : null)
     updateThoughtHead(tstate)
     return
   }
