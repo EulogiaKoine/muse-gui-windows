@@ -55,7 +55,8 @@
 
 | 함수 | 요약 |
 |------|------|
-| `renderMath(tex, display)` | 수식 → HTML(인라인/블록). 파서 실패 시 원문 |
+| `renderMath(tex, display)` | 수식 → HTML(인라인/블록). KaTeX 우선, 실패 시 `renderMathLegacy` 폴백 |
+| `renderMathLegacy(tex, display)` | 손수 구현 폴백 렌더러(매핑표+구조 규칙). KaTeX 부재/실패 시 사용 |
 | `hl(code, lang)` | 코드 하이라이트 span 변환(키워드·문자열·주석·숫자·함수) |
 | `vizHtml(code, height)` | viz-html 코드펜스 → 격리 iframe. `sandbox`만 허용 |
 | `renderText(src)` | 마크다운 본문 → HTML(코드펜스·수식·표·링크·인용·목록) |
@@ -165,7 +166,7 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 
 ---
 
-## 전체 함수 색인 (기계 생성, 184개)
+## 전체 함수 색인 (기계 생성, 185개)
 
 모듈별 전체 목록. 동작 설명은 위 섹션을 본다. 새 함수를 추가하면
 여기에도 한 줄을 추가한다(수동 동기화).
@@ -203,6 +204,7 @@ URL의 세션 id가 로컬에 없을 때만 서버 조회로 입수.
 
 ### render.js
 - `renderMath()`
+- `renderMathLegacy()`
 - `hl()`
 - `vizHtml()`
 - `renderText()`
