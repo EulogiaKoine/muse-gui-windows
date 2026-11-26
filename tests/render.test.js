@@ -15,7 +15,7 @@ if (start < 0 || end < 0 || end < start) {
 const sandbox = {}
 require("vm").createContext(sandbox)
 require("vm").runInContext(
-  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd, thoughtKind, truncStr };",
+  src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd, thoughtKind, truncStr, diffLineClass, isDiffText, diffLinesHtml };",
   sandbox)
 const R = sandbox.__R
 let pass = 0, fail = 0
@@ -140,6 +140,15 @@ t("convToMd", (() => { const md = R.convToMd({ t: "T", sid: "s1abcd", cwd: "/w",
   { who: "me", text: "질문", ts: 1000 },
   { who: "ai", text: "답\n```goal-plan\n[{\"t\":\"a\"}]\n```\n끝", ts: 2000 }] })
   return md.includes("## 사용자") && md.includes("## 어시스턴트") && md.includes("질문") && !md.includes("goal-plan")
+  })(), "")
+t("diff add", R.diffLineClass("+foo") === "td-add", "")
+t("diff del", R.diffLineClass("-foo") === "td-del", "")
+t("diff hunk", R.diffLineClass("@@ -1 +1 @@") === "td-hunk", "")
+t("diff meta", R.diffLineClass("+++ b/f") === "td-meta" && R.diffLineClass("--- a/f") === "td-meta" && R.diffLineClass("diff --git a b") === "td-meta", "")
+t("diff plain", R.diffLineClass("context line") === "" && R.diffLineClass("") === "", "")
+t("isDiff", R.isDiffText("diff --git a b\n@@ -1 +1 @@") && R.isDiffText("x\n@@ -1 +1 @@") && !R.isDiffText("hello\nworld"), "")
+t("diff html", (() => { const h = R.diffLinesHtml("+a\n-b\n@@ -1 +1 @@\n ctx\n<script>")
+  return h.includes('<span class="td-add">+a</span>') && h.includes('<span class="td-del">-b</span>') && h.includes('<span class="td-hunk">') && !h.includes("<script>")
   })(), "")
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)

@@ -361,6 +361,23 @@ function thoughtKind(taskKind, operation) {
   }
   return "system"
 }
+function diffLineClass(ln) {
+  if (/^@@/.test(ln)) return "td-hunk";
+  if (/^\+\+\+/.test(ln) || /^---/.test(ln) || /^diff --git/.test(ln) || /^index /.test(ln) || /^Binary /.test(ln)) return "td-meta";
+  if (/^\+/.test(ln)) return "td-add";
+  if (/^-/.test(ln)) return "td-del";
+  return "";
+}
+function isDiffText(s) {
+  s = String(s == null ? "" : s);
+  return /^diff --git/m.test(s) || /^@@ /m.test(s);
+}
+function diffLinesHtml(s) {
+  return String(s == null ? "" : s).slice(0, 3000).split("\n").map((ln) => {
+    const c = diffLineClass(ln);
+    return c ? '<span class="' + c + '">' + esc(ln) + "</span>" : esc(ln);
+  }).join("\n");
+}
 function timeStr(ts) {
   if (!ts) return ""
   const d = new Date(ts)
@@ -873,7 +890,7 @@ function addThoughtLog(r, head, body) {
   const det = r.det
   while (det.children.length >= 60) det.removeChild(det.firstChild)
   const sub = document.createElement("div")
-  sub.className = "tsub"
+  sub.className = "tsub tsub-" + (r.type || "tool")
   const hb = document.createElement("button")
   hb.type = "button"
   hb.className = "tsubhead"
@@ -891,7 +908,9 @@ function addThoughtLog(r, head, body) {
   bd.hidden = true
   const pre = document.createElement("div")
   pre.className = "tlog"
-  pre.textContent = String(body == null ? "" : body).slice(0, 3000)
+  const txt = String(body == null ? "" : body).slice(0, 3000)
+  if (r.type === "file" && isDiffText(txt)) pre.innerHTML = diffLinesHtml(txt);
+  else pre.textContent = txt;
   bd.appendChild(pre)
   sub.append(hb, bd)
   det.appendChild(sub)
@@ -1021,9 +1040,11 @@ function renderThoughtsStatic(thoughts) {
     if (subs.length) {
       let sh = ""
       subs.forEach((s) => {
-        sh += '<div class="tsub"><button type="button" class="tsubhead" data-ttoggle title="펼치기/접기">' +
+        const bt = String(s.b || "")
+        const bh = (t.k === "file" && isDiffText(bt)) ? diffLinesHtml(bt) : esc(bt)
+        sh += '<div class="tsub tsub-' + esc(String(t.k || "tool")) + '"><button type="button" class="tsubhead" data-ttoggle title="펼치기/접기">' +
           '<span class="tsum">' + esc(s.h || "로그") + '</span><span class="ttoggle">›</span></button>' +
-          '<div class="tsubbody" hidden><div class="tlog">' + esc(s.b || "") + "</div></div></div>"
+          '<div class="tsubbody" hidden><div class="tlog">' + bh + "</div></div></div>"
       })
       det = '<div class="tdetail" hidden>' + sh + "</div>"
     }
