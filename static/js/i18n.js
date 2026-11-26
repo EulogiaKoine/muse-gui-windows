@@ -52,11 +52,15 @@ const STR = {
     "web.searching": "검색 중…",
     "web.sitesDone": "개 사이트 검색 완료",
     "web.results": "검색 결과",
-    "send.famBusy": "연결된 세션에서 작업 중입니다. 끝나면 보내주세요. (지금 끝내려면 입력 지우고 ■)",
+    "send.famBusy":
+      "연결된 세션에서 작업 중입니다. 끝나면 보내주세요. (지금 끝내려면 입력 지우고 ■)",
     "conv.adopted": "가져온 세션",
-    "conv.saveTrim": "저장 공간이 부족해 이전 대화의 세부 기록 일부를 줄여서 저장했습니다.",
-    "conv.saveFail": "저장 공간이 부족해 대화를 저장하지 못했습니다. 오래된 대화를 삭제해 주세요.",
-    "goal.autoCap": "목표가 끝나지 않았지만 자동 계속 상한에 도달해 멈췄습니다. 계속하려면 메시지를 보내세요.",
+    "conv.saveTrim":
+      "저장 공간이 부족해 이전 대화의 세부 기록 일부를 줄여서 저장했습니다.",
+    "conv.saveFail":
+      "저장 공간이 부족해 대화를 저장하지 못했습니다. 오래된 대화를 삭제해 주세요.",
+    "goal.autoCap":
+      "목표가 끝나지 않았지만 자동 계속 상한에 도달해 멈췄습니다. 계속하려면 메시지를 보내세요.",
     "files.btn": "파일",
     "files.loading": "불러오는 중…",
     "files.fail": "파일 목록을 불러오지 못했습니다.",
@@ -65,7 +69,8 @@ const STR = {
     "files.delAsk": "이 파일을 삭제할까요?",
     "agents.loading": "불러오는 중…",
     "agents.fail": "목록을 불러오지 못했습니다.",
-    "agents.empty": "서브에이전트 기록이 없습니다. 서브에이전트를 실행한 세션에서 기록이 쌓입니다.",
+    "agents.empty":
+      "서브에이전트 기록이 없습니다. 서브에이전트를 실행한 세션에서 기록이 쌓입니다.",
     "agents.toggle": "서브에이전트 펼치기/접기",
     "agents.enter": "이 세션으로 들어가기",
     "agents.noCwd": "작업 디렉터리를 알 수 없어 들어갈 수 없습니다.",
@@ -135,11 +140,15 @@ const STR = {
     "web.searching": "Searching…",
     "web.sitesDone": " sites searched",
     "web.results": "Search results",
-    "send.famBusy": "A linked session is still working. Send after it finishes. (Clear input + ■ to stop now)",
+    "send.famBusy":
+      "A linked session is still working. Send after it finishes. (Clear input + ■ to stop now)",
     "conv.adopted": "Adopted session",
-    "conv.saveTrim": "Storage is low; older detail logs were trimmed when saving.",
-    "conv.saveFail": "Storage full; conversations could not be saved. Please delete old conversations.",
-    "goal.autoCap": "Goal not finished, but auto-continue limit reached. Send a message to continue.",
+    "conv.saveTrim":
+      "Storage is low; older detail logs were trimmed when saving.",
+    "conv.saveFail":
+      "Storage full; conversations could not be saved. Please delete old conversations.",
+    "goal.autoCap":
+      "Goal not finished, but auto-continue limit reached. Send a message to continue.",
     "files.btn": "Files",
     "files.loading": "Loading…",
     "files.fail": "Could not load the file list.",
@@ -148,7 +157,8 @@ const STR = {
     "files.delAsk": "Delete this file?",
     "agents.loading": "Loading…",
     "agents.fail": "Could not load the session list.",
-    "agents.empty": "No subagent records yet. Records accumulate in sessions that spawn subagents.",
+    "agents.empty":
+      "No subagent records yet. Records accumulate in sessions that spawn subagents.",
     "agents.toggle": "Expand/collapse subagents",
     "agents.enter": "Enter this session",
     "agents.noCwd": "Cannot enter: unknown working directory.",
@@ -206,9 +216,15 @@ function applyLang(l, save) {
   setText("#rsideempty1", t("rside.empty"))
   setText("#rsideempty2", t("rside.emptyHint"))
   const rtm = $("#rtabmenu")
-  if (rtm) { rtm.title = t("rtab.list"); rtm.setAttribute("aria-label", t("rtab.list")) }
+  if (rtm) {
+    rtm.title = t("rtab.list")
+    rtm.setAttribute("aria-label", t("rtab.list"))
+  }
   const rta = $("#rtabadd")
-  if (rta) { rta.title = t("rtab.add"); rta.setAttribute("aria-label", t("rtab.add")) }
+  if (rta) {
+    rta.title = t("rtab.add")
+    rta.setAttribute("aria-label", t("rtab.add"))
+  }
   setText("#filesbtn", t("files.btn"))
   setText("#langhead", t("settings.language"))
   document.querySelectorAll("#langrow [data-lang]").forEach((b) => {

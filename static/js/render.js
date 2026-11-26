@@ -1,46 +1,305 @@
 "use strict"
 // == muse-gui/js/render.js ==
 // Markdown/code/math/table/viz rendering into HTML.
-const GREEK = { alpha:"α", beta:"β", gamma:"γ", delta:"δ", epsilon:"ε", varepsilon:"ε", zeta:"ζ", eta:"η", theta:"θ", thetav:"ϑ", iota:"ι", kappa:"κ", lambda:"λ", mu:"μ", nu:"ν", xi:"ξ", pi:"π", varpi:"ϖ", rho:"ρ", varrho:"ϱ", sigma:"σ", varsigma:"ς", tau:"τ", upsilon:"υ", phi:"φ", varphi:"φ", chi:"χ", psi:"ψ", omega:"ω", imath:"ı", jmath:"ȷ", ell:"ℓ", wp:"℘", aleph:"ℵ", hbar:"ℏ", Re:"ℜ", Im:"ℑ", nabla:"∇", surd:"√", infty:"∞", partial:"∂",
-  times:"×", div:"÷", pm:"±", mp:"∓", cdot:"·", ast:"∗", star:"⋆", circ:"∘", bullet:"•", cdotp:"·", ldots:"…", cdots:"⋯", vdots:"⋮", ddots:"⋱", dots:"…", hellip:"…",
-  leq:"≤", geq:"≥", le:"≤", ge:"≥", lt:"<", gt:">", neq:"≠", ne:"≠", ll:"≪", gg:"≫", prec:"≺", succ:"≻", preceq:"≼", succeq:"≽", subset:"⊂", supset:"⊃", subseteq:"⊆", supseteq:"⊇", subsetneq:"⊊", supsetneq:"⊋", in:"∈", ni:"∋", notin:"∉", owns:"∋",
-  cap:"∩", cup:"∪", uplus:"⊎", sqcap:"⊓", sqcup:"⊔", vee:"∨", wedge:"∧", land:"∧", lor:"∨", setminus:"\\", backslash:"\\", slash:"/",
-  oplus:"⊕", ominus:"⊖", otimes:"⊗", oslash:"⊘", odot:"⊙", dagger:"†", ddagger:"‡", amalg:"∐", coprod:"∐", diamond:"⋄", Diamond:"◇", triangleup:"△", bigtriangleup:"△", bigtriangledown:"▽", Box:"□", square:"□", blacksquare:"■",
-  approx:"≈", cong:"≅", equiv:"≡", propto:"∝", sim:"∼", simeq:"≃", asymp:"≍", doteq:"≐", perp:"⊥", mid:"∣", parallel:"∥", angle:"∠", triangle:"△", prime:"′", qed:"∎",
-  emptyset:"∅", varnothing:"∅", complement:"∁", forall:"∀", exists:"∃", nexists:"∄", neg:"¬", lnot:"¬",
-  to:"→", rightarrow:"→", leftarrow:"←", Rightarrow:"⇒", Leftarrow:"⇐", Leftrightarrow:"⇔", leftrightarrow:"↔", uparrow:"↑", downarrow:"↓", Uparrow:"⇑", Downarrow:"⇓", updownarrow:"↕", mapsto:"↦", longrightarrow:"⟶", longleftarrow:"⟵", longleftrightarrow:"⟷", hookrightarrow:"↪", hookleftarrow:"↩", rightleftharpoons:"⇌", leadsto:"⇝", implies:"⇒", impliedby:"⇐", iff:"⟺", gets:"←",
-  sum:"∑", prod:"∏", coprod:"∐", bigcup:"⋃", bigcap:"⋂", bigvee:"⋁", bigwedge:"⋀", bigoplus:"⨁", bigotimes:"⨂", int:"∫", oint:"∮", iint:"∬", iiint:"∭",
-  cos:"cos", sin:"sin", tan:"tan", arccos:"arccos", arcsin:"arcsin", arctan:"arctan", arg:"arg", cosh:"cosh", cot:"cot", coth:"coth", csc:"csc", deg:"deg", det:"det", dim:"dim", exp:"exp", gcd:"gcd", hom:"hom", inf:"inf", ker:"ker", lg:"lg", lim:"lim", liminf:"lim inf", limsup:"lim sup", ln:"ln", log:"log", max:"max", min:"min", sec:"sec", sinh:"sinh", sup:"sup", tanh:"tanh",
-  quad:"\u2003", qquad:"\u2003\u2003", enspace:"\u2002", thinspace:"\u2009", medspace:"\u2005", thickspace:"\u2005",
-  langle:"⟨", rangle:"⟩", lceil:"⌈", rceil:"⌉", lfloor:"⌊", rfloor:"⌋", vert:"|", Vert:"‖", lbrace:"{", rbrace:"}",
-  ulcorner:"⌜", urcorner:"⌝", llcorner:"⌞", lrcorner:"⌟",
-  lslash:"ł", Lslash:"Ł", o:"ø", O:"Ø", aa:"å", AA:"Å", ae:"æ", AE:"Æ", oe:"œ", OE:"Œ", ss:"ß", dh:"ð", TH:"Þ", th:"þ", ng:"ŋ", NG:"Ŋ" }
-const ACCENTS = { hat:"\u0302", widehat:"\u0302", bar:"\u0304", vec:"\u20D7", dot:"\u0307", ddot:"\u0308", dddot:"\u20DB", tilde:"\u0303", widetilde:"\u0303", check:"\u030C", breve:"\u0306", acute:"\u0301", grave:"\u0300", mathring:"\u030A" }
+const GREEK = {
+  alpha: "α",
+  beta: "β",
+  gamma: "γ",
+  delta: "δ",
+  epsilon: "ε",
+  varepsilon: "ε",
+  zeta: "ζ",
+  eta: "η",
+  theta: "θ",
+  thetav: "ϑ",
+  iota: "ι",
+  kappa: "κ",
+  lambda: "λ",
+  mu: "μ",
+  nu: "ν",
+  xi: "ξ",
+  pi: "π",
+  varpi: "ϖ",
+  rho: "ρ",
+  varrho: "ϱ",
+  sigma: "σ",
+  varsigma: "ς",
+  tau: "τ",
+  upsilon: "υ",
+  phi: "φ",
+  varphi: "φ",
+  chi: "χ",
+  psi: "ψ",
+  omega: "ω",
+  imath: "ı",
+  jmath: "ȷ",
+  ell: "ℓ",
+  wp: "℘",
+  aleph: "ℵ",
+  hbar: "ℏ",
+  Re: "ℜ",
+  Im: "ℑ",
+  nabla: "∇",
+  surd: "√",
+  infty: "∞",
+  partial: "∂",
+  times: "×",
+  div: "÷",
+  pm: "±",
+  mp: "∓",
+  cdot: "·",
+  ast: "∗",
+  star: "⋆",
+  circ: "∘",
+  bullet: "•",
+  cdotp: "·",
+  ldots: "…",
+  cdots: "⋯",
+  vdots: "⋮",
+  ddots: "⋱",
+  dots: "…",
+  hellip: "…",
+  leq: "≤",
+  geq: "≥",
+  le: "≤",
+  ge: "≥",
+  lt: "<",
+  gt: ">",
+  neq: "≠",
+  ne: "≠",
+  ll: "≪",
+  gg: "≫",
+  prec: "≺",
+  succ: "≻",
+  preceq: "≼",
+  succeq: "≽",
+  subset: "⊂",
+  supset: "⊃",
+  subseteq: "⊆",
+  supseteq: "⊇",
+  subsetneq: "⊊",
+  supsetneq: "⊋",
+  in: "∈",
+  ni: "∋",
+  notin: "∉",
+  owns: "∋",
+  cap: "∩",
+  cup: "∪",
+  uplus: "⊎",
+  sqcap: "⊓",
+  sqcup: "⊔",
+  vee: "∨",
+  wedge: "∧",
+  land: "∧",
+  lor: "∨",
+  setminus: "\\",
+  backslash: "\\",
+  slash: "/",
+  oplus: "⊕",
+  ominus: "⊖",
+  otimes: "⊗",
+  oslash: "⊘",
+  odot: "⊙",
+  dagger: "†",
+  ddagger: "‡",
+  amalg: "∐",
+  coprod: "∐",
+  diamond: "⋄",
+  Diamond: "◇",
+  triangleup: "△",
+  bigtriangleup: "△",
+  bigtriangledown: "▽",
+  Box: "□",
+  square: "□",
+  blacksquare: "■",
+  approx: "≈",
+  cong: "≅",
+  equiv: "≡",
+  propto: "∝",
+  sim: "∼",
+  simeq: "≃",
+  asymp: "≍",
+  doteq: "≐",
+  perp: "⊥",
+  mid: "∣",
+  parallel: "∥",
+  angle: "∠",
+  triangle: "△",
+  prime: "′",
+  qed: "∎",
+  emptyset: "∅",
+  varnothing: "∅",
+  complement: "∁",
+  forall: "∀",
+  exists: "∃",
+  nexists: "∄",
+  neg: "¬",
+  lnot: "¬",
+  to: "→",
+  rightarrow: "→",
+  leftarrow: "←",
+  Rightarrow: "⇒",
+  Leftarrow: "⇐",
+  Leftrightarrow: "⇔",
+  leftrightarrow: "↔",
+  uparrow: "↑",
+  downarrow: "↓",
+  Uparrow: "⇑",
+  Downarrow: "⇓",
+  updownarrow: "↕",
+  mapsto: "↦",
+  longrightarrow: "⟶",
+  longleftarrow: "⟵",
+  longleftrightarrow: "⟷",
+  hookrightarrow: "↪",
+  hookleftarrow: "↩",
+  rightleftharpoons: "⇌",
+  leadsto: "⇝",
+  implies: "⇒",
+  impliedby: "⇐",
+  iff: "⟺",
+  gets: "←",
+  sum: "∑",
+  prod: "∏",
+  coprod: "∐",
+  bigcup: "⋃",
+  bigcap: "⋂",
+  bigvee: "⋁",
+  bigwedge: "⋀",
+  bigoplus: "⨁",
+  bigotimes: "⨂",
+  int: "∫",
+  oint: "∮",
+  iint: "∬",
+  iiint: "∭",
+  cos: "cos",
+  sin: "sin",
+  tan: "tan",
+  arccos: "arccos",
+  arcsin: "arcsin",
+  arctan: "arctan",
+  arg: "arg",
+  cosh: "cosh",
+  cot: "cot",
+  coth: "coth",
+  csc: "csc",
+  deg: "deg",
+  det: "det",
+  dim: "dim",
+  exp: "exp",
+  gcd: "gcd",
+  hom: "hom",
+  inf: "inf",
+  ker: "ker",
+  lg: "lg",
+  lim: "lim",
+  liminf: "lim inf",
+  limsup: "lim sup",
+  ln: "ln",
+  log: "log",
+  max: "max",
+  min: "min",
+  sec: "sec",
+  sinh: "sinh",
+  sup: "sup",
+  tanh: "tanh",
+  quad: "\u2003",
+  qquad: "\u2003\u2003",
+  enspace: "\u2002",
+  thinspace: "\u2009",
+  medspace: "\u2005",
+  thickspace: "\u2005",
+  langle: "⟨",
+  rangle: "⟩",
+  lceil: "⌈",
+  rceil: "⌉",
+  lfloor: "⌊",
+  rfloor: "⌋",
+  vert: "|",
+  Vert: "‖",
+  lbrace: "{",
+  rbrace: "}",
+  ulcorner: "⌜",
+  urcorner: "⌝",
+  llcorner: "⌞",
+  lrcorner: "⌟",
+  lslash: "ł",
+  Lslash: "Ł",
+  o: "ø",
+  O: "Ø",
+  aa: "å",
+  AA: "Å",
+  ae: "æ",
+  AE: "Æ",
+  oe: "œ",
+  OE: "Œ",
+  ss: "ß",
+  dh: "ð",
+  TH: "Þ",
+  th: "þ",
+  ng: "ŋ",
+  NG: "Ŋ",
+}
+const ACCENTS = {
+  hat: "\u0302",
+  widehat: "\u0302",
+  bar: "\u0304",
+  vec: "\u20D7",
+  dot: "\u0307",
+  ddot: "\u0308",
+  dddot: "\u20DB",
+  tilde: "\u0303",
+  widetilde: "\u0303",
+  check: "\u030C",
+  breve: "\u0306",
+  acute: "\u0301",
+  grave: "\u0300",
+  mathring: "\u030A",
+}
 function renderMath(tex, display) {
-  const raw = String(tex == null ? "" : tex).trim();
+  const raw = String(tex == null ? "" : tex).trim()
   try {
     if (typeof katex !== "undefined" && katex && katex.renderToString) {
-      const html = katex.renderToString(raw, { displayMode: !!display, throwOnError: true, trust: false, output: "html" });
+      const html = katex.renderToString(raw, {
+        displayMode: !!display,
+        throwOnError: true,
+        trust: false,
+        output: "html",
+      })
       if (html && html.indexOf("katex-error") < 0) {
-        const tag = display ? "math math-block" : "math";
-        return '<span class="' + tag + '" data-tex="' + escAttr(raw) + '">' + html + "</span>";
+        const tag = display ? "math math-block" : "math"
+        return (
+          '<span class="' +
+          tag +
+          '" data-tex="' +
+          escAttr(raw) +
+          '">' +
+          html +
+          "</span>"
+        )
       }
     }
   } catch (e) {}
-  return renderMathLegacy(raw, display);
+  return renderMathLegacy(raw, display)
 }
 function renderMathLegacy(tex, display) {
-  const raw = String(tex == null ? "" : tex).trim();
+  const raw = String(tex == null ? "" : tex).trim()
   const BRK = "\ue000"
   let t = esc(raw)
   t = t.replace(/\\\\|\\cr(?![a-zA-Z])/g, BRK)
-  t = t.replace(new RegExp(BRK + "([,;:! ])", "g"), (m, w) => BRK + ({ ",": " ", ":": " ", ";": " ", "!": "", " ": " " }[w]))
+  t = t.replace(
+    new RegExp(BRK + "([,;:! ])", "g"),
+    (m, w) => BRK + { ",": " ", ":": " ", ";": " ", "!": "", " ": " " }[w],
+  )
   t = t.replace(/\\(?:text|mbox)\{([^{}]*)\}/g, "$1")
   t = t.replace(/\\operatorname\*?\{([^{}]*)\}/g, "$1")
   t = t.replace(/\\DeclareMathOperator\*?\{[^{}]*\}\{([^{}]*)\}/g, "$1")
   for (let i = 0; i < 3; i++) {
     const before = t
-    t = t.replace(/\\(?:mathrm|mathbf|mathit|mathsf|mathtt|mathbb|mathfrak|mathscr|boldsymbol|pmb|phantom|hphantom|vphantom|smash|rlap|llap)\{([^{}]*)\}/g, "$1")
+    t = t.replace(
+      /\\(?:mathrm|mathbf|mathit|mathsf|mathtt|mathbb|mathfrak|mathscr|boldsymbol|pmb|phantom|hphantom|vphantom|smash|rlap|llap)\{([^{}]*)\}/g,
+      "$1",
+    )
     t = t.replace(/\\textcolor?\{[^{}]*\}\{([^{}]*)\}/g, "$1")
     t = t.replace(/\\href\{[^{}]*\}\{([^{}]*)\}/g, "$1")
     if (t === before) break
@@ -50,55 +309,110 @@ function renderMathLegacy(tex, display) {
   t = t.replace(/\\(?:color|textcolor)\{[^{}]*\}/g, "")
   t = t.replace(/\\(?:hline|midrule|toprule|bottomrule)\b/g, "")
   t = t.replace(/\\cline\{[^{}]*\}/g, "")
-  t = t.replace(/\\(?:multicolumn|multirow)\{[^{}]*\}\{[^{}]*\}\{([^{}]*)\}/g, "$1")
+  t = t.replace(
+    /\\(?:multicolumn|multirow)\{[^{}]*\}\{[^{}]*\}\{([^{}]*)\}/g,
+    "$1",
+  )
   t = t.replace(/\\newline\b/g, BRK)
   t = t.replace(/\\begin\{cases\}/g, "{")
   t = t.replace(/\\end\{cases\}/g, "")
   t = t.replace(/\\begin\{[a-zA-Z*]+\}/g, "")
   t = t.replace(/\\end\{[a-zA-Z*]+\}/g, "")
-  t = t.replace(/(^|[^\\])&amp;/g, "$1\u2003\u2003");
-  t = t.replace(/\\sqrt\[([^\]]*)\]\{([^{}]*)\}/g, '<span class="nroot">$1</span>√<span class="rad">$2</span>')
-  t = t.replace(/\\sqrt([0-9])/g, "√<span class=\"rad\">$1</span>")
-  t = t.replace(/\\d?frac(\d)(\d)/g, '<span class="frac"><span class="num">$1</span><span class="den">$2</span></span>')
+  t = t.replace(/(^|[^\\])&amp;/g, "$1\u2003\u2003")
+  t = t.replace(
+    /\\sqrt\[([^\]]*)\]\{([^{}]*)\}/g,
+    '<span class="nroot">$1</span>√<span class="rad">$2</span>',
+  )
+  t = t.replace(/\\sqrt([0-9])/g, '√<span class="rad">$1</span>')
+  t = t.replace(
+    /\\d?frac(\d)(\d)/g,
+    '<span class="frac"><span class="num">$1</span><span class="den">$2</span></span>',
+  )
   t = t.replace(/\\pmod\{([^{}]*)\}/g, " (mod $1)")
   t = t.replace(/\\(?:bmod|mod)\b/g, "mod")
-  t = t.replace(/\\d?frac\{([^{}]*)\}\{([^{}]*)\}/g, '<span class="frac"><span class="num">$1</span><span class="den">$2</span></span>')
-  t = t.replace(/\\d?binom\{([^{}]*)\}\{([^{}]*)\}/g, '(<span class="frac"><span class="num">$1</span><span class="den">$2</span>)')
-  t = t.replace(/\\cfrac\{([^{}]*)\}\{([^{}]*)\}/g, '<span class="frac"><span class="num">$1</span><span class="den">$2</span></span>')
+  t = t.replace(
+    /\\d?frac\{([^{}]*)\}\{([^{}]*)\}/g,
+    '<span class="frac"><span class="num">$1</span><span class="den">$2</span></span>',
+  )
+  t = t.replace(
+    /\\d?binom\{([^{}]*)\}\{([^{}]*)\}/g,
+    '(<span class="frac"><span class="num">$1</span><span class="den">$2</span>)',
+  )
+  t = t.replace(
+    /\\cfrac\{([^{}]*)\}\{([^{}]*)\}/g,
+    '<span class="frac"><span class="num">$1</span><span class="den">$2</span></span>',
+  )
   t = t.replace(/\\sqrt\{([^{}]*)\}/g, '√<span class="rad">$1</span>')
-  t = t.replace(/\\sqrt ([a-zA-Z0-9])/g, "√<span class=\"rad\">$1</span>")
-  t = t.replace(/\\(?:underbrace|overbrace)\{([^{}]*)\}(?:_\{([^{}]*)\}|\^\{([^{}]*)\}|_(\S)|\^(\S))?/g, (m, b, su, so, su1, so1) => {
-    const lab = su || so || su1 || so1 || ""
-    if (!lab) return b
-    return b + (su || su1 ? "<sub>" + lab + "</sub>" : "<sup>" + lab + "</sup>")
-  })
+  t = t.replace(/\\sqrt ([a-zA-Z0-9])/g, '√<span class="rad">$1</span>')
+  t = t.replace(
+    /\\(?:underbrace|overbrace)\{([^{}]*)\}(?:_\{([^{}]*)\}|\^\{([^{}]*)\}|_(\S)|\^(\S))?/g,
+    (m, b, su, so, su1, so1) => {
+      const lab = su || so || su1 || so1 || ""
+      if (!lab) return b
+      return (
+        b + (su || su1 ? "<sub>" + lab + "</sub>" : "<sup>" + lab + "</sup>")
+      )
+    },
+  )
   t = t.replace(/\\(?:underbrace|overbrace)\{([^{}]*)\}/g, "$1")
-  t = t.replace(/\\(?:overline|underline) ([a-zA-Z0-9])/g, (m, w, ch) => '<span class="mline' + (w === "underline" ? " under" : "") + '">' + ch + "</span>")
+  t = t.replace(
+    /\\(?:overline|underline) ([a-zA-Z0-9])/g,
+    (m, w, ch) =>
+      '<span class="mline' +
+      (w === "underline" ? " under" : "") +
+      '">' +
+      ch +
+      "</span>",
+  )
   t = t.replace(/\\overline\{([^{}]*)\}/g, '<span class="mline">$1</span>')
-  t = t.replace(/\\underline\{([^{}]*)\}/g, '<span class="mline under">$1</span>')
+  t = t.replace(
+    /\\underline\{([^{}]*)\}/g,
+    '<span class="mline under">$1</span>',
+  )
   t = t.replace(/\\boxed\{([^{}]*)\}/g, '<span class="boxed">$1</span>')
   t = t.replace(/\\(?:cancel|bcancel|xcancel)\{([^{}]*)\}/g, "<s>$1</s>")
-  t = t.replace(/\\([a-zA-Z]+)\{([^{}]*)\}/g, (m, w, inner) => (ACCENTS[w] ? inner + ACCENTS[w] : m))
-  t = t.replace(/\\([a-zA-Z]+) ([a-zA-Z])/g, (m, w, ch) => (ACCENTS[w] ? ch + ACCENTS[w] : m))
-  t = t.replace(/\\([,;:!\/ ])/g, (m, w) => ({ ",": " ", ":": " ", ";": " ", "!": "", "/": "", " ": " " }[w]))
-  t = t.replace(/\\(%|#|\{|\}|\\$|_|&amp;)/g, (m, w) => (w === "&amp;" ? "&" : w))
-  t = t.replace(/\\(?:left|right)\s*(\.|\(|\)|\[|\]|\\\{|\\\}|\||\\vert(?![a-zA-Z])|\\Vert(?![a-zA-Z])|\\langle(?![a-zA-Z])|\\rangle(?![a-zA-Z])|\/|\\\/)/g, (m, d) => {
-    if (d === ".") return ""
-    if (d === "\\{") return "{"
-    if (d === "\\}") return "}"
-    if (d === "\\vert") return "|"
-    if (d === "\\Vert") return "‖"
-    if (d === "\\langle") return "⟨"
-    if (d === "\\rangle") return "⟩"
-    return d
-  })
+  t = t.replace(/\\([a-zA-Z]+)\{([^{}]*)\}/g, (m, w, inner) =>
+    ACCENTS[w] ? inner + ACCENTS[w] : m,
+  )
+  t = t.replace(/\\([a-zA-Z]+) ([a-zA-Z])/g, (m, w, ch) =>
+    ACCENTS[w] ? ch + ACCENTS[w] : m,
+  )
+  t = t.replace(
+    /\\([,;:!\/ ])/g,
+    (m, w) => ({ ",": " ", ":": " ", ";": " ", "!": "", "/": "", " ": " " })[w],
+  )
+  t = t.replace(/\\(%|#|\{|\}|\\$|_|&amp;)/g, (m, w) =>
+    w === "&amp;" ? "&" : w,
+  )
+  t = t.replace(
+    /\\(?:left|right)\s*(\.|\(|\)|\[|\]|\\\{|\\\}|\||\\vert(?![a-zA-Z])|\\Vert(?![a-zA-Z])|\\langle(?![a-zA-Z])|\\rangle(?![a-zA-Z])|\/|\\\/)/g,
+    (m, d) => {
+      if (d === ".") return ""
+      if (d === "\\{") return "{"
+      if (d === "\\}") return "}"
+      if (d === "\\vert") return "|"
+      if (d === "\\Vert") return "‖"
+      if (d === "\\langle") return "⟨"
+      if (d === "\\rangle") return "⟩"
+      return d
+    },
+  )
   t = t.replace(/\\[Bb]igg?[lr]?/g, "")
-  t = t.replace(/\\(?:limits|nolimits|displaystyle|textstyle|scriptstyle|scriptscriptstyle|nonumber|middle)\b/g, "")
-  t = t.replace(/\^(\{([^{}]*)\}|([^\s&;]))/g, (m, g, braced, ch) => "<sup>" + (braced || ch || "") + "</sup>")
-  t = t.replace(/_(\{([^{}]*)\}|([^\s&;]))/g, (m, g, braced, ch) => "<sub>" + (braced || ch || "") + "</sub>")
-  t = t.replace(/\\([a-zA-Z]+)\{([^{}]*)\}/g, "$2");
-  t = t.replace(/\\not(?![a-zA-Z])\\s*(\\S)/g, "$1\u0338");
-  t = t.replace(/\\([a-zA-Z]+)/g, (m, w) => GREEK[w] || w);
+  t = t.replace(
+    /\\(?:limits|nolimits|displaystyle|textstyle|scriptstyle|scriptscriptstyle|nonumber|middle)\b/g,
+    "",
+  )
+  t = t.replace(
+    /\^(\{([^{}]*)\}|([^\s&;]))/g,
+    (m, g, braced, ch) => "<sup>" + (braced || ch || "") + "</sup>",
+  )
+  t = t.replace(
+    /_(\{([^{}]*)\}|([^\s&;]))/g,
+    (m, g, braced, ch) => "<sub>" + (braced || ch || "") + "</sub>",
+  )
+  t = t.replace(/\\([a-zA-Z]+)\{([^{}]*)\}/g, "$2")
+  t = t.replace(/\\not(?![a-zA-Z])\\s*(\\S)/g, "$1\u0338")
+  t = t.replace(/\\([a-zA-Z]+)/g, (m, w) => GREEK[w] || w)
   if (display) t = t.split(BRK).join("<br>")
   else t = t.split(BRK).join(" ")
   const tag = display ? "math math-block" : "math"

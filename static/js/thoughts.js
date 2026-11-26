@@ -282,10 +282,14 @@ function updateThought(tbox, tstate, ev) {
   }
   if (ek === "output" && typeof te.chunk === "string") {
     if (r && r.type === "web") {
-      let query = "", results = null
+      let query = "",
+        results = null
       try {
         const o = JSON.parse(te.chunk)
-        if (o && Array.isArray(o.results)) { query = o.query || ""; results = o.results }
+        if (o && Array.isArray(o.results)) {
+          query = o.query || ""
+          results = o.results
+        }
       } catch (e) {}
       if (results) {
         const sum = results.length + t("web.sitesDone")
@@ -296,7 +300,9 @@ function updateThought(tbox, tstate, ev) {
         return
       }
     }
-    let sum = null, body = te.chunk, fullKey = ""
+    let sum = null,
+      body = te.chunk,
+      fullKey = ""
     try {
       const o = JSON.parse(te.chunk)
       if (o && typeof o === "object") {
@@ -358,10 +364,19 @@ function collectThoughts(tbox) {
         sub.querySelectorAll(".tsubbody .weblist a").forEach((a) => {
           if (wlinks.length >= 20) return
           const href = a.getAttribute("href") || ""
-          if (/^https?:\/\//i.test(href)) wlinks.push({ t: (a.textContent || "").slice(0, 80), u: href.slice(0, 300) })
+          if (/^https?:\/\//i.test(href))
+            wlinks.push({
+              t: (a.textContent || "").slice(0, 80),
+              u: href.slice(0, 300),
+            })
         })
-        if (wlinks.length) subs.push({ h: (h ? h.textContent : "").slice(0, 80), w: wlinks })
-        else subs.push({ h: (h ? h.textContent : "").slice(0, 80), b: bt.slice(0, 1000) })
+        if (wlinks.length)
+          subs.push({ h: (h ? h.textContent : "").slice(0, 80), w: wlinks })
+        else
+          subs.push({
+            h: (h ? h.textContent : "").slice(0, 80),
+            b: bt.slice(0, 1000),
+          })
       })
       if (subs.length) th.d = subs
     }
@@ -399,16 +414,41 @@ function renderThoughtsStatic(thoughts) {
         let bcls = isD ? " diff" : ""
         if (Array.isArray(s.w) && s.w.length) {
           bcls = " weblist"
-          bh = "<ul>" + s.w.slice(0, 30).map((w) => {
-            const u = (/^https?:\/\//i.test(w.u || "") ? w.u : "")
-            const t = esc(String(w.t || u || "?")).slice(0, 120)
-            return u ? '<li><a href="' + escAttr(u) + '" target="_blank" rel="noreferrer">' + t + '</a>' +
-              '<span class="wurl">' + escAttr(u) + "</span></li>" : "<li>" + t + "</li>"
-          }).join("") + "</ul>"
+          bh =
+            "<ul>" +
+            s.w
+              .slice(0, 30)
+              .map((w) => {
+                const u = /^https?:\/\//i.test(w.u || "") ? w.u : ""
+                const t = esc(String(w.t || u || "?")).slice(0, 120)
+                return u
+                  ? '<li><a href="' +
+                      escAttr(u) +
+                      '" target="_blank" rel="noreferrer">' +
+                      t +
+                      "</a>" +
+                      '<span class="wurl">' +
+                      escAttr(u) +
+                      "</span></li>"
+                  : "<li>" + t + "</li>"
+              })
+              .join("") +
+            "</ul>"
         }
-        sh += '<div class="tsub tsub-' + esc(String(th.k || "tool")) + '"><button type="button" class="tsubhead" data-ttoggle title="펼치기/접기">' +
-          '<span class="tsum">' + esc(s.h || "로그") + '</span><span class="ttoggle"' + (th.static ? " hidden" : "") + ">›</span></button>" +
-          '<div class="tsubbody" hidden><div class="tlog' + bcls + '">' + bh + "</div></div></div>"
+        sh +=
+          '<div class="tsub tsub-' +
+          esc(String(th.k || "tool")) +
+          '"><button type="button" class="tsubhead" data-ttoggle title="펼치기/접기">' +
+          '<span class="tsum">' +
+          esc(s.h || "로그") +
+          '</span><span class="ttoggle"' +
+          (th.static ? " hidden" : "") +
+          ">›</span></button>" +
+          '<div class="tsubbody" hidden><div class="tlog' +
+          bcls +
+          '">' +
+          bh +
+          "</div></div></div>"
       })
       det = '<div class="tdetail" hidden>' + sh + "</div>"
     }

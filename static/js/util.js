@@ -195,12 +195,10 @@ function slimConvsForSave(list) {
             el: m.el,
             th: m.th.map((t) => {
               const d = Array.isArray(t.d)
-                ? t.d
-                    .slice(0, 8)
-                    .map((s) => ({
-                      h: String(s.h || "").slice(0, 80),
-                      b: String(s.b || "").slice(0, 300),
-                    }))
+                ? t.d.slice(0, 8).map((s) => ({
+                    h: String(s.h || "").slice(0, 80),
+                    b: String(s.b || "").slice(0, 300),
+                  }))
                 : null
               return d ? { k: t.k, s: t.s, d: d } : { k: t.k, s: t.s }
             }),

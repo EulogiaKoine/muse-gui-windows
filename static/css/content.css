@@ -1,65 +1,372 @@
 /* == muse-gui/css/content.css ==
    Message content: code, tables, headings, links, edit UI. */
-.msg pre { overflow-x: auto; background: var(--panel); border: 1px solid var(--bd); border-radius: 8px; padding: 8px; font-size: 13px; }
-.msg iframe.viz { width: 100%; border: 0; border-radius: 8px; background: transparent; }
-.msg details { margin-top: 6px; font-size: 13px; opacity: .85; }
-footer { position: relative; border-top: 1px solid var(--bd); padding: 6px 12px; font-size: 13px; display: flex; gap: 8px; align-items: center; color: var(--muted); }
-footer select { font-size: 13px; max-width: 220px; background: var(--panel); color: var(--text); border: 1px solid var(--bd); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
-footer select:hover { border-color: var(--me); }
-footer select:focus { outline: 2px solid var(--me); outline-offset: -1px; }
-#yolo { border: 1px solid var(--bd); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 13px; }
-#yolo:hover { border-color: var(--me); }
-#yolo.on { border-color: var(--me); color: var(--me); }
-#yolo .ycheck { margin-right: 2px; }
-form { padding: 10px 12px; display: flex; gap: 8px; position: relative; align-items: flex-start; }
-.msg h1, .msg h2, .msg h3, .msg h4 { margin: 8px 0 4px; font-size: 1.05em; color: var(--hd, var(--text)); }
-.msg h1, .msg h2 { border-bottom: 1px solid var(--hdbd, var(--bd)); padding-bottom: 4px; }
-.msg h1 { font-size: 1.2em; }
-.msg p { margin: 4px 0; }
-.msg ul, .msg ol { margin: 4px 0; padding-left: 22px; }
-.msg blockquote { margin: 4px 0; padding-left: 10px; border-left: 3px solid var(--bd); }
-.msg .tblwrap { position: relative; overflow-x: auto; margin: 8px 0; }
-.msg table { border-collapse: collapse; font-size: 13px; width: 100%; min-width: 480px; }
-.tblcopy { position: absolute; right: 6px; bottom: 6px; }
-.tblcopy [data-tblcopy] { display: none; border: 1px solid var(--bd); background: var(--bubble); color: var(--muted); padding: 4px; cursor: pointer; border-radius: 6px; line-height: 0; box-shadow: 0 2px 8px #0002; }
-.tblwrap:hover .tblcopy [data-tblcopy] { display: inline-flex; }
-.tblcopy [data-tblcopy]:hover { color: var(--me); }
-.tblmenu { position: absolute; right: 0; bottom: 30px; z-index: 5; background: var(--bubble); border: 1px solid var(--bd); border-radius: 8px; box-shadow: 0 8px 24px #0003; padding: 4px; min-width: 110px; }
-.tblmenu[hidden] { display: none; }
-.tblmenu button { display: block; width: 100%; text-align: left; border: 0; border-radius: 6px; background: none; color: var(--text); padding: 7px 10px; cursor: pointer; font-size: 13px; }
-.tblmenu button:hover { background: var(--hover); }
-.msg th, .msg td { border: 1px solid var(--bd); padding: 4px 8px; }
-.attrow { align-self: flex-end; display: flex; gap: 8px; justify-content: flex-end; max-width: 78ch; overflow-x: auto; padding: 4px 2px; align-items: center; }
-.mewrap { align-self: flex-end; display: flex; align-items: flex-end; gap: 8px; max-width: 78ch; }
-.mewrap .mtime { flex: none; font-size: 11px; color: var(--muted); padding-bottom: 4px; white-space: nowrap; }
-.att { flex: none; display: inline-flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--bd); border-radius: 10px; padding: 6px 12px 6px 6px; cursor: pointer; font-size: 13px; color: var(--text); max-width: 220px; min-height: 48px; }
-.att img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; flex: none; }
-.att .attico { font-size: 20px; line-height: 1; flex: none; }
-.att span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.att:hover { border-color: var(--me); }
-.editatt { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
-.editatt:empty { display: none; }
-.msg code { background: var(--code-tint); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
-.msg a { color: var(--me); text-decoration: none; }
-.msg a:hover { text-decoration: underline; }
-.msg a:visited { color: var(--muted); color: color-mix(in srgb, var(--me) 70%, var(--muted)); }
-.msg a.nolink { cursor: default; }
-.msg a.nolink:hover { text-decoration: none; }
-.msg a.srcchip:hover { text-decoration: none; }
-.msg a.srcchip { display: inline-block; font-size: 11px; border: 1px solid var(--bd); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 1px 9px; margin-left: 6px; text-decoration: none; vertical-align: baseline; }
-.msg a.srcchip:hover { color: var(--me); border-color: var(--me); }
-.msg .medit { width: 100%; box-sizing: border-box; min-height: 120px; max-height: 40vh; overflow-y: auto; font: inherit; background: var(--input); color: var(--text); border: 1px solid var(--me); border-radius: 8px; padding: 8px 12px; resize: vertical; }
-.msg.me.editing { width: 100%; max-width: none; }
-.conv .crename { flex: 1; min-width: 0; font: inherit; font-size: 13px; background: var(--input); color: var(--text); border: 1px solid var(--me); border-radius: 8px; padding: 7px 10px; resize: none; overflow: hidden; }
-.conv .crok { flex: none; border: 1px solid var(--bd); background: var(--bg); color: var(--ok); border-radius: 8px; padding: 4px 10px; cursor: pointer; font-size: 14px; line-height: 1; }
-.conv .crok:hover { border-color: var(--ok); }
-.msg .medit:focus { outline: none; }
-.msg .meditbar { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
-.msg .meditbar .optbtn { padding: 4px 14px; font-size: 12px; }
-#keepn { width: 64px; background: var(--panel); color: var(--text); border: 1px solid var(--bd); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
-#keepn:focus { outline: 2px solid var(--me); outline-offset: -1px; }
-.msg a .licon svg, .msg a .plicon svg { width: 11px; height: 11px; vertical-align: -1px; }
-.msg a .licon, .msg a .plicon { margin-right: 4px; }
-.msg a.pathlink { cursor: pointer; }
-.msg a.srcchip .licon { margin-right: 5px; }
-.msg a.srcchip .licon svg { width: 10px; height: 10px; }
+.msg pre {
+  overflow-x: auto;
+  background: var(--panel);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 13px;
+}
+.msg iframe.viz {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+.msg details {
+  margin-top: 6px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+footer {
+  position: relative;
+  border-top: 1px solid var(--bd);
+  padding: 6px 12px;
+  font-size: 13px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+}
+footer select {
+  font-size: 13px;
+  max-width: 220px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--bd);
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+footer select:hover {
+  border-color: var(--me);
+}
+footer select:focus {
+  outline: 2px solid var(--me);
+  outline-offset: -1px;
+}
+#yolo {
+  border: 1px solid var(--bd);
+  background: var(--panel);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+#yolo:hover {
+  border-color: var(--me);
+}
+#yolo.on {
+  border-color: var(--me);
+  color: var(--me);
+}
+#yolo .ycheck {
+  margin-right: 2px;
+}
+form {
+  padding: 10px 12px;
+  display: flex;
+  gap: 8px;
+  position: relative;
+  align-items: flex-start;
+}
+.msg h1,
+.msg h2,
+.msg h3,
+.msg h4 {
+  margin: 8px 0 4px;
+  font-size: 1.05em;
+  color: var(--hd, var(--text));
+}
+.msg h1,
+.msg h2 {
+  border-bottom: 1px solid var(--hdbd, var(--bd));
+  padding-bottom: 4px;
+}
+.msg h1 {
+  font-size: 1.2em;
+}
+.msg p {
+  margin: 4px 0;
+}
+.msg ul,
+.msg ol {
+  margin: 4px 0;
+  padding-left: 22px;
+}
+.msg blockquote {
+  margin: 4px 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--bd);
+}
+.msg .tblwrap {
+  position: relative;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.msg table {
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+  min-width: 480px;
+}
+.tblcopy {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+}
+.tblcopy [data-tblcopy] {
+  display: none;
+  border: 1px solid var(--bd);
+  background: var(--bubble);
+  color: var(--muted);
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 6px;
+  line-height: 0;
+  box-shadow: 0 2px 8px #0002;
+}
+.tblwrap:hover .tblcopy [data-tblcopy] {
+  display: inline-flex;
+}
+.tblcopy [data-tblcopy]:hover {
+  color: var(--me);
+}
+.tblmenu {
+  position: absolute;
+  right: 0;
+  bottom: 30px;
+  z-index: 5;
+  background: var(--bubble);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px #0003;
+  padding: 4px;
+  min-width: 110px;
+}
+.tblmenu[hidden] {
+  display: none;
+}
+.tblmenu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.tblmenu button:hover {
+  background: var(--hover);
+}
+.msg th,
+.msg td {
+  border: 1px solid var(--bd);
+  padding: 4px 8px;
+}
+.attrow {
+  align-self: flex-end;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  max-width: 78ch;
+  overflow-x: auto;
+  padding: 4px 2px;
+  align-items: center;
+}
+.mewrap {
+  align-self: flex-end;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 78ch;
+}
+.mewrap .mtime {
+  flex: none;
+  font-size: 11px;
+  color: var(--muted);
+  padding-bottom: 4px;
+  white-space: nowrap;
+}
+.att {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 6px 12px 6px 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  max-width: 220px;
+  min-height: 48px;
+}
+.att img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex: none;
+}
+.att .attico {
+  font-size: 20px;
+  line-height: 1;
+  flex: none;
+}
+.att span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.att:hover {
+  border-color: var(--me);
+}
+.editatt {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.editatt:empty {
+  display: none;
+}
+.msg code {
+  background: var(--code-tint);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.msg a {
+  color: var(--me);
+  text-decoration: none;
+}
+.msg a:hover {
+  text-decoration: underline;
+}
+.msg a:visited {
+  color: var(--muted);
+  color: color-mix(in srgb, var(--me) 70%, var(--muted));
+}
+.msg a.nolink {
+  cursor: default;
+}
+.msg a.nolink:hover {
+  text-decoration: none;
+}
+.msg a.srcchip:hover {
+  text-decoration: none;
+}
+.msg a.srcchip {
+  display: inline-block;
+  font-size: 11px;
+  border: 1px solid var(--bd);
+  background: var(--panel);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 1px 9px;
+  margin-left: 6px;
+  text-decoration: none;
+  vertical-align: baseline;
+}
+.msg a.srcchip:hover {
+  color: var(--me);
+  border-color: var(--me);
+}
+.msg .medit {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 120px;
+  max-height: 40vh;
+  overflow-y: auto;
+  font: inherit;
+  background: var(--input);
+  color: var(--text);
+  border: 1px solid var(--me);
+  border-radius: 8px;
+  padding: 8px 12px;
+  resize: vertical;
+}
+.msg.me.editing {
+  width: 100%;
+  max-width: none;
+}
+.conv .crename {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13px;
+  background: var(--input);
+  color: var(--text);
+  border: 1px solid var(--me);
+  border-radius: 8px;
+  padding: 7px 10px;
+  resize: none;
+  overflow: hidden;
+}
+.conv .crok {
+  flex: none;
+  border: 1px solid var(--bd);
+  background: var(--bg);
+  color: var(--ok);
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.conv .crok:hover {
+  border-color: var(--ok);
+}
+.msg .medit:focus {
+  outline: none;
+}
+.msg .meditbar {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+.msg .meditbar .optbtn {
+  padding: 4px 14px;
+  font-size: 12px;
+}
+#keepn {
+  width: 64px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+#keepn:focus {
+  outline: 2px solid var(--me);
+  outline-offset: -1px;
+}
+.msg a .licon svg,
+.msg a .plicon svg {
+  width: 11px;
+  height: 11px;
+  vertical-align: -1px;
+}
+.msg a .licon,
+.msg a .plicon {
+  margin-right: 4px;
+}
+.msg a.pathlink {
+  cursor: pointer;
+}
+.msg a.srcchip .licon {
+  margin-right: 5px;
+}
+.msg a.srcchip .licon svg {
+  width: 10px;
+  height: 10px;
+}

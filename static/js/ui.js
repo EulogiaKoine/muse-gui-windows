@@ -28,9 +28,14 @@ function setSide(hidden) {
 // + closable 여부를 아래에 등록한다.
 const RSIDE_TABS = {
   goal: { label: "goal", render: () => renderGoal() },
-  help: { label: "help", render: () => renderHelp(), closable: true, onClose: () => {
-    helpOpen = false
-  } },
+  help: {
+    label: "help",
+    render: () => renderHelp(),
+    closable: true,
+    onClose: () => {
+      helpOpen = false
+    },
+  },
   files: { label: "files", render: () => renderFiles() },
   subagents: { label: "subagents", render: () => renderAgents() },
 }
@@ -50,15 +55,22 @@ const RTAB_KEY = "muse-gui-rtabs"
 function loadRTabs() {
   try {
     const d = JSON.parse(localStorage.getItem(RTAB_KEY) || "{}")
-    return (d && typeof d === "object") ? d : {}
-  } catch (e) { return {} }
+    return d && typeof d === "object" ? d : {}
+  } catch (e) {
+    return {}
+  }
 }
 function saveRTabs() {
   try {
-    localStorage.setItem(RTAB_KEY, JSON.stringify({
-      open: openTabs, closed: [...closedTabs],
-      labels: tabLabels, pinned: tabPinned,
-    }))
+    localStorage.setItem(
+      RTAB_KEY,
+      JSON.stringify({
+        open: openTabs,
+        closed: [...closedTabs],
+        labels: tabLabels,
+        pinned: tabPinned,
+      }),
+    )
   } catch (e) {}
 }
 let openTabs = (loadRTabs().open || []).slice()
@@ -127,13 +139,17 @@ function closeRsideTab(id) {
   const t = RSIDE_TABS[id]
   if (t && t.onClose) t.onClose()
   const ix = openTabs.indexOf(id)
-  const next = ix >= 0
-    ? (openTabs[ix + 1] || openTabs[ix - 1] || null)
-    : (openTabs[openTabs.length - 1] || null)
+  const next =
+    ix >= 0
+      ? openTabs[ix + 1] || openTabs[ix - 1] || null
+      : openTabs[openTabs.length - 1] || null
   openTabs = openTabs.filter((x) => x !== id)
   if (availTabs().includes(id)) closedTabs.add(id)
   tabPinned = tabPinned.filter((x) => x !== id)
-  rsideTab = (next && next !== id && openTabs.includes(next)) ? next : (openTabs[openTabs.length - 1] || null)
+  rsideTab =
+    next && next !== id && openTabs.includes(next)
+      ? next
+      : openTabs[openTabs.length - 1] || null
   saveRTabs()
   drawRside()
 }
@@ -143,7 +159,10 @@ function openTabMenu(id, anchor) {
   const items = [
     { k: "open", label: t("rtab.open") },
     { k: "rename", label: t("rtab.rename") },
-    { k: tabPinned.includes(id) ? "unpin" : "pin", label: tabPinned.includes(id) ? t("rtab.unpin") : t("rtab.pin") },
+    {
+      k: tabPinned.includes(id) ? "unpin" : "pin",
+      label: tabPinned.includes(id) ? t("rtab.unpin") : t("rtab.pin"),
+    },
   ]
   items.forEach((it) => {
     const b = document.createElement("button")
@@ -154,24 +173,38 @@ function openTabMenu(id, anchor) {
       hideTabMenu()
       if (it.k === "open") activateRsideTab(id)
       else if (it.k === "rename") renameRsideTab(id)
-      else if (it.k === "pin" && !tabPinned.includes(id)) { tabPinned.push(id); saveRTabs(); drawRside() }
-      else if (it.k === "unpin") { tabPinned = tabPinned.filter((x) => x !== id); saveRTabs(); drawRside() }
+      else if (it.k === "pin" && !tabPinned.includes(id)) {
+        tabPinned.push(id)
+        saveRTabs()
+        drawRside()
+      } else if (it.k === "unpin") {
+        tabPinned = tabPinned.filter((x) => x !== id)
+        saveRTabs()
+        drawRside()
+      }
     }
     m.appendChild(b)
   })
   const r = anchor.getBoundingClientRect()
   m.style.left = Math.min(r.left, window.innerWidth - 170) + "px"
-  m.style.top = (r.bottom + 4) + "px"
+  m.style.top = r.bottom + 4 + "px"
   m.hidden = false
 }
 function hideTabMenu() {
   const m = $("#tabmenu")
-  if (m) { m.hidden = true; m.innerHTML = "" }
+  if (m) {
+    m.hidden = true
+    m.innerHTML = ""
+  }
 }
 function renameRsideTab(id) {
   const cur = tabLabel(id)
   let next = null
-  try { next = prompt(t("rtab.renameAsk"), cur) } catch (e) { return }
+  try {
+    next = prompt(t("rtab.renameAsk"), cur)
+  } catch (e) {
+    return
+  }
   if (next === null) return
   next = String(next).trim().slice(0, 24)
   if (!next) delete tabLabels[id]
@@ -191,13 +224,16 @@ function openTabList() {
       e.stopPropagation()
       hideTabMenu()
       if (openTabs.includes(id)) activateRsideTab(id)
-      else { closedTabs.delete(id); activateRsideTab(id) }
+      else {
+        closedTabs.delete(id)
+        activateRsideTab(id)
+      }
     }
     m.appendChild(b)
   })
   const r = $("#rtabmenu").getBoundingClientRect()
   m.style.left = Math.min(r.left, window.innerWidth - 170) + "px"
-  m.style.top = (r.bottom + 4) + "px"
+  m.style.top = r.bottom + 4 + "px"
   m.hidden = false
 }
 function applyRside(hidden) {
@@ -228,7 +264,8 @@ function drawRside() {
     return
   }
   if (!ids.includes(rsideTab)) rsideTab = ids[0]
-  if (document.body.classList.contains("rside-hidden") && !rsideHold) applyRside(false)
+  if (document.body.classList.contains("rside-hidden") && !rsideHold)
+    applyRside(false)
   renderRsideTabs()
   RSIDE_TABS[rsideTab].render()
 }
@@ -309,18 +346,23 @@ function renderHelp() {
   if (!(slashList || []).length) html += '<p class="hint">불러오는 중…</p>'
   box.innerHTML = html
 }
-const FOLDER_ICON = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
-const TRASH_ICON = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
+const FOLDER_ICON =
+  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+const TRASH_ICON =
+  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
 document.querySelector("#rsidefiles").addEventListener("click", async (e) => {
   const del = e.target.closest("[data-fdel]")
   if (del) {
     if (!confirm(t("files.delAsk") + "\n" + (del.dataset.fname || ""))) return
-    const c = (typeof curConv === "function") ? curConv() : null
-    const cwd = (c && c.cwd) || ((typeof serverCwd !== "undefined") ? serverCwd : "") || ""
+    const c = typeof curConv === "function" ? curConv() : null
+    const cwd =
+      (c && c.cwd) || (typeof serverCwd !== "undefined" ? serverCwd : "") || ""
     try {
-      const r = await fetch("/api/file/delete", { method: "POST",
+      const r = await fetch("/api/file/delete", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cwd, path: del.dataset.fdel }) })
+        body: JSON.stringify({ cwd, path: del.dataset.fdel }),
+      })
       const j = await r.json()
       if (!j.ok) alert("삭제 실패: " + (j.error || ""))
     } catch (err) {
@@ -335,29 +377,35 @@ document.querySelector("#rsidefiles").addEventListener("click", async (e) => {
 document.querySelector("#rtabmenu").addEventListener("click", (e) => {
   e.stopPropagation()
   const m = $("#tabmenu")
-  if (m && !m.hidden) { hideTabMenu(); return }
+  if (m && !m.hidden) {
+    hideTabMenu()
+    return
+  }
   openTabList()
-});
+})
 document.querySelector("#rtabadd").addEventListener("click", (e) => {
   e.stopPropagation()
   const next = availTabs().find((id) => !openTabs.includes(id))
   if (next) activateRsideTab(next)
   else openTabList()
-});
+})
 document.addEventListener("click", (e) => {
-  if (!e.target.closest("#tabmenu") && !e.target.closest("#rsidehead")) hideTabMenu()
-});
+  if (!e.target.closest("#tabmenu") && !e.target.closest("#rsidehead"))
+    hideTabMenu()
+})
 function sideEdgeHit(e) {
   if (!e.target || !e.target.closest) return null
   const el = e.target.closest("aside, #rside")
   if (!el) return null
   const hid = el.id === "rside" ? "rside-hidden" : "side-hidden"
   if (document.body.classList.contains(hid)) return null
-  if (e.target.closest("button, input, textarea, select, a, summary, .tblwrap")) return null
+  if (e.target.closest("button, input, textarea, select, a, summary, .tblwrap"))
+    return null
   const r = el.getBoundingClientRect()
   const isR = el.id === "rside"
-  const ok = isR ? (e.clientX >= r.left - 2 && e.clientX <= r.left + 6)
-    : (e.clientX >= r.right - 6 && e.clientX <= r.right + 2)
+  const ok = isR
+    ? e.clientX >= r.left - 2 && e.clientX <= r.left + 6
+    : e.clientX >= r.right - 6 && e.clientX <= r.right + 2
   return ok ? { el, isR } : null
 }
 function initSideResize() {
@@ -367,20 +415,35 @@ function initSideResize() {
     const hit = sideEdgeHit(e)
     if (!hit) return
     e.preventDefault()
-    drag = { el: hit.el, isR: hit.isR, x0: e.clientX, w0: hit.el.getBoundingClientRect().width }
+    drag = {
+      el: hit.el,
+      isR: hit.isR,
+      x0: e.clientX,
+      w0: hit.el.getBoundingClientRect().width,
+    }
     hit.el.style.flex = "none"
     document.body.style.cursor = "ew-resize"
     document.body.style.userSelect = "none"
   })
   document.addEventListener("mousemove", (e) => {
     if (!drag) {
-      if (e.target && e.target.closest && e.target.closest("aside, #rside") && sideEdgeHit(e)) document.body.style.cursor = "ew-resize"
-      else if (document.body.style.cursor === "ew-resize") document.body.style.cursor = ""
+      if (
+        e.target &&
+        e.target.closest &&
+        e.target.closest("aside, #rside") &&
+        sideEdgeHit(e)
+      )
+        document.body.style.cursor = "ew-resize"
+      else if (document.body.style.cursor === "ew-resize")
+        document.body.style.cursor = ""
       return
     }
     const dx = e.clientX - drag.x0
     let w = drag.isR ? drag.w0 - dx : drag.w0 + dx
-    w = Math.max(drag.isR ? 220 : 180, Math.min(drag.isR ? 560 : 440, Math.round(w)))
+    w = Math.max(
+      drag.isR ? 220 : 180,
+      Math.min(drag.isR ? 560 : 440, Math.round(w)),
+    )
     drag.el.style.width = w + "px"
   })
   const stop = () => {
@@ -390,38 +453,55 @@ function initSideResize() {
     drag = null
     document.body.style.cursor = ""
     document.body.style.userSelect = ""
-    if (w > 0) { try { saveTheme(isR ? { rsideW: w } : { sideW: w }) } catch (e) {} }
+    if (w > 0) {
+      try {
+        saveTheme(isR ? { rsideW: w } : { sideW: w })
+      } catch (e) {}
+    }
   }
   document.addEventListener("mouseup", stop)
   document.addEventListener("mouseleave", stop)
 }
 function applySideWidths() {
   let t = {}
-  try { t = loadTheme() } catch (e) {}
+  try {
+    t = loadTheme()
+  } catch (e) {}
   const a = document.querySelector("aside")
-  if (a && +t.sideW >= 180) { a.style.width = t.sideW + "px"; a.style.flex = "none" }
+  if (a && +t.sideW >= 180) {
+    a.style.width = t.sideW + "px"
+    a.style.flex = "none"
+  }
   const r = document.querySelector("#rside")
-  if (r && +t.rsideW >= 220) { r.style.width = t.rsideW + "px" }
+  if (r && +t.rsideW >= 220) {
+    r.style.width = t.rsideW + "px"
+  }
 }
 initSideResize()
 applySideWidths()
-document.querySelector("#rsidesubagents").addEventListener("click", async (e) => {
-  const ss = e.target.closest("[data-ssenter]")
-  if (ss) {
-    const raw = ss.dataset.ssenter || ""
-    const bar = raw.indexOf("|")
-    const ck = bar >= 0 ? raw.slice(0, bar) : ""
-    const said = bar >= 0 ? raw.slice(bar + 1) : ""
-    const parent = convs.find((c) => c.k === ck)
-    const rec = parent && (subRecs[parent.sid] || []).find((r) => r.subagent_id === said)
-    if (parent && rec) {
-      const hit = convs.find((c) => c.sub && c.sub.parent === ck && c.sub.rec === said)
-      if (hit) openConv(hit.k)
-      else openSubSession(parent, rec)
+document
+  .querySelector("#rsidesubagents")
+  .addEventListener("click", async (e) => {
+    const ss = e.target.closest("[data-ssenter]")
+    if (ss) {
+      const raw = ss.dataset.ssenter || ""
+      const bar = raw.indexOf("|")
+      const ck = bar >= 0 ? raw.slice(0, bar) : ""
+      const said = bar >= 0 ? raw.slice(bar + 1) : ""
+      const parent = convs.find((c) => c.k === ck)
+      const rec =
+        parent &&
+        (subRecs[parent.sid] || []).find((r) => r.subagent_id === said)
+      if (parent && rec) {
+        const hit = convs.find(
+          (c) => c.sub && c.sub.parent === ck && c.sub.rec === said,
+        )
+        if (hit) openConv(hit.k)
+        else openSubSession(parent, rec)
+      }
+      return
     }
-    return
-  }
-})
+  })
 let liveAgents = []
 let agentsTimer = null
 let agentsFetchAt = 0
@@ -431,53 +511,97 @@ let subRecs = {}
 let lastAgentsHtml = ""
 let lastLiveJson = ""
 async function refreshSubAgents() {
-  const cur = (typeof curConv === "function") ? curConv() : null
-  const sids = (cur && cur.sid) ? [cur.sid] : []
-  if (!sids.length) { subRecs = {}; return true }
+  const cur = typeof curConv === "function" ? curConv() : null
+  const sids = cur && cur.sid ? [cur.sid] : []
+  if (!sids.length) {
+    subRecs = {}
+    return true
+  }
   try {
-    const r = await fetch("/api/subagents", { method: "POST",
+    const r = await fetch("/api/subagents", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sids, cwd: (cur && cur.cwd) || "" }) })
+      body: JSON.stringify({ sids, cwd: (cur && cur.cwd) || "" }),
+    })
     const j = await r.json()
-    if (j && j.ok) { subRecs = j.parents || {}; return true }
+    if (j && j.ok) {
+      subRecs = j.parents || {}
+      return true
+    }
   } catch (e) {}
   return false
 }
 function fmtSubTime(at) {
   try {
     return new Date(Math.floor((+at || 0) / 1000)).toLocaleString()
-  } catch (e) { return "" }
+  } catch (e) {
+    return ""
+  }
 }
 function openSubSession(parent, rec) {
   if (!parent || !rec) return
   const key = "c" + Date.now()
   const label = rec.agent_path || (rec.subagent_id || "").slice(0, 8)
-  const seedNote = "[서브세션] " + label + " 기록 기반 (상태: " + rec.state + ")"
-  const seed = "[서브에이전트 기록 기반] 아래는 부모 세션에서 실행된 서브에이전트의 작업 기록이다.\n" +
-    "서브에이전트: " + label + " (상태 " + rec.state + ", 작업 " + (rec.task_ref || "?") + ").\n" +
+  const seedNote =
+    "[서브세션] " + label + " 기록 기반 (상태: " + rec.state + ")"
+  const seed =
+    "[서브에이전트 기록 기반] 아래는 부모 세션에서 실행된 서브에이전트의 작업 기록이다.\n" +
+    "서브에이전트: " +
+    label +
+    " (상태 " +
+    rec.state +
+    ", 작업 " +
+    (rec.task_ref || "?") +
+    ").\n" +
     "부모 작업 디렉터리와 동일한 환경에서 이어서 작업하라."
-  convs.unshift({ k: key, t: seedNote.slice(0, 60), sid: null, cwd: parent.cwd,
-    msgs: [{ who: "ai", text: seedNote, ts: Date.now(), el: "", th: null, atts: null }],
-    at: Date.now(), createdAt: Date.now(),
-    sub: { parent: parent.k, seed, used: false, rec: rec.subagent_id || "" } })
+  convs.unshift({
+    k: key,
+    t: seedNote.slice(0, 60),
+    sid: null,
+    cwd: parent.cwd,
+    msgs: [
+      {
+        who: "ai",
+        text: seedNote,
+        ts: Date.now(),
+        el: "",
+        th: null,
+        atts: null,
+      },
+    ],
+    at: Date.now(),
+    createdAt: Date.now(),
+    sub: { parent: parent.k, seed, used: false, rec: rec.subagent_id || "" },
+  })
   persistConvs()
   openConv(key)
 }
 function pollAgentsForList() {
-  if (typeof refreshLiveAgents !== "function" || typeof drawConvs !== "function") return
+  if (
+    typeof refreshLiveAgents !== "function" ||
+    typeof drawConvs !== "function"
+  )
+    return
   if (agentsInflight || Date.now() - agentsFetchAt < 15000) return
   agentsInflight = true
   agentsFetchAt = Date.now()
-  refreshLiveAgents().then(() => {
-    agentsInflight = false
-    drawConvs()
-  }).catch(() => { agentsInflight = false })
+  refreshLiveAgents()
+    .then(() => {
+      agentsInflight = false
+      drawConvs()
+    })
+    .catch(() => {
+      agentsInflight = false
+    })
 }
 async function refreshLiveAgents() {
   try {
     const r = await fetch("/api/agents")
     const j = await r.json()
-    if (j && j.ok) { liveAgents = j.agents || []; return true }
+    if (j && j.ok) {
+      liveAgents = j.agents || []
+      return true
+    }
   } catch (e) {}
   return false
 }
@@ -486,34 +610,56 @@ function agentChildren(sid) {
 }
 async function adoptSession(sid) {
   if (!sid) return
-  const hit = (typeof convs !== "undefined") ? convs.find((x) => x.sid === sid) : null
-  if (hit) { openConv(hit.k); return }
+  const hit =
+    typeof convs !== "undefined" ? convs.find((x) => x.sid === sid) : null
+  if (hit) {
+    openConv(hit.k)
+    return
+  }
   let cwd = ""
   try {
-    const r = await fetch("/api/session_workspace?session_id=" + encodeURIComponent(sid))
+    const r = await fetch(
+      "/api/session_workspace?session_id=" + encodeURIComponent(sid),
+    )
     const j = await r.json()
     if (j && j.ok) cwd = j.cwd || ""
   } catch (e) {}
-  if (!cwd) { alert(t("agents.noCwd")); return }
+  if (!cwd) {
+    alert(t("agents.noCwd"))
+    return
+  }
   convKey = "c" + Date.now()
   sessionId = sid
-  convs.unshift({ k: convKey, t: t("conv.adopted"), sid, cwd, msgs: [], at: Date.now(), createdAt: Date.now() })
+  convs.unshift({
+    k: convKey,
+    t: t("conv.adopted"),
+    sid,
+    cwd,
+    msgs: [],
+    at: Date.now(),
+    createdAt: Date.now(),
+  })
   persistConvs()
   openConv(convKey)
 }
 async function renderAgents() {
-  if (agentsTimer) { clearInterval(agentsTimer); agentsTimer = null }
+  if (agentsTimer) {
+    clearInterval(agentsTimer)
+    agentsTimer = null
+  }
   const box = $("#rsidesubagents")
   if (!box) return
-  if (!lastAgentsHtml) box.innerHTML = "<p class='hint'>" + esc(t("agents.loading")) + "</p>"
+  if (!lastAgentsHtml)
+    box.innerHTML = "<p class='hint'>" + esc(t("agents.loading")) + "</p>"
   const okLive = await refreshLiveAgents()
   const ok = await refreshSubAgents()
   if (rsideTab !== "subagents") return
   if (!ok && !Object.keys(subRecs).length) {
-    box.innerHTML = "<h3>agents</h3><p class='hint'>" + esc(t("agents.fail")) + "</p>"
+    box.innerHTML =
+      "<h3>agents</h3><p class='hint'>" + esc(t("agents.fail")) + "</p>"
     return
   }
-  const cur = (typeof curConv === "function") ? curConv() : null
+  const cur = typeof curConv === "function" ? curConv() : null
   const curSid = (cur && cur.sid) || ""
   const all = []
   convs.forEach((p) => {
@@ -528,11 +674,24 @@ async function renderAgents() {
     html += "<ul class='flist'>"
     all.forEach(({ p, r }) => {
       const label = r.agent_path || (r.subagent_id || "").slice(0, 8)
-      html += "<li class='frow'><span class='sdot st-" + escAttr(r.state) + "' title='" +
-        escAttr(t("agents.state_" + r.state)) + "'></span>" +
-        "<button type='button' class='fname' data-ssenter='" + escAttr(p.k + "|" + r.subagent_id) +
-        "' title='" + escAttr(t("agents.enter")) + "'>" + esc(label) + "</button>" +
-        " <span class='fsize'>" + esc(p.t || "") + " · " + esc(fmtSubTime(r.at)) + "</span></li>"
+      html +=
+        "<li class='frow'><span class='sdot st-" +
+        escAttr(r.state) +
+        "' title='" +
+        escAttr(t("agents.state_" + r.state)) +
+        "'></span>" +
+        "<button type='button' class='fname' data-ssenter='" +
+        escAttr(p.k + "|" + r.subagent_id) +
+        "' title='" +
+        escAttr(t("agents.enter")) +
+        "'>" +
+        esc(label) +
+        "</button>" +
+        " <span class='fsize'>" +
+        esc(p.t || "") +
+        " · " +
+        esc(fmtSubTime(r.at)) +
+        "</span></li>"
     })
     html += "</ul>"
   }
@@ -549,7 +708,10 @@ async function renderAgents() {
   }
   agentsTimer = setInterval(async () => {
     if (rsideTab !== "subagents" || !$("#rsidesubagents")) {
-      if (agentsTimer) { clearInterval(agentsTimer); agentsTimer = null }
+      if (agentsTimer) {
+        clearInterval(agentsTimer)
+        agentsTimer = null
+      }
       return
     }
     await refreshLiveAgents()
@@ -567,36 +729,60 @@ function fmtSize(n) {
 async function renderFiles() {
   const box = $("#rsidefiles")
   if (!box) return
-  const c = (typeof curConv === "function") ? curConv() : null
-  const cwd = (c && c.cwd) || ((typeof serverCwd !== "undefined") ? serverCwd : "") || ""
-  box.innerHTML = "<h3>files</h3><p class='hint'>" + esc(t("files.loading")) + "</p>"
+  const c = typeof curConv === "function" ? curConv() : null
+  const cwd =
+    (c && c.cwd) || (typeof serverCwd !== "undefined" ? serverCwd : "") || ""
+  box.innerHTML =
+    "<h3>files</h3><p class='hint'>" + esc(t("files.loading")) + "</p>"
   let j = null
   try {
     const r = await fetch("/api/agent-files?cwd=" + encodeURIComponent(cwd))
     j = await r.json()
-  } catch (e) { j = null }
+  } catch (e) {
+    j = null
+  }
   if (!j || !j.ok) {
-    box.innerHTML = "<h3>files</h3><p class='hint'>" + esc(t("files.fail")) + "</p>"
+    box.innerHTML =
+      "<h3>files</h3><p class='hint'>" + esc(t("files.fail")) + "</p>"
     return
   }
   const base = j.cwd || cwd
   let html = "<h3>files</h3>"
   j.groups.forEach((g, gi) => {
-    html += "<details class='fgroup'" + (gi === 0 ? " open" : "") + "><summary><span class='ficon'>" +
-      FOLDER_ICON + "</span>" + esc(g.label) + " <span class='fcount'>" + g.files.length + "</span></summary>"
+    html +=
+      "<details class='fgroup'" +
+      (gi === 0 ? " open" : "") +
+      "><summary><span class='ficon'>" +
+      FOLDER_ICON +
+      "</span>" +
+      esc(g.label) +
+      " <span class='fcount'>" +
+      g.files.length +
+      "</span></summary>"
     if (!g.files.length) {
       html += "<p class='hint'>" + esc(t("files.empty")) + "</p>"
     } else {
       html += "<ul class='flist'>"
       g.files.forEach((f) => {
         const img = /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name)
-        html += "<li class='frow'><button type='button' class='fname' data-fopen='" +
-          escAttr(f.path) + "'>" +
-          (img ? "🖼 " : "📄 ") + esc(f.name) + "</button> <span class='fsize'>" +
-          esc(fmtSize(f.size)) + "</span>" +
-          "<button type='button' class='fdel' data-fdel='" + escAttr(f.path) +
-          "' data-fname='" + escAttr(f.name) + "' title='" + escAttr(t("files.del")) + "'>" +
-          TRASH_ICON + "</button></li>"
+        html +=
+          "<li class='frow'><button type='button' class='fname' data-fopen='" +
+          escAttr(f.path) +
+          "'>" +
+          (img ? "🖼 " : "📄 ") +
+          esc(f.name) +
+          "</button> <span class='fsize'>" +
+          esc(fmtSize(f.size)) +
+          "</span>" +
+          "<button type='button' class='fdel' data-fdel='" +
+          escAttr(f.path) +
+          "' data-fname='" +
+          escAttr(f.name) +
+          "' title='" +
+          escAttr(t("files.del")) +
+          "'>" +
+          TRASH_ICON +
+          "</button></li>"
       })
       html += "</ul>"
     }

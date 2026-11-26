@@ -158,17 +158,39 @@ function t(name, cond, extra) {
   }
 }
 try {
-  const m1 = T.addMsg("me", "hello", null, "12:00", true);
-  t("addmsg-me", !!m1 && m1.className.indexOf("msg me") >= 0);
-  const th = [{ k: "terminal", s: "Run echo hi", d: [{ h: "output", b: "hi" }] }, { k: "reason", s: "" }];
-  const m2 = T.addMsg("ai", "done", null, "12:01", true, { thoughts: th });
-  t("addmsg-thoughts", !!m2 && m2.innerHTML.indexOf("trow") >= 0);
-  const m3 = T.addMsg("me", "x".repeat(250), null, null, true);
-  t("addmsg-fold", m3.className.indexOf("folded") >= 0);
-  const m4 = T.addMsg("me", "", null, null, true);
-  t("addmsg-empty", !!m4);
-  t("addmsg-count", chat.children.filter((c) => (c.className || "").split(" ").indexOf("msg") >= 0).length === 3 && chat.children.length === 4, String(chat.children.length));
-  t("addmsg-mtime", (() => { const w = chat.querySelector(".mewrap"); return !!w && w.children.length === 2 && w.children[0].className === "mtime" && w.children[0].textContent === "12:00" && w.children[1].className.indexOf("msg me") >= 0; })(), "");
+  const m1 = T.addMsg("me", "hello", null, "12:00", true)
+  t("addmsg-me", !!m1 && m1.className.indexOf("msg me") >= 0)
+  const th = [
+    { k: "terminal", s: "Run echo hi", d: [{ h: "output", b: "hi" }] },
+    { k: "reason", s: "" },
+  ]
+  const m2 = T.addMsg("ai", "done", null, "12:01", true, { thoughts: th })
+  t("addmsg-thoughts", !!m2 && m2.innerHTML.indexOf("trow") >= 0)
+  const m3 = T.addMsg("me", "x".repeat(250), null, null, true)
+  t("addmsg-fold", m3.className.indexOf("folded") >= 0)
+  const m4 = T.addMsg("me", "", null, null, true)
+  t("addmsg-empty", !!m4)
+  t(
+    "addmsg-count",
+    chat.children.filter(
+      (c) => (c.className || "").split(" ").indexOf("msg") >= 0,
+    ).length === 3 && chat.children.length === 4,
+    String(chat.children.length),
+  )
+  t(
+    "addmsg-mtime",
+    (() => {
+      const w = chat.querySelector(".mewrap")
+      return (
+        !!w &&
+        w.children.length === 2 &&
+        w.children[0].className === "mtime" &&
+        w.children[0].textContent === "12:00" &&
+        w.children[1].className.indexOf("msg me") >= 0
+      )
+    })(),
+    "",
+  )
 } catch (e) {
   t("addmsg-nothrow", false, e && e.message)
 }

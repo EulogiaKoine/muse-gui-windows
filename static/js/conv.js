@@ -117,7 +117,14 @@ function saveConv(title) {
 function saveMsg(who, text, meta) {
   const c = curConv()
   if (!c) return
-  c.msgs.push({ who, text, ts: (meta && meta.ts) || Date.now(), el: (meta && meta.el) || "", th: (meta && meta.th) || null, atts: (meta && meta.atts) || null })
+  c.msgs.push({
+    who,
+    text,
+    ts: (meta && meta.ts) || Date.now(),
+    el: (meta && meta.el) || "",
+    th: (meta && meta.th) || null,
+    atts: (meta && meta.atts) || null,
+  })
   if (c.msgs.length > MAX_MSGS) c.msgs.splice(0, c.msgs.length - MAX_MSGS)
   if (sessionId) c.sid = sessionId
   c.at = Date.now()
@@ -228,9 +235,16 @@ function openConv(k) {
     const ex = {}
     if (m.th) ex.thoughts = m.th
     if (m.atts && m.atts.length) ex.atts = m.atts
-    addMsg(m.who, m.text, null, footFor(m), undefined, Object.keys(ex).length ? ex : null)
+    addMsg(
+      m.who,
+      m.text,
+      null,
+      footFor(m),
+      undefined,
+      Object.keys(ex).length ? ex : null,
+    )
   })
-  chat.scrollTop = (typeof c.scroll === "number") ? c.scroll : chat.scrollHeight
+  chat.scrollTop = typeof c.scroll === "number" ? c.scroll : chat.scrollHeight
   setRoute("/" + (c.sid || c.k))
   drawConvs()
   updateGate()
@@ -358,12 +372,18 @@ function paintSortBtn() {
 }
 function orderConvs() {
   const byKey = new Map(convs.map((c) => [c.k, c]))
-  const subs = convs.filter((c) => c.sub && c.sub.parent && byKey.has(c.sub.parent))
+  const subs = convs.filter(
+    (c) => c.sub && c.sub.parent && byKey.has(c.sub.parent),
+  )
   const subKeys = new Set(subs.map((c) => c.k))
   const out = []
-  sortConvs(convs.filter((c) => !subKeys.has(c.k)), convSortMode()).forEach((r) => {
+  sortConvs(
+    convs.filter((c) => !subKeys.has(c.k)),
+    convSortMode(),
+  ).forEach((r) => {
     out.push(r)
-    subs.filter((s) => s.sub.parent === r.k)
+    subs
+      .filter((s) => s.sub.parent === r.k)
       .sort((a, b) => (a.at || 0) - (b.at || 0))
       .forEach((s) => out.push(s))
   })
@@ -375,7 +395,8 @@ function drawConvs() {
   box.innerHTML = ""
   orderConvs().forEach((c) => {
     const row = document.createElement("div")
-    row.className = "conv" + (c.pin ? " pinned" : "") + (c.sub ? " subconv" : "")
+    row.className =
+      "conv" + (c.pin ? " pinned" : "") + (c.sub ? " subconv" : "")
     if (c.k === renamingKey) {
       const ta = document.createElement("textarea")
       ta.className = "crename"
@@ -423,7 +444,10 @@ function drawConvs() {
       return
     }
     const b = document.createElement("button")
-    b.textContent = (c.sub ? "↳ " : "") + c.t + (c.msgs.length ? " (" + c.msgs.length + ")" : "")
+    b.textContent =
+      (c.sub ? "↳ " : "") +
+      c.t +
+      (c.msgs.length ? " (" + c.msgs.length + ")" : "")
     b.type = "button"
     b.className = "ctitle"
     b.dataset.k = c.k
@@ -454,7 +478,7 @@ function drawConvs() {
     if (c.sid && typeof agentChildren === "function") {
       const kids = agentChildren(c.sid)
       if (kids.length) {
-        const open = (typeof agentOpen !== "undefined") && agentOpen.has(c.sid)
+        const open = typeof agentOpen !== "undefined" && agentOpen.has(c.sid)
         const xb = document.createElement("button")
         xb.type = "button"
         xb.className = "cagents" + (open ? " open" : "")
@@ -478,7 +502,12 @@ function drawConvs() {
     row.appendChild(dots)
     box.appendChild(row)
     if (typeof pollAgentsForList === "function") pollAgentsForList()
-    if (c.sid && typeof agentChildren === "function" && typeof agentOpen !== "undefined" && agentOpen.has(c.sid)) {
+    if (
+      c.sid &&
+      typeof agentChildren === "function" &&
+      typeof agentOpen !== "undefined" &&
+      agentOpen.has(c.sid)
+    ) {
       agentChildren(c.sid).forEach((k) => {
         const kr = document.createElement("div")
         kr.className = "conv agentchild"

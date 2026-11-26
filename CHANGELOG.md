@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026.11.26.85
+- main beautify: prettier --no-semi 적용(JS/CSS, 동작 동일)
+
 ## 2026.11.26.84
 - README 개편(따라하기 설치·개념 한 줄·업데이트 목차·문제 해결)
 
