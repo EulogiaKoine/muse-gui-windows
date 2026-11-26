@@ -1785,6 +1785,7 @@ $("#ctx").addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") { hideCtx()
 hideModal()
 hideFsPicker()
+hideSortMenu()
 if (editingEl) cancelEdit(editingEl)
 } })
 function loadTheme() {
@@ -2656,12 +2657,49 @@ $("#f").addEventListener("submit", async (e) => {
     saveMsg("ai", ph.dataset.raw)
   }
 })
-$("#sortbtn").onclick = () => {
-  const order = ["recent", "name", "created"]
-  const next = order[(order.indexOf(convSortMode()) + 1) % order.length]
-  saveTheme({ convSort: next })
-  drawConvs()
+const SORT_MODES = ["recent", "name", "created"]
+function renderSortMenu() {
+  const box = $("#sortmenu")
+  if (!box) return
+  const m = convSortMode()
+  box.innerHTML = ""
+  SORT_MODES.forEach((id) => {
+    const b = document.createElement("button")
+    b.type = "button"
+    b.className = "sortopt"
+    const mark = document.createElement("span")
+    mark.className = "somark"
+    mark.textContent = id === m ? "✓" : ""
+    const lab = document.createElement("span")
+    lab.textContent = t("conv.sort." + id)
+    b.append(mark, lab)
+    b.onclick = (ev) => {
+      ev.stopPropagation()
+      saveTheme({ convSort: id })
+      drawConvs()
+      hideSortMenu()
+    };
+    box.appendChild(b)
+  })
 }
+function hideSortMenu() {
+  const box = $("#sortmenu")
+  if (box) box.hidden = true
+}
+$("#sortbtn").onclick = (e) => {
+  e.stopPropagation()
+  const box = $("#sortmenu")
+  if (!box) return
+  if (!box.hidden) {
+    hideSortMenu()
+    return
+  }
+  renderSortMenu()
+  box.hidden = false
+}
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#sortmenu,#sortbtn")) hideSortMenu()
+})
 $("#newchat").onclick = () => {
   saveScroll()
   sessionId = null

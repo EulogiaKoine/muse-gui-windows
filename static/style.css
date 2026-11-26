@@ -39,7 +39,12 @@ aside button:hover { border-color: var(--me); }
 main header #sidetoggle { margin-right: 2px; }
 body.side-hidden aside { display: none; }
 #convs { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; padding-top: 8px; }
-#convsortrow { display: flex; justify-content: flex-end; }
+#convsortrow { display: flex; justify-content: flex-end; position: relative; }
+#sortmenu { position: absolute; right: 0; top: 100%; z-index: 30; border: 1px solid var(--bd); background: var(--bubble); border-radius: 8px; box-shadow: 0 8px 24px #0003; min-width: 130px; padding: 4px; }
+#sortmenu[hidden] { display: none; }
+#sortmenu .sortopt { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; border-radius: 6px; background: none; color: var(--text); padding: 8px 10px; cursor: pointer; font-size: 13px; }
+#sortmenu .sortopt:hover { background: var(--hover); }
+#sortmenu .somark { flex: none; width: 1.2em; text-align: center; color: var(--me); }
 #sortbtn { border: 0; background: none; color: var(--muted); border-radius: 6px; padding: 4px 8px; cursor: pointer; line-height: 0; }
 #sortbtn:hover { color: var(--me); background: var(--hover); }
 #convs button { text-align: left; border-color: transparent; background: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
