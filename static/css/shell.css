@@ -16,7 +16,9 @@ body.rside-hidden #rside { display: none; }
 #rsidehead { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 #rsidetabs { display: flex; gap: 4px; flex: 1; min-width: 0; }
 #rsidehead { border-bottom: 1px solid var(--bd); }
-#rsidetabs button { flex: 1; display: inline-flex; align-items: center; border: 1px solid transparent; border-bottom: 0; background: none; color: var(--muted); border-radius: 8px 8px 0 0; padding: 7px 4px; cursor: pointer; font-size: 13px; min-width: 0; margin-bottom: -1px; }
+#rsidetabs { overflow-x: auto; }
+#rsidetabs button { flex: none; width: 132px; display: inline-flex; align-items: center; border: 1px solid transparent; border-bottom: 0; background: none; color: var(--muted); border-radius: 8px 8px 0 0; padding: 7px 4px; cursor: pointer; font-size: 13px; margin-bottom: -1px; }
+#rsidetabs button .tlab { mask-image: linear-gradient(to right, #000 82%, transparent); }
 #rsidetabs button:hover { color: var(--text); background: var(--hover); }
 #rsidetabs button.sel { background: var(--bg); color: var(--text); font-weight: 600; border-color: var(--bd); }
 #rsidetabs button .tlab { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
