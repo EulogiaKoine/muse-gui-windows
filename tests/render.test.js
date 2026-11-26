@@ -3,130 +3,143 @@
 // 규칙: 테스트는 static/app.js에서 "function esc(" 부터 "function timeStr("
 // 구간만 잘라 평가한다. 순수 함수(esc/escAttr/renderMath/hl/vizHtml/
 // renderText)는 이 구간 안에 둘 것. DOM 코드는 구간 밖에 둘 것.
-const fs = require("fs");
-const path = require("path");
-const src = fs.readFileSync(path.join(__dirname, "..", "static", "app.js"), "utf8");
-const start = src.indexOf("function esc(");
-const end = src.indexOf("function timeStr(");
+const fs = require("fs")
+const path = require("path")
+const src = fs.readFileSync(path.join(__dirname, "..", "static", "app.js"), "utf8")
+const start = src.indexOf("function esc(")
+const end = src.indexOf("function timeStr(")
 if (start < 0 || end < 0 || end < start) {
-  console.error("FAIL slice anchors missing (esc..timeStr convention broken)");
-  process.exit(1);
+  console.error("FAIL slice anchors missing (esc..timeStr convention broken)")
+  process.exit(1)
 }
-const sandbox = {};
-require("vm").createContext(sandbox);
+const sandbox = {}
+require("vm").createContext(sandbox)
 require("vm").runInContext(
   src.slice(start, end) + "\nglobalThis.__R = { renderText, renderMath, hl, vizHtml, esc, tblToMD, tblToCSV, routeId, goalFence, normGoalItems, convToMd, thoughtKind, truncStr };",
-  sandbox);
-const R = sandbox.__R;
-let pass = 0, fail = 0;
+  sandbox)
+const R = sandbox.__R
+let pass = 0, fail = 0
 function t(name, cond, extra) {
-  if (cond) { pass++; console.log("PASS", name); }
-  else { fail++; console.log("FAIL", name, extra || ""); }
+  if (cond) {
+    pass++
+    console.log("PASS", name)
+  }
+  else {
+    fail++
+    console.log("FAIL", name, extra || "")
+  }
 }
-let h = R.renderText("```python\ndef f():\n    return 'hi' # c\n```");
-t("code fence lang label", h.includes('data-lang="python"'), h.slice(0, 200));
-t("py keyword hl", h.includes('tok-k">def<'), h.slice(0, 400));
-t("py string hl", h.includes('tok-s'), h.slice(0, 400));
-t("py comment hl", h.includes('tok-c'), h.slice(0, 400));
-h = R.renderText("$$\\frac{a}{b} + \\alpha^2$$");
-t("display math frac", h.includes('class="frac"') && h.includes("math-block"), h.slice(0, 300));
-h = R.renderText("값은 $x^2 + \\sqrt{y}$ 이다");
-t("inline math", h.includes('class="math"') && h.includes("<sup>2</sup>"), h.slice(0, 300));
-h = R.renderText("\\(a \\leq b\\)");
-t("paren math", h.includes('class="math"'), h.slice(0, 200));
-h = R.renderText("```viz-html:500\n<b>hi</b>\n```");
+let h = R.renderText("```python\ndef f():\n    return 'hi' # c\n```")
+t("code fence lang label", h.includes('data-lang="python"'), h.slice(0, 200))
+t("py keyword hl", h.includes('tok-k">def<'), h.slice(0, 400))
+t("py string hl", h.includes('tok-s'), h.slice(0, 400))
+t("py comment hl", h.includes('tok-c'), h.slice(0, 400))
+h = R.renderText("$$\\frac{a}{b} + \\alpha^2$$")
+t("display math frac", h.includes('class="frac"') && h.includes("math-block"), h.slice(0, 300))
+h = R.renderText("값은 $x^2 + \\sqrt{y}$ 이다")
+t("inline math", h.includes('class="math"') && h.includes("<sup>2</sup>"), h.slice(0, 300))
+h = R.renderText("\\(a \\leq b\\)")
+t("paren math", h.includes('class="math"'), h.slice(0, 200))
+h = R.renderText("```viz-html:500\n<b>hi</b>\n```")
 t("viz iframe", h.includes("<iframe") && h.includes('height="500"')
-  && h.includes('sandbox="allow-scripts"'), h.slice(0, 300));
-t("viz no same-origin", !h.includes("allow-same-origin"), "");
-h = R.renderText("```viz-html\n<script>alert(1)</script>\n```");
-t("viz srcdoc escaped", h.includes("srcdoc=") && !h.includes("<script>alert"), h.slice(0, 300));
-h = R.renderText("> [!note] 핵심\n> 계속");
-t("callout", h.includes('class="callout c-note"'), h.slice(0, 300));
-h = R.renderText("이건 ==형광== 표시");
-t("mark", h.includes("<mark>"), h.slice(0, 200));
-h = R.renderText("- [ ] 할일\n- [x] 완료");
-t("tasks", h.includes('type="checkbox"') && h.includes("checked"), h.slice(0, 300));
-h = R.renderText("[x](javascript:alert(1))");
-t("js link neutralized", !h.includes('href="javascript'), h.slice(0, 200));
-h = R.renderText("`$x$` 그대로");
-t("code shields math", h.includes("<code>$x$</code>"), h.slice(0, 200));
-h = R.renderText("```js\nconst a = 1; // n\n```");
-t("js fence", h.includes('data-lang="js"') && h.includes("tok-k"), h.slice(0, 300));
-h = R.renderText("값은 $x^2$ 이다");
-t("math keeps raw tex", h.includes('data-tex="x^2"'), h.slice(0, 300));
-h = R.renderText("$$\\frac{a}{b}$$");
-t("display math raw", h.includes("data-tex=") && h.includes("math-block"), h.slice(0, 300));
-h = R.renderText("| a | b |\n|---|---|\n| 1 | 2 |");
-t("table wrap", h.includes('class="tblwrap"><table>') && h.includes("<th>a</th>") && h.includes("<td>2</td>"), h.slice(0, 300));
-t("tbl md", R.tblToMD([["a", "b"], ["1", "2"]]) === "| a | b |\n| --- | --- |\n| 1 | 2 |", JSON.stringify(R.tblToMD([["a", "b"], ["1", "2"]])));
-t("tbl md ragged", R.tblToMD([["a"], ["1", "2", "3"]]).split("\n").length === 3, "");
-t("tbl csv quote", R.tblToCSV([["x,y", 'z"q'], ["a", "b"]]) === '"x,y","z""q"\na,b', JSON.stringify(R.tblToCSV([["x,y", 'z"q']])));
-t("route sid", R.routeId("/01a213b6-d13d-7b82-95de-6973543146ac") === "01a213b6-d13d-7b82-95de-6973543146ac", "");
-t("route conv", R.routeId("/c1795627200000/") === "c1795627200000", "");
-t("route root", R.routeId("/") === null, "");
-t("route static", R.routeId("/static/app.js") === null, "");
-t("route api", R.routeId("/api/info") === null, "");
-h = R.renderText("참고 https://example.com/a?b=1.");
-t("bare url link", h.includes('<a href="https://example.com/a?b=1"') && h.endsWith(".</p>"), h.slice(0, 300));
-h = R.renderText("www.example.com 접속");
-t("www link", h.includes('<a href="https://www.example.com"'), h.slice(0, 300));
-h = R.renderText("<https://example.com/x>");
-t("angle autolink", h.includes('<a href="https://example.com/x"'), h.slice(0, 300));
-h = R.renderText("[메일](mailto:a@b.com)");
-t("mailto link", h.includes('<a href="mailto:a@b.com"'), h.slice(0, 300));
-h = R.renderText("[문서](https://example.com/a).");
-t("md link trailing dot", h.includes('>문서</a>.') , h.slice(0, 300));
-h = R.renderText("`https://example.com` 코드");
-t("code shields url", h.includes("<code>https://example.com</code>") && !h.includes("<a href=\"https://example.com\""), h.slice(0, 300));
-h = R.renderText("[x](javascript:alert(1)) https://example.com");
-t("js still neutral + bare ok", !h.includes('href="javascript') && h.includes('<a href="https://example.com"'), h.slice(0, 300));
-h = R.renderText("[가이드](some-note)");
-t("nolink styled no suffix", h.includes('<a class="nolink">가이드</a>') && !h.includes("some-note"), h.slice(0, 300));
-h = R.renderText("[빈링크]()");
-t("empty url nolink", h.includes('<a class="nolink">빈링크</a>'), h.slice(0, 300));
-h = R.renderText("[참고]");
-t("bare brackets literal", h.includes("[참고]") && !h.includes("nolink"), h.slice(0, 200));
-h = R.renderText("외부 [문서](https://example.com/a) 참고");
-t("http link icon", h.includes('<a href="https://example.com/a"') && h.includes('class="licon"'), h.slice(0, 300));
-h = R.renderText("[폴더](/mnt/c/foo)");
-t("dir pathlink", h.includes('data-path="/mnt/c/foo"') && h.includes("plicon"), h.slice(0, 300));
-h = R.renderText("[w](C:/x/y)");
-t("win pathlink", h.includes('data-path="C:/x/y"'), h.slice(0, 300));
-h = R.renderText("[r](./a/b.md)");
-t("rel pathlink", h.includes('data-path="./a/b.md"'), h.slice(0, 300));
-h = R.renderText("[m](mailto:a@b.com)");
-t("mailto no icon", h.includes('<a href="mailto:a@b.com"') && !h.includes("licon"), h.slice(0, 300));
-h = R.renderText("[a](./x_(1).md)");
-t("paren url", h.includes('data-path="./x_(1).md"'), h.slice(0, 300));
-h = R.renderText("[a] (http://x.com/y)");
-t("space link", h.includes('<a href="http://x.com/y"'), h.slice(0, 300));
-h = R.renderText("보다 /mnt/c/d 경로");
-t("bare linux path", h.includes('data-path="/mnt/c/d"'), h.slice(0, 300));
-h = R.renderText("열기 C:\\W\\x 끝");
-t("bare win path", h.includes('data-path="C:\\W\\x"'), h.slice(0, 300));
-h = R.renderText("홈 ~/a 확인");
-t("bare home path", h.includes('data-path="~/a"'), h.slice(0, 200));
-h = R.renderText("[u](\\\\srv\\sh)");
-t("unc pathlink", h.includes('data-path="\\\\srv\\sh"'), h.slice(0, 300));
-h = R.renderText("[로컬](/api/info)");
-t("single slash stays link", h.includes('<a href="/api/info"') && !h.includes("data-path"), h.slice(0, 300));
-h = R.renderText("[t](</mnt/c/d>)");
-t("angle pathlink", h.includes('data-path="/mnt/c/d"'), h.slice(0, 300));
-h = R.renderText("[t](</mnt/my dir/x>)");
-t("angle path with space", h.includes('data-path="/mnt/my dir/x"'), h.slice(0, 300));
-h = R.renderText("[a] <b> prose");
-t("no false angle link", h.includes("[a]") && !h.includes("nolink") && !h.includes("data-path"), h.slice(0, 300));
-h = R.renderText("결과다 [출처: GitHub](https://github.com/x).");
-t("srcchip", h.includes('<a class="srcchip" href="https://github.com/x"') && h.includes(">GitHub</a>"), h.slice(0, 300));
-t("goalFence plan", (() => { const g = R.goalFence('본문\n```goal-plan [{"t":"a"},{"t":"b"}]```\n꼬리', "plan"); return g.data && g.data.length === 2 && g.clean === "본문\n\n꼬리"; })(), "");
-t("goalFence variant", (() => { const g = R.goalFence('본문\n```GOAL_STATUS json\n{"done":[0]}\n```', "status"); return g.data && g.data.done && g.data.done[0] === 0; })(), "");
-t("goalFence miss", R.goalFence("본문", "plan").data === null, "");
-t("normGoalItems", (() => { const a = R.normGoalItems(["a", { t: "b", done: 1 }]); return a.length === 2 && a[0].t === "a" && !a[0].done && a[1].done; })(), "");
-t("thoughtKind", R.thoughtKind("model.meta.response") === "reason" && R.thoughtKind("tool.bash") === "terminal" && R.thoughtKind("tool:bash") === "terminal" && R.thoughtKind("tool.web_search") === "web" && R.thoughtKind("tool.read") === "file" && R.thoughtKind("reminder.agent.x") === "system" && R.thoughtKind("") === "system" && R.thoughtKind("tool.unknown_xyz") === "tool", "");
-t("truncStr", R.truncStr("abcdef", 3) === "abc…" && R.truncStr("ab", 3) === "ab", "");
+  && h.includes('sandbox="allow-scripts"'), h.slice(0, 300))
+t("viz no same-origin", !h.includes("allow-same-origin"), "")
+h = R.renderText("```viz-html\n<script>alert(1)</script>\n```")
+t("viz srcdoc escaped", h.includes("srcdoc=") && !h.includes("<script>alert"), h.slice(0, 300))
+h = R.renderText("> [!note] 핵심\n> 계속")
+t("callout", h.includes('class="callout c-note"'), h.slice(0, 300))
+h = R.renderText("이건 ==형광== 표시")
+t("mark", h.includes("<mark>"), h.slice(0, 200))
+h = R.renderText("- [ ] 할일\n- [x] 완료")
+t("tasks", h.includes('type="checkbox"') && h.includes("checked"), h.slice(0, 300))
+h = R.renderText("[x](javascript:alert(1))")
+t("js link neutralized", !h.includes('href="javascript'), h.slice(0, 200))
+h = R.renderText("`$x$` 그대로")
+t("code shields math", h.includes("<code>$x$</code>"), h.slice(0, 200))
+h = R.renderText("```js\nconst a = 1; // n\n```")
+t("js fence", h.includes('data-lang="js"') && h.includes("tok-k"), h.slice(0, 300))
+h = R.renderText("값은 $x^2$ 이다")
+t("math keeps raw tex", h.includes('data-tex="x^2"'), h.slice(0, 300))
+h = R.renderText("$$\\frac{a}{b}$$")
+t("display math raw", h.includes("data-tex=") && h.includes("math-block"), h.slice(0, 300))
+h = R.renderText("| a | b |\n|---|---|\n| 1 | 2 |")
+t("table wrap", h.includes('class="tblwrap"><table>') && h.includes("<th>a</th>") && h.includes("<td>2</td>"), h.slice(0, 300))
+t("tbl md", R.tblToMD([["a", "b"], ["1", "2"]]) === "| a | b |\n| --- | --- |\n| 1 | 2 |", JSON.stringify(R.tblToMD([["a", "b"], ["1", "2"]])))
+t("tbl md ragged", R.tblToMD([["a"], ["1", "2", "3"]]).split("\n").length === 3, "")
+t("tbl csv quote", R.tblToCSV([["x,y", 'z"q'], ["a", "b"]]) === '"x,y","z""q"\na,b', JSON.stringify(R.tblToCSV([["x,y", 'z"q']])))
+t("route sid", R.routeId("/01a213b6-d13d-7b82-95de-6973543146ac") === "01a213b6-d13d-7b82-95de-6973543146ac", "")
+t("route conv", R.routeId("/c1795627200000/") === "c1795627200000", "")
+t("route root", R.routeId("/") === null, "")
+t("route static", R.routeId("/static/app.js") === null, "")
+t("route api", R.routeId("/api/info") === null, "")
+h = R.renderText("참고 https://example.com/a?b=1.")
+t("bare url link", h.includes('<a href="https://example.com/a?b=1"') && h.endsWith(".</p>"), h.slice(0, 300))
+h = R.renderText("www.example.com 접속")
+t("www link", h.includes('<a href="https://www.example.com"'), h.slice(0, 300))
+h = R.renderText("<https://example.com/x>")
+t("angle autolink", h.includes('<a href="https://example.com/x"'), h.slice(0, 300))
+h = R.renderText("[메일](mailto:a@b.com)")
+t("mailto link", h.includes('<a href="mailto:a@b.com"'), h.slice(0, 300))
+h = R.renderText("[문서](https://example.com/a).")
+t("md link trailing dot", h.includes('>문서</a>.') , h.slice(0, 300))
+h = R.renderText("`https://example.com` 코드")
+t("code shields url", h.includes("<code>https://example.com</code>") && !h.includes("<a href=\"https://example.com\""), h.slice(0, 300))
+h = R.renderText("[x](javascript:alert(1)) https://example.com")
+t("js still neutral + bare ok", !h.includes('href="javascript') && h.includes('<a href="https://example.com"'), h.slice(0, 300))
+h = R.renderText("[가이드](some-note)")
+t("nolink styled no suffix", h.includes('<a class="nolink">가이드</a>') && !h.includes("some-note"), h.slice(0, 300))
+h = R.renderText("[빈링크]()")
+t("empty url nolink", h.includes('<a class="nolink">빈링크</a>'), h.slice(0, 300))
+h = R.renderText("[참고]")
+t("bare brackets literal", h.includes("[참고]") && !h.includes("nolink"), h.slice(0, 200))
+h = R.renderText("외부 [문서](https://example.com/a) 참고")
+t("http link icon", h.includes('<a href="https://example.com/a"') && h.includes('class="licon"'), h.slice(0, 300))
+h = R.renderText("[폴더](/mnt/c/foo)")
+t("dir pathlink", h.includes('data-path="/mnt/c/foo"') && h.includes("plicon"), h.slice(0, 300))
+h = R.renderText("[w](C:/x/y)")
+t("win pathlink", h.includes('data-path="C:/x/y"'), h.slice(0, 300))
+h = R.renderText("[r](./a/b.md)")
+t("rel pathlink", h.includes('data-path="./a/b.md"'), h.slice(0, 300))
+h = R.renderText("[m](mailto:a@b.com)")
+t("mailto no icon", h.includes('<a href="mailto:a@b.com"') && !h.includes("licon"), h.slice(0, 300))
+h = R.renderText("[a](./x_(1).md)")
+t("paren url", h.includes('data-path="./x_(1).md"'), h.slice(0, 300))
+h = R.renderText("[a] (http://x.com/y)")
+t("space link", h.includes('<a href="http://x.com/y"'), h.slice(0, 300))
+h = R.renderText("보다 /mnt/c/d 경로")
+t("bare linux path", h.includes('data-path="/mnt/c/d"'), h.slice(0, 300))
+h = R.renderText("열기 C:\\W\\x 끝")
+t("bare win path", h.includes('data-path="C:\\W\\x"'), h.slice(0, 300))
+h = R.renderText("홈 ~/a 확인")
+t("bare home path", h.includes('data-path="~/a"'), h.slice(0, 200))
+h = R.renderText("[u](\\\\srv\\sh)")
+t("unc pathlink", h.includes('data-path="\\\\srv\\sh"'), h.slice(0, 300))
+h = R.renderText("[로컬](/api/info)")
+t("single slash stays link", h.includes('<a href="/api/info"') && !h.includes("data-path"), h.slice(0, 300))
+h = R.renderText("[t](</mnt/c/d>)")
+t("angle pathlink", h.includes('data-path="/mnt/c/d"'), h.slice(0, 300))
+h = R.renderText("[t](</mnt/my dir/x>)")
+t("angle path with space", h.includes('data-path="/mnt/my dir/x"'), h.slice(0, 300))
+h = R.renderText("[a] <b> prose")
+t("no false angle link", h.includes("[a]") && !h.includes("nolink") && !h.includes("data-path"), h.slice(0, 300))
+h = R.renderText("결과다 [출처: GitHub](https://github.com/x).")
+t("srcchip", h.includes('<a class="srcchip" href="https://github.com/x"') && h.includes(">GitHub</a>"), h.slice(0, 300))
+t("goalFence plan", (() => { const g = R.goalFence('본문\n```goal-plan [{"t":"a"},{"t":"b"}]```\n꼬리', "plan")
+return g.data && g.data.length === 2 && g.clean === "본문\n\n꼬리"
+})(), "")
+t("goalFence variant", (() => { const g = R.goalFence('본문\n```GOAL_STATUS json\n{"done":[0]}\n```', "status")
+return g.data && g.data.done && g.data.done[0] === 0
+})(), "")
+t("goalFence miss", R.goalFence("본문", "plan").data === null, "")
+t("normGoalItems", (() => { const a = R.normGoalItems(["a", { t: "b", done: 1 }])
+return a.length === 2 && a[0].t === "a" && !a[0].done && a[1].done
+})(), "")
+t("thoughtKind", R.thoughtKind("model.meta.response") === "reason" && R.thoughtKind("tool.bash") === "terminal" && R.thoughtKind("tool:bash") === "terminal" && R.thoughtKind("tool.web_search") === "web" && R.thoughtKind("tool.read") === "file" && R.thoughtKind("reminder.agent.x") === "system" && R.thoughtKind("") === "system" && R.thoughtKind("tool.unknown_xyz") === "tool", "")
+t("truncStr", R.truncStr("abcdef", 3) === "abc…" && R.truncStr("ab", 3) === "ab", "")
 t("convToMd", (() => { const md = R.convToMd({ t: "T", sid: "s1abcd", cwd: "/w", msgs: [
   { who: "me", text: "질문", ts: 1000 },
-  { who: "ai", text: "답\n```goal-plan\n[{\"t\":\"a\"}]\n```\n끝", ts: 2000 }] });
-  return md.includes("## 사용자") && md.includes("## 어시스턴트") && md.includes("질문") && !md.includes("goal-plan"); })(), "");
-console.log(`\n${pass} passed, ${fail} failed`);
-process.exit(fail ? 1 : 0);
+  { who: "ai", text: "답\n```goal-plan\n[{\"t\":\"a\"}]\n```\n끝", ts: 2000 }] })
+  return md.includes("## 사용자") && md.includes("## 어시스턴트") && md.includes("질문") && !md.includes("goal-plan")
+  })(), "")
+console.log(`\n${pass} passed, ${fail} failed`)
+process.exit(fail ? 1 : 0)

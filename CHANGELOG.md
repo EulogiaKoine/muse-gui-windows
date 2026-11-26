@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.11.26.38
+- 배포용 가공: dev 브랜치 분할, .gitignore에 에이전트 파일 추가
+- JS 스타일 통일: 세미콜론 제거·1줄 조건식 중괄호 제거·camelCase 확인·주석 영어 최소화
+- README 목차 신설(Intro/Installation/Usage/Skills/License/Contribute), bin/muse-gui 런처 포함
+
 ## 2026.11.26.37
 - 세부 추론행 펼침 복구: status/output 없이 끝나는 행도 완료 시 보완 기록을 채워 토글이 항상 표시됨
 - 완료 없이 끝난 행은 종료 기록으로 보완, 작업 없는 턴은 헤더가 별도 추론 과정 없음으로 확정

@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# muse-gui — muse CLI용 로컬 채팅 GUI 런처.
+# muse와 같은 경로(~/.local/bin)에 설치되며, muse 파라미터를 그대로 전달한다.
+# 추가 파라미터: --port <N> (기본 8765), --host <ADDR>, --no-open
+set -euo pipefail
+
+GUI_DIR="${MUSE_GUI_DIR:-$HOME/.local/share/muse-gui}"
+DEFAULT_PORT=8765
+PORT="$DEFAULT_PORT"
+HOST="127.0.0.1"
+OPEN_BROWSER=1
+MUSE_ARGS=()
+
+usage() {
+  cat <<EOF
+Usage: muse-gui [OPTIONS] [MUSE_OPTIONS] [PROMPT]
+
+muse 파라미터는 그대로 muse exec에 전달된다. 예:
+  muse-gui --model <ID> --provider meta
+  muse-gui --reasoning-effort low
+
+muse-gui 전용 옵션:
+  --port <N>     HTTP 포트 (기본 $DEFAULT_PORT)
+  --host <ADDR>  바인드 주소 (기본 127.0.0.1)
+  --no-open      브라우저 자동 열기 생략
+  -h, --help     이 도움말
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --port) PORT="${2:?--port needs a value}"; shift 2 ;;
+    --port=*) PORT="${1#--port=}"; shift ;;
+    --host) HOST="${2:?--host needs a value}"; shift 2 ;;
+    --host=*) HOST="${1#--host=}"; shift ;;
+    --no-open) OPEN_BROWSER=0; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) MUSE_ARGS+=("$1"); shift ;;
+  esac
+done
+
+export MUSE_GUI_HOST="$HOST" MUSE_GUI_PORT="$PORT"
+export MUSE_GUI_ARGS="${MUSE_ARGS[*]:-}"
+
+open_browser() {
+  local url="http://$HOST:$PORT/"
+  # WSL2에서는 localhost가 Windows로 포워딩되므로 Windows 브라우저로 연다
+  if command -v wslview >/dev/null 2>&1; then wslview "$url" >/dev/null 2>&1 &
+  elif command -v powershell.exe >/dev/null 2>&1; then powershell.exe -NoProfile -Command Start-Process "$url" >/dev/null 2>&1 &
+  fi
+}
+
+cleanup() { kill "$SERVER_PID" 2>/dev/null || true; }
+trap cleanup EXIT INT TERM
+
+python3 "$GUI_DIR/server.py" &
+SERVER_PID=$!
+sleep 1
+if ! kill -0 "$SERVER_PID" 2>/dev/null; then echo "muse-gui: 서버 시작 실패 (포트 $PORT 사용 중?)" >&2; exit 1; fi
+echo "muse-gui: 브라우저에서 http://$HOST:$PORT/ 를 여세요 (종료: Ctrl+C)"
+[[ "$OPEN_BROWSER" == 1 ]] && open_browser || true
+wait "$SERVER_PID"

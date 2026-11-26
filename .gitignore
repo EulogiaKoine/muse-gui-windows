@@ -1,6 +1,9 @@
-# 실행 상태·부산무·에이전트 전용 문서. 코드·사용자 문서는 커밋 대상.
+# 실행 상태·부산물·에이전트 전용 문서. 코드·사용자 문서는 커밋 대상.
 __pycache__/
 *.pyc
 state.json
 usage.json
+prices.json
+.agent/
 docs/agent/
+AGENTS.md
