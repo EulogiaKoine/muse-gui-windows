@@ -719,9 +719,7 @@ $("#fswin").onclick = async () => {
     }
     const j = await r.json()
     if (j.ok && j.path) {
-      const cb = fsCb
-      hideFsPicker()
-      if (cb) cb(j.path)
+      fsLoad(j.path)
     } else if (j.error && j.error !== "취소됨.")
       $("#fssel").textContent = j.error
   } catch (e) {
