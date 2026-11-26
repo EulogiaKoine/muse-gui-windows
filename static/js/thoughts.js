@@ -134,6 +134,56 @@ function addThoughtLog(r, head, body, extra) {
   det.appendChild(sub)
   if (r.tgl) r.tgl.hidden = false
 }
+function webSafeUrl(u) {
+  const s = String(u || "")
+  return /^https?:\/\/[^\s]+$/i.test(s) ? s : ""
+}
+function addWebResultLog(r, query, results) {
+  const det = r.det
+  while (det.children.length >= 60) det.removeChild(det.firstChild)
+  const sub = document.createElement("div")
+  sub.className = "tsub tsub-" + (r.type || "tool")
+  const hb = document.createElement("button")
+  hb.type = "button"
+  hb.className = "tsubhead"
+  hb.setAttribute("data-ttoggle", "")
+  hb.title = "펼치기/접기"
+  const hs = document.createElement("span")
+  hs.className = "tsum"
+  hs.textContent = truncStr(query || t("web.results"), 80)
+  const tg = document.createElement("span")
+  tg.className = "ttoggle"
+  tg.textContent = "›"
+  hb.append(hs, tg)
+  const bd = document.createElement("div")
+  bd.className = "tsubbody"
+  bd.hidden = true
+  const ul = document.createElement("ul")
+  ul.className = "tlog weblist"
+  ;(results || []).slice(0, 30).forEach((it) => {
+    const url = webSafeUrl(it && it.url)
+    const title = String((it && it.title) || url || "?").slice(0, 120)
+    const li = document.createElement("li")
+    if (url) {
+      const a = document.createElement("a")
+      a.href = url
+      a.target = "_blank"
+      a.rel = "noreferrer"
+      a.textContent = title
+      const sm = document.createElement("span")
+      sm.className = "wurl"
+      sm.textContent = url
+      li.append(a, sm)
+    } else {
+      li.textContent = title
+    }
+    ul.appendChild(li)
+  })
+  bd.appendChild(ul)
+  sub.append(hb, bd)
+  det.appendChild(sub)
+  if (r.tgl) r.tgl.hidden = false
+}
 function markThoughtDone(r) {
   if (!r || r.done) return
   r.done = true
@@ -182,7 +232,14 @@ function updateThought(tbox, tstate, ev) {
     r = ensureThoughtRow(tbox, tstate, tid, type0, te.operation || t("th.task"))
     staticRowNote(r, type0, tstate)
   }
-  if (ek === "accepted" || ek === "scheduled" || ek === "started") return
+  if (ek === "accepted" || ek === "scheduled" || ek === "started") {
+    if (ek === "started" && r && r.type === "web") {
+      setRowSummary(r, t("web.searching"))
+      tstate.last = t("web.searching")
+      updateThoughtHead(tstate)
+    }
+    return
+  }
   if (ek === "side_effect_intent") {
     if (te.idempotency_key) r.idem = te.idempotency_key
     return
@@ -197,6 +254,21 @@ function updateThought(tbox, tstate, ev) {
     return
   }
   if (ek === "output" && typeof te.chunk === "string") {
+    if (r && r.type === "web") {
+      let query = "", results = null
+      try {
+        const o = JSON.parse(te.chunk)
+        if (o && Array.isArray(o.results)) { query = o.query || ""; results = o.results }
+      } catch (e) {}
+      if (results) {
+        const sum = results.length + t("web.sitesDone")
+        setRowSummary(r, sum)
+        tstate.last = sum
+        updateThoughtHead(tstate)
+        addWebResultLog(r, query, results)
+        return
+      }
+    }
     let sum = null, body = te.chunk, fullKey = ""
     try {
       const o = JSON.parse(te.chunk)
@@ -243,7 +315,14 @@ function collectThoughts(tbox) {
           const kids = Array.from(logEl.children).filter((c) => c.tagName === "SPAN")
           bt = kids.length ? kids.map((x) => x.textContent).join("\n") : (logEl.textContent || "")
         }
-        subs.push({ h: (h ? h.textContent : "").slice(0, 80), b: bt.slice(0, 1000) })
+        const wlinks = []
+        sub.querySelectorAll(".tsubbody .weblist a").forEach((a) => {
+          if (wlinks.length >= 20) return
+          const href = a.getAttribute("href") || ""
+          if (/^https?:\/\//i.test(href)) wlinks.push({ t: (a.textContent || "").slice(0, 80), u: href.slice(0, 300) })
+        })
+        if (wlinks.length) subs.push({ h: (h ? h.textContent : "").slice(0, 80), w: wlinks })
+        else subs.push({ h: (h ? h.textContent : "").slice(0, 80), b: bt.slice(0, 1000) })
       })
       if (subs.length) th.d = subs
     }
@@ -277,10 +356,20 @@ function renderThoughtsStatic(thoughts) {
       subs.forEach((s) => {
         const bt = String(s.b || "")
         const isD = th.k === "file" && isDiffText(bt)
-        const bh = isD ? diffLinesHtml(bt) : esc(bt)
+        let bh = isD ? diffLinesHtml(bt) : esc(bt)
+        let bcls = isD ? " diff" : ""
+        if (Array.isArray(s.w) && s.w.length) {
+          bcls = " weblist"
+          bh = "<ul>" + s.w.slice(0, 30).map((w) => {
+            const u = (/^https?:\/\//i.test(w.u || "") ? w.u : "")
+            const t = esc(String(w.t || u || "?")).slice(0, 120)
+            return u ? '<li><a href="' + escAttr(u) + '" target="_blank" rel="noreferrer">' + t + '</a>' +
+              '<span class="wurl">' + escAttr(u) + "</span></li>" : "<li>" + t + "</li>"
+          }).join("") + "</ul>"
+        }
         sh += '<div class="tsub tsub-' + esc(String(th.k || "tool")) + '"><button type="button" class="tsubhead" data-ttoggle title="펼치기/접기">' +
           '<span class="tsum">' + esc(s.h || "로그") + '</span><span class="ttoggle"' + (th.static ? " hidden" : "") + ">›</span></button>" +
-          '<div class="tsubbody" hidden><div class="tlog' + (isD ? " diff" : "") + '">' + bh + "</div></div></div>"
+          '<div class="tsubbody" hidden><div class="tlog' + bcls + '">' + bh + "</div></div></div>"
       })
       det = '<div class="tdetail" hidden>' + sh + "</div>"
     }
