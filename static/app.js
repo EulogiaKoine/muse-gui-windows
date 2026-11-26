@@ -378,6 +378,16 @@ function diffLinesHtml(s) {
     return '<span class="' + (c || "td-ctx") + '">' + esc(ln) + "</span>";
   }).join("");
 }
+function thoughtSummary(en, counts) {
+  const c = counts || {}
+  const n = (v) => Number(v) || 0
+  const parts = []
+  if (n(c.terminal)) parts.push(en ? n(c.terminal) + (n(c.terminal) === 1 ? " command run" : " commands run") : "명령 " + n(c.terminal) + "개 실행")
+  if (n(c.file)) parts.push(en ? n(c.file) + (n(c.file) === 1 ? " file" : " files") : "파일 " + n(c.file) + "개 작업")
+  if (n(c.reason)) parts.push(en ? n(c.reason) + (n(c.reason) === 1 ? " reasoning step" : " reasoning steps") : n(c.reason) + "단계 추론")
+  if (n(c.other)) parts.push(en ? n(c.other) + " others" : "기타 " + n(c.other) + "개")
+  return parts.join(", ") || (en ? "done" : "완료")
+}
 function diffOnly(s) {
   const full = String(s == null ? "" : s)
   const lines = full.split("\n")
@@ -879,13 +889,20 @@ function ensureThoughtRow(tbox, tstate, tid, type, summary) {
 function syncThoughtHead(tbox) {
   const st = tbox && tbox._tstate
   if (!st || !st.headSum) return
-  st.headSum.textContent = truncStr(st.last || "준비 중…", 140)
   let d = 0, m = 0
+  const counts = { terminal: 0, file: 0, reason: 0, other: 0 }
   st.rows.forEach((r) => {
     m++
     if (r.done) d++
+    if (r.type === "terminal") counts.terminal++
+    else if (r.type === "file") counts.file++
+    else if (r.type === "reason") counts.reason++
+    else counts.other++
   })
-  if (st.headSpin) st.headSpin.style.display = (m > 0 && d >= m) ? "none" : ""
+  if (m === 0) return
+  if (d >= m) st.headSum.textContent = thoughtSummary(langCur === "en", counts)
+  else st.headSum.textContent = truncStr(st.last || "준비 중…", 140)
+  if (st.headSpin) st.headSpin.style.display = d >= m ? "none" : ""
 }
 function updateThoughtHead(tstate) {
   if (tstate && tstate.tbox) syncThoughtHead(tstate.tbox)
@@ -1041,6 +1058,7 @@ function markThoughtsDone(tbox) {
     st.headSum.textContent = "별도 추론 과정 없음"
     if (st.headSpin) st.headSpin.style.display = "none"
   }
+  syncThoughtHead(tbox)
 }
 function renderThoughtsStatic(thoughts) {
   const items = thoughts || []
@@ -1069,10 +1087,16 @@ function renderThoughtsStatic(thoughts) {
       (subs.length ? '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button>' : "") +
       "</div>" + det
   })
-  const last = items[items.length - 1].s || "완료"
+  const counts = { terminal: 0, file: 0, reason: 0, other: 0 }
+  items.forEach((t) => {
+    if (t.k === "terminal") counts.terminal++
+    else if (t.k === "file") counts.file++
+    else if (t.k === "reason") counts.reason++
+    else counts.other++
+  })
   return '<div class="thoughts static"><div class="thead">' +
     '<span class="ttype">통합</span>' +
-    '<span class="tsum">' + esc(truncStr(last, 140)) + "</span>" +
+    '<span class="tsum">' + esc(thoughtSummary(langCur === "en", counts)) + "</span>" +
     '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button></div>' +
     '<div class="tbody" hidden>' + rows + "</div></div>"
 }
