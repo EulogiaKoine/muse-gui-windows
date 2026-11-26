@@ -191,7 +191,8 @@ let agentsInflight = false
 const agentOpen = new Set()
 let subRecs = {}
 async function refreshSubAgents() {
-  const sids = [...new Set(convs.map((c) => c.sid).filter(Boolean))]
+  const cur = (typeof curConv === "function") ? curConv() : null
+  const sids = (cur && cur.sid) ? [cur.sid] : []
   if (!sids.length) { subRecs = {}; return true }
   try {
     const r = await fetch("/api/subagents", { method: "POST",
@@ -272,9 +273,11 @@ async function renderAgents() {
     box.innerHTML = "<h3>agents</h3><p class='hint'>" + esc(t("agents.fail")) + "</p>"
     return
   }
+  const cur = (typeof curConv === "function") ? curConv() : null
+  const curSid = (cur && cur.sid) || ""
   const all = []
   convs.forEach((p) => {
-    if (!p.sid) return
+    if (!p.sid || p.sid !== curSid) return
     ;(subRecs[p.sid] || []).forEach((r) => all.push({ p, r }))
   })
   all.sort((a, b) => (b.r.at || 0) - (a.r.at || 0))
