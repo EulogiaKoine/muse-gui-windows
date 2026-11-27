@@ -21,6 +21,8 @@ require("vm").createContext(sandbox)
 const esc = (s) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 sandbox.esc = esc
+sandbox.escAttr = esc
+sandbox.t = (k) => k
 require("vm").runInContext(
   src +
     `

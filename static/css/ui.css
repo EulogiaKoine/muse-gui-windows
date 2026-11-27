@@ -55,8 +55,10 @@ form button[type="submit"]:active {
   width: max-content;
   max-height: 38vh;
   overflow-y: auto;
-  display: none;
   padding: 4px;
+}
+#slash[hidden] {
+  display: none;
 }
 #slash button {
   display: block;
@@ -232,6 +234,11 @@ form button[type="submit"]:active {
   border-radius: 999px;
   padding: 1px 8px;
   flex: none;
+}
+.sktoggle {
+  margin-left: auto;
+  padding: 4px 12px;
+  font-size: 12px;
 }
 .skdiv {
   display: flex;

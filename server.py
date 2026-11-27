@@ -46,6 +46,17 @@ UI_COMMANDS = [
     {"cmd": "/help", "desc": "사용 가능한 슬래시 명령 보기"},
     {"cmd": "/goal", "desc": "목표 등록 및 진행 추적 (우측 사이드바)"},
 ]
+UI_COMMANDS_EN = {
+    "/new": "Start a new chat (reset session)",
+    "/clear": "Clear the screen (local display only)",
+    "/copy": "Copy the last answer to clipboard",
+    "/help": "Show available slash commands",
+    "/goal": "Set a goal and track progress (right sidebar)",
+}
+
+
+def _lang(v):
+    return "en" if v == "en" else "ko"
 
 # GUI에서 의미를 살린 슬래시만 유지한다. 순수 TUI 전용 흐름
 # (rename/rewind/subagents/goal/cron/feedback/questions/tasks/stop/
@@ -73,12 +84,25 @@ TUI_SLASH = [
 
 # GUI에서 의미를 살린 대체 안내만 유지한다.
 TUI_ONLY_HINT = {
-    "resume": "터미널에서 `muse resume --last`로 이어받으세요.",
-    "deep-research": "채팅으로 직접 질문하세요 (동일 엔진이 답변합니다).",
-    "recap": "채팅으로 \"지금까지 대화 요약해줘\"라고 요청하세요.",
-    "permissions": "실행 시 `muse-gui --approval-mode ...`로 지정하세요.",
-    "memory": "채팅으로 \"대화 요약해줘\"라고 요청하세요.",
+    "ko": {
+        "resume": "터미널에서 `muse resume --last`로 이어받으세요.",
+        "deep-research": "채팅으로 직접 질문하세요 (동일 엔진이 답변합니다).",
+        "recap": "채팅으로 \"지금까지 대화 요약해줘\"라고 요청하세요.",
+        "permissions": "실행 시 `muse-gui --approval-mode ...`로 지정하세요.",
+        "memory": "채팅으로 \"대화 요약해줘\"라고 요청하세요.",
+    },
+    "en": {
+        "resume": "Resume with `muse resume --last` in the terminal.",
+        "deep-research": "Just ask in chat (same engine answers).",
+        "recap": "Ask in chat: \"recap the conversation so far\".",
+        "permissions": "Pass `muse-gui --approval-mode ...` at launch.",
+        "memory": "Ask in chat: \"summarize the conversation\".",
+    },
 }
+
+
+def tui_hint(lang, name):
+    return TUI_ONLY_HINT.get(_lang(lang), TUI_ONLY_HINT["ko"]).get(name, "")
 
 # 세션별 사용량 원장: sid -> {"turns": n, "models": {model: {...}}}
 # 서버 재시작에도 유지되도록 디스크에 영속화한다.
@@ -124,8 +148,11 @@ def record_usage(sid, payload):
 load_usage()
 
 
-def format_session_usage(sid):
+def format_session_usage(sid, lang="ko"):
+    en = _lang(lang) == "en"
     if not sid or sid not in USAGE or not USAGE[sid]["turns"]:
+        if en:
+            return "```\n[No usage] This session has no model turns.\n```"
         return "```\n[사용량 없음] 이 세션의 모델 턴이 없습니다.\n```"
     entry = USAGE[sid]
 
@@ -135,15 +162,24 @@ def format_session_usage(sid):
     tot_in = sum(m["input"] for m in entry["models"].values())
     tot_out = sum(m["output"] for m in entry["models"].values())
     tot_r = sum(m["reasoning"] for m in entry["models"].values())
-    lines = ["세션 사용량 (%d 턴, 토큰 기준)" % entry["turns"], "",
-             "| 모델 | 호출 | 입력 | 출력 | 추론 |",
-             "|---|---|---|---|---|"]
+    if en:
+        lines = ["Session usage (%d turns, tokens)" % entry["turns"], "",
+                 "| model | calls | input | output | reasoning |",
+                 "|---|---|---|---|---|"]
+    else:
+        lines = ["세션 사용량 (%d 턴, 토큰 기준)" % entry["turns"], "",
+                 "| 모델 | 호출 | 입력 | 출력 | 추론 |",
+                 "|---|---|---|---|---|"]
     for name, a in entry["models"].items():
         lines.append("| %s | %d | %d | %d | %d |"
                      % (cell(name), a["calls"], a["input"], a["output"],
                         a["reasoning"]))
-    lines += ["| 합계 | - | %d | %d | %d |" % (tot_in, tot_out, tot_r), "",
-              "비용: 가격 소스 없음 (토큰만 표시)"]
+    if en:
+        lines += ["| total | - | %d | %d | %d |" % (tot_in, tot_out, tot_r), "",
+                  "Cost: no price source (tokens only)"]
+    else:
+        lines += ["| 합계 | - | %d | %d | %d |" % (tot_in, tot_out, tot_r), "",
+                  "비용: 가격 소스 없음 (토큰만 표시)"]
     return "\n".join(lines)
 
 
@@ -199,9 +235,14 @@ def muse_subcommands():
     return out or _HELP_CACHE["items"] or []
 
 
-def slash_command_list():
+def slash_command_list(lang="ko"):
     """자동완성용 전체 목록: UI + TUI 슬래시 + muse 하위 명령(중복 제외)."""
-    items = list(UI_COMMANDS)
+    if _lang(lang) == "en":
+        items = [{"cmd": c["cmd"],
+                  "desc": UI_COMMANDS_EN.get(c["cmd"], c["desc"])}
+                 for c in UI_COMMANDS]
+    else:
+        items = list(UI_COMMANDS)
     seen = {c["cmd"] for c in items}
     for name, desc in TUI_SLASH:
         if ("/" + name) not in seen:
@@ -236,6 +277,23 @@ DENY_SLASH = {
     "init": "작업공간 파일을 쓰므로 GUI에서 실행하지 않습니다. 터미널에서 `muse init --dry-run`으로 미리보기.",
     "session-message": "다른 세션에 메시지를 보내므로 GUI에서 실행하지 않습니다.",
 }
+DENY_SLASH_EN = {
+    "login": "Run `muse login` in the terminal (device approval flow, not possible in GUI).",
+    "logout": "This deletes credentials, so it never runs in the GUI. Use `muse logout` in the terminal.",
+    "auth": "Credential change; the GUI never runs it. Use `muse auth` in the terminal.",
+    "serve": "It is a session host daemon; the GUI never runs it.",
+    "attach": "It is a terminal binding; the GUI never runs it.",
+    "acp": "It is an editor protocol server; the GUI never runs it.",
+    "mxp": "It is an execution protocol server; the GUI never runs it.",
+    "init": "It writes workspace files; the GUI never runs it. Preview with `muse init --dry-run` in the terminal.",
+    "session-message": "It sends a message to another session; the GUI never runs it.",
+}
+
+
+def deny_text(lang, name):
+    if _lang(lang) == "en":
+        return DENY_SLASH_EN.get(name, "")
+    return DENY_SLASH.get(name, "")
 
 
 def mcp_allowed(args):
@@ -245,23 +303,27 @@ def mcp_allowed(args):
     return False
 
 
-def run_muse_direct(argv):
+def run_muse_direct(argv, lang="ko"):
     """TTY 없는 하위 명령을 실행하고 출력 텍스트를 돌려준다."""
+    en = _lang(lang) == "en"
     try:
         proc = subprocess.run(["muse"] + argv, capture_output=True,
                               text=True, timeout=120, cwd=os.getcwd(),
                               stdin=subprocess.DEVNULL)
     except FileNotFoundError:
-        return "muse 실행 파일을 찾을 수 없습니다 (PATH 확인)."
+        return ("muse executable not found (check PATH)." if en
+                else "muse 실행 파일을 찾을 수 없습니다 (PATH 확인).")
     except subprocess.TimeoutExpired:
-        return "시간 초과 (120s): muse %s" % " ".join(argv)
+        return (("Timed out (120s): muse %s" % " ".join(argv)) if en
+                else ("시간 초과 (120s): muse %s" % " ".join(argv)))
     out = clean_ansi(proc.stdout or "").strip()
     err = clean_ansi(proc.stderr or "").strip()
     if name_of(argv) == "sessions" and out.startswith("{"):
-        return format_sessions(out) + (("\n" + err) if err and not out else "")
-    text = out or err or "(출력 없음)"
+        return format_sessions(out, lang) + (("\n" + err) if err and not out else "")
+    text = out or err or ("(no output)" if en else "(출력 없음)")
     if proc.returncode != 0:
-        text = "종료 코드 %d\n%s" % (proc.returncode, text)
+        text = (("Exit code %d\n%s" % (proc.returncode, text)) if en
+                else ("종료 코드 %d\n%s" % (proc.returncode, text)))
     return text.strip()
 
 
@@ -269,18 +331,21 @@ def name_of(argv):
     return argv[0] if argv and not argv[0].startswith("-") else ""
 
 
-def format_sessions(raw):
+def format_sessions(raw, lang="ko"):
+    en = _lang(lang) == "en"
     try:
         data = json.loads(raw).get("sessions", [])
     except json.JSONDecodeError:
         return raw
     if not data:
-        return "실행 중인 세션 없음"
+        return "No running sessions" if en else "실행 중인 세션 없음"
     lines = []
     for s in data:
         lines.append("- %s (%s) · %s · %s" % (
             s.get("name", "?"), str(s.get("sessionId", "?"))[:8],
             s.get("workspaceLabel", "?"), s.get("openedBy", "?")))
+    if en:
+        return "Running sessions (%d):\n%s" % (len(lines), "\n".join(lines))
     return "실행 중 세션 %d개:\n%s" % (len(lines), "\n".join(lines))
 
 
@@ -710,7 +775,7 @@ def find_tool_output(call_id, sid=None):
     잘린 터미널 출력(truncated)의 전체 본문을 같은 머신의 로그에서
     읽어오는 용도. (sid, call_id)는 검증된 토큰만 사용한다."""
     if not isinstance(call_id, str) or not CALL_RE.match(call_id):
-        return None, "호출 id 형식이 아닙니다."
+        return None, "호출 id 형식이 아닙니다.", "tool_bad_id", "", "tool_bad_id", ""
     root = os.path.realpath(sessions_root())
     scope = None
     if isinstance(sid, str) and SID_RE.match(sid):
@@ -748,15 +813,15 @@ def find_tool_output(call_id, sid=None):
             consider(dirpath)
             dirnames[:] = [d for d in dirnames if d != "subagent"]
     if best is None:
-        return None, "전체 로그를 찾지 못했습니다."
+        return None, "전체 로그를 찾지 못했습니다.", "tool_not_found", "", "tool_not_found", ""
     try:
         with open(best[1], "rb") as f:
             raw = f.read(200 * 1024 + 1)
     except OSError:
-        return None, "로그를 읽지 못했습니다."
+        return None, "로그를 읽지 못했습니다.", "tool_read", "", "tool_read", ""
     cut = len(raw) > 200 * 1024
     return {"text": raw[:200 * 1024].decode("utf-8", errors="replace"),
-            "truncated": cut}, ""
+            "truncated": cut}, "", "", ""
 
 
 def daily_usage(sids):
@@ -863,7 +928,7 @@ def refresh_prices():
     try:
         fresh = _parse_price_map(text)
     except (ValueError, AttributeError) as e:
-        return False, "단가 파싱 실패 (%s). 기존 단가를 유지합니다." % e
+        return False, "단가 파싱 실패 (%s). 기존 단가를 유지합니다." % e, "prices_parse", str(e)
     cur = load_prices()
     merged = dict(cur.get("models") or {})
     merged.update(fresh)
@@ -874,8 +939,9 @@ def refresh_prices():
         with open(PRICES_FILE, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=1)
     except OSError as e:
-        return False, "저장 실패: %s" % e
-    return True, "%d개 모델 단가 갱신됨 (%s)." % (len(fresh), payload["updated"])
+        return False, "저장 실패: %s" % e, "prices_save", str(e)
+    return True, ("%d개 모델 단가 갱신됨 (%s)." % (len(fresh), payload["updated"]),
+                  "prices_updated", "%d|%s" % (len(fresh), payload["updated"]))
 
 
 SKILL_ID_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_:./-]*$")
@@ -893,7 +959,8 @@ def skills_list():
             stdin=subprocess.DEVNULL)
         data = json.loads(proc.stdout or "{}")
     except (OSError, subprocess.TimeoutExpired, ValueError) as e:
-        return {"skills": [], "error": "조회 실패: %s" % e}
+        return {"skills": [], "error": "조회 실패: %s" % e,
+                "code": "skills_list", "detail": str(e)}
     out = []
     for s in data.get("skills", []) or []:
         if not isinstance(s, dict):
@@ -911,10 +978,10 @@ def skills_list():
 def skill_toggle(sid, scope, enable):
     if (not isinstance(sid, str) or not SKILL_ID_RE.match(sid)
             or sid.startswith("-")):
-        return False, "스킬 id 형식이 아닙니다."
+        return False, "스킬 id 형식이 아닙니다.", "skills_bad_id", ""
     scope_arg = SKILL_SCOPE_MAP.get(scope)
     if not scope_arg:
-        return False, "지원하지 않는 scope입니다."
+        return False, "지원하지 않는 scope입니다.", "skills_bad_scope", ""
     argv = ["skills", "enable" if enable else "disable", sid,
             "--scope", scope_arg, "--json"]
     if scope_arg == "project":
@@ -924,26 +991,28 @@ def skill_toggle(sid, scope, enable):
                               text=True, timeout=30, cwd=os.getcwd(),
                               stdin=subprocess.DEVNULL)
     except (OSError, subprocess.TimeoutExpired) as e:
-        return False, "실행 실패: %s" % e
+        return False, "실행 실패: %s" % e, "skills_exec", str(e)
     if proc.returncode != 0:
         err = clean_ansi(proc.stderr or "").strip()[-500:]
         return False, "실패 (exit %d)%s" % (
-            proc.returncode, ("\n" + err) if err else "")
+            proc.returncode, ("\n" + err) if err else ""), "skills_exit", "%d\n%s" % (proc.returncode, err)
     try:
         st = (json.loads(proc.stdout or "{}").get("activation")
               or ("on" if enable else "off"))
     except ValueError:
         st = "on" if enable else "off"
-    return True, st
+    return True, st, "", ""
 
 
 def skill_inspect(sid, scope):
     if (not isinstance(sid, str) or not SKILL_ID_RE.match(sid)
             or sid.startswith("-")):
-        return {"ok": False, "error": "스킬 id 형식이 아닙니다."}
+        return {"ok": False, "error": "스킬 id 형식이 아닙니다.",
+                "code": "skills_bad_id", "detail": ""}
     scope_arg = SKILL_SCOPE_MAP.get(scope)
     if not scope_arg:
-        return {"ok": False, "error": "지원하지 않는 scope입니다."}
+        return {"ok": False, "error": "지원하지 않는 scope입니다.",
+                "code": "skills_bad_scope", "detail": ""}
     argv = ["skills", "inspect", sid, "--scope", scope_arg, "--json"]
     if scope_arg == "project":
         argv += ["--workspace", os.getcwd()]
@@ -953,7 +1022,8 @@ def skill_inspect(sid, scope):
                               stdin=subprocess.DEVNULL)
         data = json.loads(proc.stdout or "{}")
     except (OSError, subprocess.TimeoutExpired, ValueError) as e:
-        return {"ok": False, "error": "조회 실패: %s" % e}
+        return {"ok": False, "error": "조회 실패: %s" % e,
+                "code": "skills_inspect", "detail": str(e)}
     s = (data or {}).get("skill") or {}
     cc = s.get("context_cost") or {}
     return {"ok": True, "id": s.get("id"), "scope": s.get("scope"),
@@ -977,19 +1047,23 @@ def skill_body(sid, scope):
     p = info.get("path") or ""
     if not p.startswith("$CONFIG_DIR/skills/"):
         return {"ok": False,
-                "error": "파일 미리보기를 지원하지 않는 위치입니다."}
+                "error": "파일 미리보기를 지원하지 않는 위치입니다.",
+                "code": "skills_preview_loc", "detail": ""}
     real = os.path.realpath(os.path.join(
         _config_dir(), "skills", p[len("$CONFIG_DIR/skills/"):]))
     root = os.path.realpath(os.path.join(_config_dir(), "skills"))
     if not (real + os.sep).startswith(root + os.sep) or not real.endswith(".md"):
-        return {"ok": False, "error": "안전 검사 실패: 허용된 스킬 경로가 아닙니다."}
+        return {"ok": False, "error": "안전 검사 실패: 허용된 스킬 경로가 아닙니다.",
+                "code": "skills_bad_path", "detail": ""}
     try:
         if os.path.getsize(real) > 131072:
-            return {"ok": False, "error": "파일이 너무 큽니다 (128KB 초과)."}
+            return {"ok": False, "error": "파일이 너무 큽니다 (128KB 초과).",
+                    "code": "skills_too_big", "detail": ""}
         with open(real, encoding="utf-8", errors="replace") as f:
             return {"ok": True, "id": sid, "body": f.read()}
     except OSError as e:
-        return {"ok": False, "error": "읽기 실패: %s" % e}
+        return {"ok": False, "error": "읽기 실패: %s" % e,
+                "code": "skills_read", "detail": str(e)}
 
 
 SKILL_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,63}$")
@@ -998,15 +1072,20 @@ SKILL_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,63}$")
 def skill_create(name, description, body):
     """사용자 스코프로 새 스킬을 만든다. validate 통과분만 설치."""
     if (not isinstance(name, str) or not SKILL_NAME_RE.match(name)):
-        return {"ok": False, "error": "이름은 소문자·숫자·- 만 (2~64자)."}
+        return {"ok": False, "error": "이름은 소문자·숫자·- 만 (2~64자).",
+                "code": "skills_name", "detail": ""}
     if not isinstance(description, str) or not description.strip():
-        return {"ok": False, "error": "설명을 입력하세요."}
+        return {"ok": False, "error": "설명을 입력하세요.",
+                "code": "skills_desc", "detail": ""}
     if len(description) > 2000:
-        return {"ok": False, "error": "설명이 너무 깁니다 (2000자 이내)."}
+        return {"ok": False, "error": "설명이 너무 깁니다 (2000자 이내).",
+                "code": "skills_desc_long", "detail": ""}
     if not isinstance(body, str) or not body.strip():
-        return {"ok": False, "error": "본문을 입력하세요."}
+        return {"ok": False, "error": "본문을 입력하세요.",
+                "code": "skills_body", "detail": ""}
     if len(body) > 65536:
-        return {"ok": False, "error": "본문이 너무 깁니다 (64KB 이내)."}
+        return {"ok": False, "error": "본문이 너무 깁니다 (64KB 이내).",
+                "code": "skills_body_long", "detail": ""}
     doc = ("---\nname: %s\ndescription: %s\n---\n%s\n"
            % (name, " ".join(description.split()),
               body.strip() + "\n"))
@@ -1028,9 +1107,10 @@ def skill_create(name, description, body):
             if v.returncode != 0 or compat != "compatible":
                 diag = "; ".join(
                     str(x) for x in (vd.get("diagnostics") or [])[:3])
+                det = (" (%s)" % compat if compat else "") + (" — " + diag if diag else "")
                 return {"ok": False,
-                        "error": "검증 실패%s" % (" (%s)" % compat if compat else "")
-                        + (" — " + diag if diag else "")}
+                        "error": "검증 실패%s" % det,
+                        "code": "skills_validate", "detail": det}
             p = subprocess.run(
                 ["muse", "skills", "install", pkg, "--scope", "user",
                  "--json"],
@@ -1042,20 +1122,23 @@ def skill_create(name, description, body):
                 inst = {}
             if p.returncode != 0 or not (inst.get("installed") or {}).get("id"):
                 err = clean_ansi(p.stderr or "").strip()[-500:]
-                return {"ok": False, "error": "설치 실패%s" % (
-                    (" — " + err) if err else "")}
+                det = (" — " + err) if err else ""
+                return {"ok": False, "error": "설치 실패%s" % det,
+                        "code": "skills_install", "detail": det}
             return {"ok": True,
                     "id": inst["installed"]["id"]}
     except (OSError, subprocess.TimeoutExpired) as e:
-        return {"ok": False, "error": "실행 실패: %s" % e}
+        return {"ok": False, "error": "실행 실패: %s" % e,
+                "code": "skills_create_exec", "detail": str(e)}
 
 
 def delete_session(sid):
     """실제 세션 로그 디렉터리를 삭제한다. 실행 중 세션은 거부한다."""
     if not isinstance(sid, str) or not SID_RE.match(sid):
-        return False, "세션 id 형식이 아닙니다."
+        return False, "세션 id 형식이 아닙니다.", "session_bad_id", ""
     if sid in running_session_ids():
-        return False, "실행 중인 세션이라 삭제하지 않습니다. 터미널에서 종료 후 다시 시도하세요."
+        return False, ("실행 중인 세션이라 삭제하지 않습니다. "
+                       "터미널에서 종료 후 다시 시도하세요."), "session_running", ""
     root = os.path.realpath(sessions_root())
     found = None
     for dirpath, dirnames, _ in os.walk(root):
@@ -1065,16 +1148,16 @@ def delete_session(sid):
         dirnames[:] = [d for d in dirnames
                        if d not in ("subagent", "tool-outputs")]
     if found is None:
-        return False, "세션 기록을 찾지 못했습니다 (이미 삭제됨)."
+        return False, "세션 기록을 찾지 못했습니다 (이미 삭제됨).", "session_not_found", ""
     real = os.path.realpath(found)
     if not (real + os.sep).startswith(root + os.sep):
-        return False, "안전 검사 실패: 세션 경로가 저장소 밖입니다."
+        return False, "안전 검사 실패: 세션 경로가 저장소 밖입니다.", "session_outside", ""
     try:
         shutil.rmtree(real)
     except OSError as e:
-        return False, "삭제 실패: %s" % e
+        return False, "삭제 실패: %s" % e, "session_rm_fail", str(e)
     SESSION_DIR_CACHE.pop(sid, None)
-    return True, "세션 기록 삭제됨: %s" % real
+    return True, "세션 기록 삭제됨: %s" % real, "", ""
 
 
 def archive_session(sid, cwd):
@@ -1113,108 +1196,134 @@ def archive_session(sid, cwd):
     return True, "보관됨: %s" % dest
 
 
-def dispatch_slash(message, session_id):
+def dispatch_slash(message, session_id, lang="ko"):
     """슬래시 입력 처리. (handled, session_id, text)를 돌려준다."""
+    en = _lang(lang) == "en"
     parts = message[1:].split()
     if not parts:
-        return True, session_id, "슬래시 명령을 입력하세요. 예: /usage (/help 참고)"
+        return True, session_id, ("Enter a slash command. e.g. /usage (see /help)" if en
+                                  else "슬래시 명령을 입력하세요. 예: /usage (/help 참고)")
     name, args = parts[0], parts[1:]
     if name == "new":
         return True, None, "__NEW__"
     if name in ("quit", "exit"):
-        return True, session_id, "GUI에는 종료할 TUI가 없습니다. 브라우저 탭을 닫으세요."
+        return True, session_id, ("The GUI has no TUI to quit. Close the browser tab." if en
+                                  else "GUI에는 종료할 TUI가 없습니다. 브라우저 탭을 닫으세요.")
     if name == "copy":
         return True, session_id, "__COPY__"
     if name == "help":
-        lines = ["세션 기준: /usage(세션 사용량), /status, /export, "
-                 "/model, /effort, /copy, /new, /clear"]
-        lines.append("그 외 /명령은 muse-code에 직접 실행 후 결과 표시 "
-                     "(차단: 로그인·로그아웃·인증·서버·터미널 바인딩·init·타세션).")
-        lines.append("구독 플랜: /plan")
+        if en:
+            lines = ["Session commands: /usage (session usage), /status, /export, "
+                     "/model, /effort, /copy, /new, /clear"]
+            lines.append("Other /commands run directly in muse-code, then show the result "
+                         "(blocked: login/logout/auth, server/terminal binding, init, other sessions).")
+            lines.append("Subscription plan: /plan")
+        else:
+            lines = ["세션 기준: /usage(세션 사용량), /status, /export, "
+                     "/model, /effort, /copy, /new, /clear"]
+            lines.append("그 외 /명령은 muse-code에 직접 실행 후 결과 표시 "
+                         "(차단: 로그인·로그아웃·인증·서버·터미널 바인딩·init·타세션).")
+            lines.append("구독 플랜: /plan")
         lines.append("")
-        for c in slash_command_list():
+        for c in slash_command_list(lang):
             lines.append("%s — %s" % (c["cmd"], c["desc"]))
         return True, session_id, "\n".join(lines)
     if name == "usage":
         # TUI /usage와 동일: 세션 사용량/비용. 구독 플랜은 /plan.
-        return True, session_id, format_session_usage(session_id)
+        return True, session_id, format_session_usage(session_id, lang)
     if name == "status":
-        s = (session_id or "없음 (아직 대화 없음)")
+        s = (session_id or ("none (no chat yet)" if en else "없음 (아직 대화 없음)"))
         u = USAGE.get(session_id, {"turns": 0, "models": {}}) if session_id else None
         turns = u["turns"] if u else 0
         tot_in = sum(m["input"] for m in u["models"].values()) if u else 0
         tot_out = sum(m["output"] for m in u["models"].values()) if u else 0
-        text = ("세션: %s\n턴: %d\n토큰: in %d / out %d\n모델: %s / effort: %s\n작업 폴더: %s"
-                % (s, turns, tot_in, tot_out, STATE.get("model"),
-                   STATE.get("effort"),
-                   session_workspace(session_id) or os.getcwd()))
+        if en:
+            text = ("session: %s\nturns: %d\ntokens: in %d / out %d\nmodel: %s / effort: %s\nwork dir: %s"
+                    % (s, turns, tot_in, tot_out, STATE.get("model"),
+                       STATE.get("effort"),
+                       session_workspace(session_id) or os.getcwd()))
+        else:
+            text = ("세션: %s\n턴: %d\n토큰: in %d / out %d\n모델: %s / effort: %s\n작업 폴더: %s"
+                    % (s, turns, tot_in, tot_out, STATE.get("model"),
+                       STATE.get("effort"),
+                       session_workspace(session_id) or os.getcwd()))
         return True, session_id, "```\n" + text + "\n```"
     if name == "export":
         if not session_id:
-            return True, session_id, (
-                "내보낼 세션이 없습니다. 먼저 대화를 시작하세요.")
+            return True, session_id, ("No session to export. Start chatting first." if en
+                                      else "내보낼 세션이 없습니다. 먼저 대화를 시작하세요.")
         import time
         out = "/tmp/muse-gui-export-%s-%d.json" % (
             session_id[:8], int(time.time()))
         text = run_muse_direct(["export", "--session", session_id,
-                                "--out", out])
+                                "--out", out], lang)
         try:
             size = os.path.getsize(out)
-            text += "\n파일: %s (%d bytes)" % (out, size)
+            text += ("\nfile: %s (%d bytes)" % (out, size) if en
+                     else "\n파일: %s (%d bytes)" % (out, size))
         except OSError:
-            text += "\n파일 확인 실패: %s" % out
+            text += ("\nfile check failed: %s" % out if en
+                     else "\n파일 확인 실패: %s" % out)
         return True, session_id, text
     if name == "model":
         if args:
             STATE["model"] = args[0]
             save_state()
-            return True, session_id, "모델 전환: %s (다음 턴부터 적용)" % args[0]
+            return True, session_id, (("Model switched: %s (applies next turn)" % args[0]) if en
+                                      else "모델 전환: %s (다음 턴부터 적용)" % args[0])
         st = read_settings()
-        return True, session_id, "모델: %s (provider: %s)" % (
+        return True, session_id, "model: %s (provider: %s)" % (
             STATE.get("model", "?"), st.get("provider", "?"))
     if name == "effort":
         if args:
             if args[0] not in EFFORTS:
-                return True, session_id, (
-                    "알 수 없는 effort: %s\n가능: %s"
-                    % (args[0], ", ".join(EFFORTS)))
+                return True, session_id, (("Unknown effort: %s\nAvailable: %s"
+                                           % (args[0], ", ".join(EFFORTS))) if en
+                                          else ("알 수 없는 effort: %s\n가능: %s"
+                                                % (args[0], ", ".join(EFFORTS))))
             STATE["effort"] = args[0]
             save_state()
-            return True, session_id, "effort 전환: %s (다음 턴부터 적용)" % args[0]
+            return True, session_id, (("effort switched: %s (applies next turn)" % args[0]) if en
+                                      else "effort 전환: %s (다음 턴부터 적용)" % args[0])
         return True, session_id, "effort(%s): %s" % (
             STATE.get("model", "?"), STATE.get("effort", "?"))
     if name == "plan":
-        text = run_muse_direct(["usage"] + args)
-        text += ("\n(구독 플랜 조회입니다. 현재 세션 사용량은 /usage 참고)")
+        text = run_muse_direct(["usage"] + args, lang)
+        text += ("\n(This is the subscription plan. For this session, see /usage)" if en
+                 else "\n(구독 플랜 조회입니다. 현재 세션 사용량은 /usage 참고)")
         return True, session_id, text
     argv = _direct_argv(name, args)
     if argv is not None:
-        text = run_muse_direct(argv)
+        text = run_muse_direct(argv, lang)
         if name == "model-profile" and "required" in text and not args:
-            text += "\n사용법: /model-profile show <모델ID>"
+            text += ("\nUsage: /model-profile show <modelID>" if en
+                     else "\n사용법: /model-profile show <모델ID>")
         return True, session_id, text
     if name in DENY_SLASH:
-        return True, session_id, "/%s: %s" % (name, DENY_SLASH[name])
+        return True, session_id, "/%s: %s" % (name, deny_text(lang, name))
     if name == "mcp" and not mcp_allowed(args):
-        return True, session_id, ("/mcp: 읽기(list/get)만 GUI에서 실행합니다. "
+        return True, session_id, ("/mcp: only read (list/get) runs in the GUI. "
+                                  "For add/login use `muse mcp` in the terminal." if en
+                                  else "/mcp: 읽기(list/get)만 GUI에서 실행합니다. "
                                   "추가·로그인은 터미널에서 `muse mcp`.")
     if name == "resume":
         # 제네릭 실행 시 "Failed to initialize input reader"라서 안내로 대체.
-        return True, session_id, ("/resume: %s" % TUI_ONLY_HINT["resume"])
+        return True, session_id, ("/resume: %s" % tui_hint(lang, "resume"))
     cli = cli_command_names()
     if name in cli:
         # 발견 기반 제네릭 실행: muse-code 업데이트에 새로 생기는 하위 명령도
         # 코드 변경 없이 그대로 동작한다. stdin 차단+타임아웃+ANSI 제거.
         if name == "mcp":
-            return True, session_id, run_muse_direct(["mcp"] + args)
-        return True, session_id, run_muse_direct([name] + args)
-    if name in TUI_ONLY_HINT:
-        return True, session_id, "/%s: %s" % (name, TUI_ONLY_HINT[name])
+            return True, session_id, run_muse_direct(["mcp"] + args, lang)
+        return True, session_id, run_muse_direct([name] + args, lang)
+    if name in TUI_ONLY_HINT["ko"]:
+        return True, session_id, "/%s: %s" % (name, tui_hint(lang, name))
     tui_names = {n for n, _ in TUI_SLASH}
     if name in tui_names:
-        return True, session_id, "/%s: TUI에서만 지원됩니다." % name
-    return True, session_id, (
-        "알 수 없는 명령: /%s\n사용 가능한 명령은 /help 로 확인하세요." % name)
+        return True, session_id, ("/%s: TUI-only." % name if en
+                                  else "/%s: TUI에서만 지원됩니다." % name)
+    return True, session_id, (("Unknown command: /%s\nSee /help for available commands." % name) if en
+                              else "알 수 없는 명령: /%s\n사용 가능한 명령은 /help 로 확인하세요." % name)
 
 
 def valid_cwd(path):
@@ -1269,13 +1378,17 @@ def session_workspace(sid):
     return None
 
 
-def fs_roots():
+def fs_roots(lang="ko"):
     """탐색기 시작 지점: 홈·루트·마운트된 드라이브."""
+    en = _lang(lang) == "en"
     roots, seen = [], set()
     home = os.path.expanduser("~")
     if os.path.isdir(home):
-        roots.append({"path": home,
-                      "label": "wsl root" if _is_wsl() else "홈"})
+        if _is_wsl():
+            home_label = "wsl root"
+        else:
+            home_label = "Home" if en else "홈"
+        roots.append({"path": home, "label": home_label})
         seen.add(os.path.realpath(home))
     if os.path.isdir("/mnt"):
         try:
@@ -1293,21 +1406,24 @@ def fs_roots():
             seen.add(os.path.realpath(p))
             roots.append({"path": p, "label": n.upper() + ":"})
     if os.path.isdir("/") and "/" not in seen:
-        roots.append({"path": "/", "label": "루트"})
+        roots.append({"path": "/", "label": "Root" if _lang(lang) == "en" else "루트"})
     return {"ok": True, "roots": roots}
 
 
 def fs_list(path):
     """디렉터리 내용 나열. 파일은 선택 불가 표시용으로 함께 돌려준다."""
     if not isinstance(path, str) or not path or len(path) > 4096:
-        return {"ok": False, "error": "경로를 입력하세요."}
+        return {"ok": False, "error": "경로를 입력하세요.",
+                "code": "fs_need_path", "detail": ""}
     real = os.path.realpath(path)
     if not os.path.isdir(real):
-        return {"ok": False, "error": "폴더를 찾지 못했습니다."}
+        return {"ok": False, "error": "폴더를 찾지 못했습니다.",
+                "code": "fs_no_dir", "detail": ""}
     try:
         names = os.listdir(real)
     except OSError as e:
-        return {"ok": False, "error": "읽기 실패: %s" % e}
+        return {"ok": False, "error": "읽기 실패: %s" % e,
+                "code": "fs_read", "detail": str(e)}
     entries = []
     for n in names:
         if n.startswith("."):
@@ -1481,7 +1597,7 @@ def pick_native_folder():
     성공 시 (True, {"path": WSL경로, "winpath": 윈도우경로}),
     취소·실패 시 (False, 사유)."""
     if not shutil.which("powershell.exe"):
-        return False, "powershell.exe를 찾지 못했습니다."
+        return False, "powershell.exe를 찾지 못했습니다.", "pick_no_powershell", ""
     try:
         proc = subprocess.Popen(
             ["powershell.exe", "-NoProfile", "-STA",
@@ -1490,7 +1606,8 @@ def pick_native_folder():
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             stdin=subprocess.DEVNULL, text=True, errors="replace")
     except OSError as e:
-        return False, "powershell.exe 실행 실패: %s" % e
+        detail = "powershell.exe 실행 실패: %s" % e
+        return False, detail, "pick_exec", str(e)
     try:
         out, err = proc.communicate(timeout=FS_PICK_TIMEOUT)
         out, err = out or "", err or ""
@@ -1500,7 +1617,8 @@ def pick_native_folder():
             proc.communicate(timeout=10)
         except Exception:
             pass
-        return False, "선택 시간 초과 (%d초). 다시 시도하세요." % FS_PICK_TIMEOUT
+        return False, ("선택 시간 초과 (%d초). 다시 시도하세요." % FS_PICK_TIMEOUT,
+                        "pick_timeout", str(FS_PICK_TIMEOUT))
     win = out.strip()
     if win:
         # 종료 코드와 무관하게 경로가 찍혔으면 사용한다.
@@ -1511,17 +1629,18 @@ def pick_native_folder():
         except (OSError, subprocess.TimeoutExpired):
             wp = ""
         if not wp or not valid_cwd(wp):
-            return False, "WSL 경로 변환 실패: %s" % win
-        return True, {"path": wp, "winpath": win}
+            return False, "WSL 경로 변환 실패: %s" % win, "pick_convert", win
+        return True, {"path": wp, "winpath": win}, "", ""
     if proc.returncode == 2:
-        return False, "취소됨."
+        return False, "취소됨.", "pick_cancelled", ""
     if proc.returncode != 0:
         # 예외 메시지(앞부분)에 원인이 담기므로 앞쪽을 살린다.
         head = " ".join(
             clean_ansi(err).strip().split())[:200]
         detail = ": " + head if head else ""
-        return False, "선택 실패 (exit %d)%s." % (proc.returncode, detail)
-    return False, "선택 실패 (빈 경로)."
+        return False, ("선택 실패 (exit %d)%s." % (proc.returncode, detail),
+                        "pick_fail", "%d\n%s" % (proc.returncode, head))
+    return False, "선택 실패 (빈 경로).", "pick_empty", ""
 
 
 def _is_wsl():
@@ -1558,7 +1677,7 @@ def open_folder(path):
     존재 여부는 검사하지 않고 OS에 위임한다. 성공 시 (True, ''),
     실패 시 (False, 사유)."""
     if not is_openable_path(path):
-        return False, "올바른 경로 형식이 아닙니다."
+        return False, "올바른 경로 형식이 아닙니다.", "folder_bad_path", ""
     if _is_wsl():
         # Windows 경로는 그대로, WSL 경로는 변환 후 Start-Process에 위임.
         # 폴더는 탐색기로, 파일은 기본 앱으로 열린다. 없는 경로는 OS가
@@ -1576,7 +1695,7 @@ def open_folder(path):
             except (OSError, subprocess.TimeoutExpired):
                 win = ""
             if not win:
-                return False, "Windows 경로 변환 실패: %s" % path
+                return False, "Windows 경로 변환 실패: %s" % path, "folder_win_convert", path
         script = ("Start-Process -FilePath '%s' -ErrorAction Stop"
                   % win.replace("'", "''"))
         try:
@@ -1585,24 +1704,25 @@ def open_folder(path):
                 capture_output=True, text=True, timeout=30,
                 stdin=subprocess.DEVNULL)
         except (OSError, subprocess.TimeoutExpired) as e:
-            return False, "실행 실패: %s" % e
+            return False, "실행 실패: %s" % e, "folder_exec", str(e)
         if proc.returncode != 0:
             lines = [l.strip() for l in
                      clean_ansi(proc.stderr or "").strip().splitlines()
                      if l.strip()]
             first = lines[0] if lines else ""
             msg = re.sub(r"^[\w-]+ : ", "", first)[-300:] or "알 수 없는 오류"
-            return False, "열기 실패: %s" % msg
+            return False, "열기 실패: %s" % msg, "folder_open", msg
         return True, ""
     opener = "open" if sys.platform == "darwin" else "xdg-open"
     if not shutil.which(opener):
-        return False, "폴더 열기 도구를 찾지 못했습니다 (%s 없음)." % opener
+        return False, ("폴더 열기 도구를 찾지 못했습니다 (%s 없음)." % opener,
+                        "folder_no_tool", opener)
     try:
         subprocess.Popen([opener, path], stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
         return True, ""
     except OSError as e:
-        return False, "열기 실패: %s" % e
+        return False, "열기 실패: %s" % e, "folder_open", str(e)
 
 
 def prepare_workdir(cwd):
@@ -1726,10 +1846,14 @@ def resolve_agent_file(workdir, rel):
     return ap
 
 
-def agent_file_groups(workdir):
+def agent_file_groups(workdir, lang="ko"):
     """files 탭용: .agent 공개 하위 폴더별 파일 묶음."""
-    groups = [("attachments", "첨부파일"), ("memory", "메모리"),
-              ("sessions", "이전 세션 로그"), ("tmp", "임시 파일")]
+    if _lang(lang) == "en":
+        groups = [("attachments", "Attachments"), ("memory", "Memory"),
+                  ("sessions", "Past session logs"), ("tmp", "Temp files")]
+    else:
+        groups = [("attachments", "첨부파일"), ("memory", "메모리"),
+                  ("sessions", "이전 세션 로그"), ("tmp", "임시 파일")]
     out = []
     for sub, label in groups:
         d = os.path.join(workdir, ".agent", sub)
@@ -1813,7 +1937,8 @@ def process_exec_event(ev, state):
         record_usage(state["sid"], payload)
 
 
-def run_muse_exec(prompt, session_id=None, cwd=None, attachments=None):
+def run_muse_exec(prompt, session_id=None, cwd=None, attachments=None,
+                  lang="ko"):
     """Run `muse exec --json` and collect the assistant text.
 
     cwd: 새 세션의 작업 디렉터리. 이어쓰기(session_id 있음)는 세션 고유
@@ -1824,15 +1949,18 @@ def run_muse_exec(prompt, session_id=None, cwd=None, attachments=None):
     imgs, refs = split_attachments(workdir, attachments)
     if refs:
         prompt = prompt + "\n\n[첨부파일]\n" + "\n".join(refs)
+    en = _lang(lang) == "en"
     cmd = build_muse_cmd(prompt, session_id, workdir, imgs)
     try:
         proc = subprocess.run(
             cmd, capture_output=True, text=True, timeout=600, cwd=workdir
         )
     except FileNotFoundError:
-        return None, "muse 실행 파일을 찾을 수 없습니다 (PATH 확인).", workdir
+        return None, ("muse executable not found (check PATH)." if en
+                      else "muse 실행 파일을 찾을 수 없습니다 (PATH 확인)."), workdir
     except subprocess.TimeoutExpired:
-        return session_id, "시간 초과 (600s): muse exec가 끝나지 않았습니다.", workdir
+        return session_id, (("Timed out (600s): muse exec did not finish.") if en
+                            else "시간 초과 (600s): muse exec가 끝나지 않았습니다."), workdir
 
     state = {"sid": session_id, "texts": []}
     for line in (proc.stdout or "").splitlines():
@@ -1843,9 +1971,11 @@ def run_muse_exec(prompt, session_id=None, cwd=None, attachments=None):
     sid = state["sid"] or session_id
     if proc.returncode != 0 and not text:
         err = (proc.stderr or "").strip()[-2000:]
-        return sid, "muse exec 실패 (exit %d)%s" % (
-            proc.returncode, ("\n" + err) if err else ""), workdir
-    return sid, text or "(빈 응답)", workdir
+        return sid, (("muse exec failed (exit %d)%s"
+                      % (proc.returncode, ("\n" + err) if err else "")) if en
+                     else ("muse exec 실패 (exit %d)%s"
+                           % (proc.returncode, ("\n" + err) if err else ""))), workdir
+    return sid, (text or ("(empty response)" if en else "(빈 응답)")), workdir
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -1876,7 +2006,8 @@ class Handler(BaseHTTPRequestHandler):
             return False
 
     def handle_chat_stream(self, message, session_id, cwd,
-                           attachments=None):
+                           attachments=None, lang="ko"):
+        en = _lang(lang) == "en"
         """`muse exec` JSONL을 SSE로 중계한다.
 
         run 원본 이벤트를 그대로 흘리고, 종료 시 done으로 집계 결과
@@ -1906,7 +2037,8 @@ class Handler(BaseHTTPRequestHandler):
             ws = session_workspace(None) or workdir
             self._send(200, json.dumps(
                 {"ok": True,
-                 "text": "muse 실행 파일을 찾을 수 없습니다 (PATH 확인).",
+                 "text": ("muse executable not found (check PATH)." if en
+                          else "muse 실행 파일을 찾을 수 없습니다 (PATH 확인)."),
                  "session_id": None, "cwd": ws}, ensure_ascii=False))
             return
         self.send_response(200)
@@ -1958,7 +2090,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if rc == "timeout":
             payload = {"ok": True,
-                       "text": "시간 초과 (600s): muse exec가 끝나지 않았습니다.",
+                       "text": (("Timed out (600s): muse exec did not finish.") if en
+                                else "시간 초과 (600s): muse exec가 끝나지 않았습니다."),
                        "session_id": state["sid"] or session_id,
                        "cwd": workdir}
         else:
@@ -1966,10 +2099,12 @@ class Handler(BaseHTTPRequestHandler):
             sid = state["sid"] or session_id
             if rc not in (0, None) and not text:
                 err = (err or "").strip()[-2000:]
-                text = "muse exec 실패 (exit %s)%s" % (
-                    rc, ("\n" + err) if err else "")
+                text = ((("muse exec failed (exit %s)%s"
+                           % (rc, ("\n" + err) if err else "")) if en
+                          else ("muse exec 실패 (exit %s)%s"
+                                % (rc, ("\n" + err) if err else ""))))
             elif not text:
-                text = "(빈 응답)"
+                text = "(empty response)" if en else "(빈 응답)"
             ws = session_workspace(sid) or workdir
             payload = {"ok": True, "text": text, "session_id": sid,
                        "cwd": ws}
@@ -2039,8 +2174,10 @@ class Handler(BaseHTTPRequestHandler):
                 "yolo": STATE.get("yolo", True),
             }, ensure_ascii=False))
         elif path == "/api/slash":
-            self._send(200, json.dumps(slash_command_list(),
-                                      ensure_ascii=False))
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            self._send(200, json.dumps(
+                slash_command_list((q.get("lang") or ["ko"])[0]),
+                ensure_ascii=False))
         elif path == "/api/usage":
             self._send(200, json.dumps(usage_report(),
                                       ensure_ascii=False))
@@ -2078,10 +2215,13 @@ class Handler(BaseHTTPRequestHandler):
                                       ensure_ascii=False))
         elif path.startswith("/api/tool_output"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            got, err = find_tool_output((q.get("call_id") or [""])[0],
-                                        (q.get("session_id") or [""])[0] or None)
+            got, err, code, detail = find_tool_output(
+                (q.get("call_id") or [""])[0],
+                (q.get("session_id") or [""])[0] or None)
             if got is None:
-                self._send(200, json.dumps({"ok": False, "error": err},
+                self._send(200, json.dumps({"ok": False, "error": err,
+                                            "code": code or None,
+                                            "detail": detail},
                                             ensure_ascii=False))
             else:
                 self._send(200, json.dumps({"ok": True, "text": got["text"],
@@ -2091,12 +2231,15 @@ class Handler(BaseHTTPRequestHandler):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             self.handle_chat_stream((q.get("message") or [""])[0],
                                     (q.get("session_id") or [""])[0] or None,
-                                    (q.get("cwd") or [""])[0])
+                                    (q.get("cwd") or [""])[0],
+                                    None,
+                                    (q.get("lang") or ["ko"])[0])
         elif path == "/api/agent-files":
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             workdir = prepare_workdir((q.get("cwd") or [""])[0])
             self._send(200, json.dumps(
-                {"ok": True, "groups": agent_file_groups(workdir),
+                {"ok": True, "groups": agent_file_groups(
+                    workdir, (q.get("lang") or ["ko"])[0]),
                  "cwd": workdir}, ensure_ascii=False))
         elif path == "/api/file":
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
@@ -2125,7 +2268,10 @@ class Handler(BaseHTTPRequestHandler):
                 ctype = "application/octet-stream"
             self._send(200, data, ctype)
         elif path == "/api/fs/roots":
-            self._send(200, json.dumps(fs_roots(), ensure_ascii=False))
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            self._send(200, json.dumps(
+                fs_roots((q.get("lang") or ["ko"])[0]),
+                ensure_ascii=False))
         elif path.startswith("/api/fs/list"):
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             self._send(200, json.dumps(
@@ -2238,14 +2384,17 @@ class Handler(BaseHTTPRequestHandler):
                                         "yolo": STATE.get("yolo", True)}))
             return
         if path == "/api/session/delete":
-            ok, msg = delete_session(body.get("session_id") or "")
-            self._send(200, json.dumps({"ok": ok, "text": msg},
+            ok, msg, code, detail = delete_session(body.get("session_id") or "")
+            self._send(200, json.dumps({"ok": ok, "text": msg,
+                                        "code": code or None,
+                                        "detail": detail},
                                       ensure_ascii=False))
             return
         if path == "/api/prices/refresh":
-            ok, text = refresh_prices()
+            ok, text, code, detail = refresh_prices()
             self._send(200, json.dumps(
-                {"ok": ok, "text" if ok else "error": text},
+                {"ok": ok, "text" if ok else "error": text,
+                 "code": code or None, "detail": detail},
                 ensure_ascii=False))
             return
         if path == "/api/session/archive":
@@ -2255,19 +2404,22 @@ class Handler(BaseHTTPRequestHandler):
                                       ensure_ascii=False))
             return
         if path == "/api/fs/pick-native":
-            ok, res = pick_native_folder()
+            ok, payload, code, detail = pick_native_folder()
             if ok:
                 self._send(200, json.dumps(
-                    {"ok": True, "path": res["path"],
-                     "winpath": res["winpath"]}, ensure_ascii=False))
+                    {"ok": True, "path": payload["path"],
+                     "winpath": payload["winpath"]}, ensure_ascii=False))
             else:
                 self._send(200, json.dumps(
-                    {"ok": False, "error": res}, ensure_ascii=False))
+                    {"ok": False, "error": payload,
+                     "code": code or None, "detail": detail},
+                    ensure_ascii=False))
             return
         if path == "/api/open-folder":
-            ok, msg = open_folder(body.get("path") or "")
+            ok, msg, code, detail = open_folder(body.get("path") or "")
             self._send(200, json.dumps(
-                {"ok": ok, "error": None if ok else msg},
+                {"ok": ok, "error": None if ok else msg,
+                 "code": code or None, "detail": detail},
                 ensure_ascii=False))
             return
         if path in ("/api/file/open", "/api/file/delete"):
@@ -2287,9 +2439,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, json.dumps({"ok": True,
                                             "error": None}))
                 return
-            ok, msg = open_folder(ap)
+            ok, msg, code, detail = open_folder(ap)
             self._send(200, json.dumps(
-                {"ok": ok, "error": None if ok else msg},
+                {"ok": ok, "error": None if ok else msg,
+                 "code": code or None, "detail": detail},
                 ensure_ascii=False))
             return
         if path == "/api/subagents":
@@ -2320,31 +2473,38 @@ class Handler(BaseHTTPRequestHandler):
                              b.get("body") or ""), ensure_ascii=False))
             return
         if path == "/api/skills/toggle":
-            ok, msg = skill_toggle(body.get("id") or "",
-                                   body.get("scope") or "",
-                                   bool(body.get("enable")))
-            self._send(200, json.dumps({"ok": ok, "activation": msg},
+            ok, act, code, detail = skill_toggle(body.get("id") or "",
+                                                body.get("scope") or "",
+                                                bool(body.get("enable")))
+            self._send(200, json.dumps({"ok": ok,
+                                        "activation": act if ok else None,
+                                        "error": None if ok else act,
+                                        "code": code or None,
+                                        "detail": detail},
                                       ensure_ascii=False))
             return
         if path == "/api/chat/stream":
             self.handle_chat_stream(body.get("message") or "",
                                     body.get("session_id") or None,
                                     body.get("cwd") or "",
-                                    body.get("attachments"))
+                                    body.get("attachments"),
+                                    body.get("lang") or "ko")
             return
         if path != "/api/chat":
             self._send(404, "not found")
             return
         message = (body.get("message") or "").strip()
         session_id = body.get("session_id") or None
+        chat_lang = _lang(body.get("lang") or "ko")
         if not message:
             self._send(400, json.dumps({"ok": False, "error": "empty"}))
             return
         if message.startswith("/"):
-            _, sid, text = dispatch_slash(message, session_id)
+            _, sid, text = dispatch_slash(message, session_id, chat_lang)
             if text == "__NEW__":
                 self._send(200, json.dumps({"ok": True, "new_session": True,
-                                            "text": "새 대화를 시작합니다.",
+                                            "text": ("Starting a new chat." if chat_lang == "en"
+                                                     else "새 대화를 시작합니다."),
                                             "session_id": None}))
             else:
                 self._send(200, json.dumps({"ok": True, "text": text,
@@ -2353,7 +2513,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         sid, text, workdir = run_muse_exec(message, session_id,
                                                body.get("cwd"),
-                                               body.get("attachments"))
+                                               body.get("attachments"),
+                                               chat_lang)
         ws = session_workspace(sid) or workdir
         self._send(200, json.dumps({"ok": True, "text": text,
                                     "session_id": sid, "cwd": ws},

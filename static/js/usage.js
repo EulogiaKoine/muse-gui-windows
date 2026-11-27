@@ -244,14 +244,14 @@ function tsGraph(buckets, series, yfmt) {
       (L + pw / 2) +
       '" y="' +
       (T + ph / 2) +
-      '" text-anchor="middle" font-size="12" fill="var(--muted)">기록 없음</text>'
+      '" text-anchor="middle" font-size="12" fill="var(--muted)">' + esc(t("usage.noData")) + '</text>'
   }
   return s + "</svg>"
 }
 async function refreshPrices() {
   if (
     !confirm(
-      "해당 기능은 토큰을 소비합니다.\n에이전트 세션을 열어 최신 단가를 검색하고 반영할까요?",
+      t("usage.refreshConfirm"),
     )
   )
     return
@@ -259,20 +259,20 @@ async function refreshPrices() {
   const old = b ? b.textContent : ""
   if (b) {
     b.disabled = true
-    b.textContent = "갱신 중…"
+    b.textContent = t("usage.refreshing")
   }
   try {
     const r = await fetch("/api/prices/refresh", { method: "POST" })
     const j = await r.json()
-    alert(j.ok ? j.text : "실패: " + (j.error || "알 수 없음"))
+    alert(j.ok ? errText(j, t) : t("usage.refreshFail") + (errText(j, t) || t("usage.unknown")))
     if (j.ok) await loadUsage()
   } catch (e) {
-    alert("실패: " + e)
+    alert(t("usage.refreshFail") + String((e && e.message) || e))
   } finally {
     const bb = $("#costrefresh")
     if (bb) {
       bb.disabled = false
-      bb.textContent = old || "비용 업데이트"
+      bb.textContent = old || t("usage.refresh")
     }
   }
 }
@@ -283,7 +283,7 @@ function drawUsage() {
   const sel = $("#umodel")
   if (sel) {
     sel.innerHTML =
-      '<option value="">통합</option>' +
+      '<option value="">' + esc(t("usage.combined")) + "</option>" +
       names
         .map(
           (n) =>
@@ -316,31 +316,31 @@ function drawUsage() {
   let html =
     '<div class="ucards">' +
     ucard(
-      "Requests",
+      t("usage.requests"),
       fmtNum(tot.requests),
       data.map((d) => dv(d, "requests")),
     ) +
     ucard(
-      "Input tokens",
+      t("usage.inTokens"),
       fmtNum(tot.input),
       data.map((d) => dv(d, "input")),
     ) +
     ucard(
-      "Output tokens",
+      t("usage.outTokens"),
       fmtNum(tot.output),
       data.map((d) => dv(d, "output")),
     ) +
     "</div>"
   if (!data.length)
     html +=
-      '<p class="hint">일자별 기록 없음 (세션 로그에 model_completed 없음)</p>'
+      '<p class="hint">' + esc(t("usage.noDaily")) + "</p>"
   const per = usageRange <= 7 ? 1 : usageRange <= 30 ? 2 : 3
   const buckets = bucketize(usageDaily, usageRange, per, m, usagePrices)
   const legend =
-    '<span class="lg"><i style="background:var(--me)"></i>입력</span>' +
-    '<span class="lg"><i style="background:var(--ok)"></i>출력</span>'
+    '<span class="lg"><i style="background:var(--me)"></i>' + esc(t("usage.inLabel")) + "</span>" +
+    '<span class="lg"><i style="background:var(--ok)"></i>' + esc(t("usage.outLabel")) + "</span>"
   html +=
-    '<h4 class="ugtitle">토큰 사용량' +
+    '<h4 class="ugtitle">' + esc(t("usage.tokensTitle")) +
     (m ? " · " + esc(m) : "") +
     ' <span class="uglegend">' +
     legend +
@@ -357,7 +357,7 @@ function drawUsage() {
   if (hasPrices) {
     const totCost = buckets.reduce((a, b) => a + b.cost, 0)
     html +=
-      '<h4 class="ugtitle">예상 비용 <span class="ucost">' +
+      '<h4 class="ugtitle">' + esc(t("usage.costTitle")) + ' <span class="ucost">' +
       fmtMoney(totCost) +
       "</span></h4>"
     html += tsGraph(
@@ -366,14 +366,13 @@ function drawUsage() {
       fmtMoney,
     )
     html +=
-      '<p class="hint">단가 기준일: ' +
+      '<p class="hint">' + esc(t("usage.costHint")) +
       esc(usagePrices.updated || "?") +
-      " · reasoning은 출력 단가로 계산 · " +
-      '<button type="button" class="linkbtn" id="costrefresh">비용 업데이트</button></p>'
+      ' <button type="button" class="linkbtn" id="costrefresh">' + esc(t("usage.refresh")) + "</button></p>"
     const cb = $("#costrefresh")
     if (cb) cb.onclick = refreshPrices
   } else {
-    html += '<p class="hint">단가 정보 없음</p>'
+    html += '<p class="hint">' + esc(t("usage.noPrices")) + "</p>"
   }
   $("#ucards").innerHTML = html
 }

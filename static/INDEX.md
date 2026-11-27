@@ -7,10 +7,10 @@
 
 | # | 파일 | 역할 | 주요 심볼 |
 |---|------|------|-----------|
-| 1 | `util.js` | 순수 함수(테스트 대상). DOM 없음 | `esc`, `truncStr`, `thoughtKind`, `diffLineClass`, `diffLinesHtml`, `diffOnly`, `isOutputTruncated`, `gateFor`, `sortConvs`, `slimConvsForSave`, `thoughtSummary`, `shouldNotifyCompletion`, `routeId`, `goalFence`, `normGoalItems`, `convToMd` |
-| 2 | `conv.js` | 전역 상태 + 대화 저장소·목록·게이트·입장 | `convs`, `convKey`, `sessionId`, `saveConv`, `saveMsg`, `openConv`, `drawConvs`, `sortConvs` 사용, `inputGated`, `backfillCwd`, `liveSessions`, `renamingKey` |
+| 1 | `util.js` | 순수 함수(테스트 대상). DOM 없음 | `esc`, `truncStr`, `thoughtKind`, `diffLineClass`, `diffLinesHtml`, `diffOnly`, `isOutputTruncated`, `chatpadWidth`, `errText`, `gateFor`, `sortConvs`, `slimConvsForSave`, `thoughtSummary`, `shouldNotifyCompletion`, `routeId`, `goalFence`, `normGoalItems`, `convToMd` |
+| 2 | `conv.js` | 전역 상태 + 대화 저장소·목록·게이트·입장 | `convs`, `convKey`, `sessionId`, `saveConv`, `saveMsg`, `openConv`, `drawConvs`, `sortConvs` 사용, `inputGated`, `backfillCwd`, `liveSessions`, `renamingKey`, `placePopup`, `refreshFsRoots` |
 | 3 | `icons.js` | 인라인 SVG 상수만 | `ICON_*` |
-| 4 | `i18n.js` | 문자열·언어 상태 | `STR`, `langCur`, `t`, `applyLang` |
+| 4 | `i18n.js` | 문자열·언어 상태 | `STR`, `langCur`, `t`, `applyLang`, `paintChatChrome`, `paintSettingsStatic`, `paintFsStatic`, `paintCtxMenu` |
 | 5 | `render.js` | 마크다운/코드/수식/테이블 렌더 | `renderText`, `hl`, `renderMath`, `vizHtml`, `decorateCode`, `decorateMath`, `decorateTables` |
 | 6 | `message.js` | 말풍선·링크·수식/코드 장식 | `addMsg`, `decorateCode`, `decorateMath`, `decorateTables`, `decoratePaths`, `resolveLinkPath`, `openPathLink` |
 | 7 | `thoughts.js` | 추론 블록(라이브+기록) | `updateThought`, `collectThoughts`, `renderThoughtsStatic`, `toggleThoughtDetail`, `loadFullLog`, `ensureThoughtRow` |
