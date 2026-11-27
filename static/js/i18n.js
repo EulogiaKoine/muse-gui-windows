@@ -16,6 +16,8 @@ const STR = {
     "yolo.warn":
       "사용자 승인 절차 제거 및 샌드박스 격리 해제(작업 디렉터리 바깥 전역 접근 가능).",
     "settings.language": "언어",
+    "settings.palette": "팔레트",
+    "settings.typography": "타이포그래피",
     "gate.pickNew": "새 대화를 시작하려면 작업 디렉터리를 먼저 선택하세요.",
     "gate.pickBtn": "작업 디렉터리 선택",
     "gate.pick": "이 대화의 작업 디렉터리를 선택해야 입력할 수 있습니다.",
@@ -105,6 +107,8 @@ const STR = {
     "yolo.warn":
       "Removes user approval and sandbox isolation (global access outside the work directory possible).",
     "settings.language": "Language",
+    "settings.palette": "Palette",
+    "settings.typography": "Typography",
     "gate.pickNew": "Select a working directory to start a new chat.",
     "gate.pickBtn": "Select directory",
     "gate.pick": "Select this conversation's working directory to type here.",
@@ -227,6 +231,8 @@ function applyLang(l, save) {
   }
   setText("#filesbtn", t("files.btn"))
   setText("#langhead", t("settings.language"))
+  setText("#palhead", t("settings.palette"))
+  setText("#fonthead", t("settings.typography"))
   document.querySelectorAll("#langrow [data-lang]").forEach((b) => {
     b.classList.toggle("sel", b.dataset.lang === langCur)
   })

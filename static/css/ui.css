@@ -537,6 +537,20 @@ form button[type="submit"]:active {
   gap: 6px;
   min-width: 0;
 }
+@keyframes nshake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-3px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(3px);
+  }
+}
+#inwrap.shake {
+  animation: nshake 0.3s;
+}
 #inbox {
   position: relative;
   display: flex;
@@ -641,14 +655,52 @@ main.dragover #chat {
   border-color: var(--me);
   box-shadow: 0 0 0 1px var(--me);
 }
-#accents {
+.combo {
+  position: relative;
+}
+.combo-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  text-align: left;
+}
+.combo-btn:hover {
+  border-color: var(--me);
+}
+.combo-btn:focus {
+  outline: 2px solid var(--me);
+  outline-offset: -1px;
+}
+.combo-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  background: var(--bubble);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 6px;
+  max-height: 320px;
+  overflow-y: auto;
 }
-.pal {
+.combo-list[hidden] {
+  display: none;
+}
+.copt {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   border: 1px solid var(--bd);
   background: var(--bg);
@@ -658,31 +710,80 @@ main.dragover #chat {
   font-size: 13px;
   text-align: left;
 }
-.pal:hover {
+.copt:hover {
   border-color: var(--me);
 }
-.pal.sel {
+.copt.sel {
   border-color: var(--me);
   box-shadow: 0 0 0 1px var(--me);
 }
-.paldot {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+.sw {
+  display: flex;
   flex: none;
+  width: 36px;
+  height: 24px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--bd);
 }
-.paltext {
+.sw i {
+  flex: 1;
+}
+.fprev {
+  flex: none;
+  width: 36px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--bd);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 13px;
+}
+.cotext {
   display: flex;
   flex-direction: column;
   gap: 1px;
   min-width: 0;
 }
-.palname {
+.coname {
   font-weight: 600;
 }
-.pal small {
+.cotext small {
   color: var(--muted);
   font-size: 11px;
+}
+/* 타이포그래피 블럭: 텍스트 자체에 해당 프리셋 적용.
+   웨이트는 body 상속(두껍게 체크 포함). sturdy만 별도 지정. */
+#fontlist .copt .cotext {
+  font-weight: 400;
+}
+#fontlist .copt[data-opt="sturdy"] .cotext {
+  font-weight: 600;
+}
+#fontlist .copt[data-opt="system"] .cotext,
+#fontsel[data-f="system"] {
+  font-family: var(--font-system);
+}
+#fontlist .copt[data-opt="sturdy"] .cotext,
+#fontsel[data-f="sturdy"] {
+  font-family: var(--font-system);
+}
+#fontlist .copt[data-opt="sturdy"] .cotext {
+  --fw: 500;
+}
+#fontlist .copt[data-opt="humanist"] .cotext,
+#fontsel[data-f="humanist"] {
+  font-family: var(--font-humanist);
+}
+#fontlist .copt[data-opt="serif"] .cotext,
+#fontsel[data-f="serif"] {
+  font-family: var(--font-serif);
+}
+#fontlist .copt[data-opt="compact"] .cotext,
+#fontsel[data-f="compact"] {
+  font-family: var(--font-compact);
 }
 .mhead .iconbtn {
   font-size: 16px;
