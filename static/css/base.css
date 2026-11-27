@@ -18,6 +18,26 @@
   --err: #d33;
   --code-tint: #8882;
 }
+:root {
+  --font-system: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo",
+    "Malgun Gothic", "Noto Sans KR", "Noto Sans CJK KR", Roboto, sans-serif;
+  --font-humanist: "Segoe UI", "Helvetica Neue", Arial, "Malgun Gothic",
+    "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --font-serif: Georgia, "Times New Roman", "Batang", "AppleMyungjo",
+    "Noto Serif KR", "Noto Serif CJK KR", serif;
+  --font-compact: "Segoe UI", Tahoma, "Malgun Gothic", "Apple SD Gothic Neo",
+    "Noto Sans KR", sans-serif;
+  --font-ui: var(--font-system);
+}
+:root[data-font="humanist"] {
+  --font-ui: var(--font-humanist);
+}
+:root[data-font="serif"] {
+  --font-ui: var(--font-serif);
+}
+:root[data-font="compact"] {
+  --font-ui: var(--font-compact);
+}
 [data-theme="dark"] {
   color-scheme: dark;
   --bg: #16181d;
@@ -183,7 +203,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, "Segoe UI", "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   display: flex;
   height: 100vh;
 }

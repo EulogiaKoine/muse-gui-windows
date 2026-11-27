@@ -655,48 +655,25 @@ main.dragover #chat {
   border-color: var(--me);
   box-shadow: 0 0 0 1px var(--me);
 }
-#accents {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.pal {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--bd);
-  background: var(--bg);
-  border-radius: 10px;
-  padding: 8px 12px;
-  cursor: pointer;
+#accentsel,
+#fontsel {
   font-size: 13px;
-  text-align: left;
+  max-width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
 }
-.pal:hover {
+#accentsel:hover,
+#fontsel:hover {
   border-color: var(--me);
 }
-.pal.sel {
-  border-color: var(--me);
-  box-shadow: 0 0 0 1px var(--me);
-}
-.paldot {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  flex: none;
-}
-.paltext {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-.palname {
-  font-weight: 600;
-}
-.pal small {
-  color: var(--muted);
-  font-size: 11px;
+#accentsel:focus,
+#fontsel:focus {
+  outline: 2px solid var(--me);
+  outline-offset: -1px;
 }
 .mhead .iconbtn {
   font-size: 16px;

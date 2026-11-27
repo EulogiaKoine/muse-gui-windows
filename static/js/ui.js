@@ -831,54 +831,106 @@ function loadTheme() {
   }
 }
 const PALETTES = [
-  { id: "blue", label: "기본 블루", desc: "muse-gui 기본", dot: "#2f6fed" },
-  { id: "green", label: "그린", desc: "그린 악센트", dot: "#178a4c" },
-  { id: "amber", label: "앰버", desc: "앰버 악센트", dot: "#b45309" },
+  {
+    id: "blue",
+    label: "기본 블루",
+    short: "기본값",
+    desc: "muse-gui 기본 파란 악센트.",
+    dot: "#2f6fed",
+  },
+  {
+    id: "green",
+    label: "그린",
+    short: "녹색 악센트",
+    desc: "차분한 녹색 악센트.",
+    dot: "#178a4c",
+  },
+  {
+    id: "amber",
+    label: "앰버",
+    short: "황색 악센트",
+    desc: "따뜻한 황색 악센트.",
+    dot: "#b45309",
+  },
   {
     id: "github",
     label: "GitHub",
-    desc: "Primer 참조 · 라이트/다크 전체 적용",
+    short: "라이트/다크 전체",
+    desc: "Primer 참조 · 라이트/다크 전체 적용.",
     dot: "#0969da",
   },
   {
     id: "obsidian",
     label: "Obsidian",
-    desc: "기본 테마 참조 · 바이올렛 악센트",
+    short: "바이올렛 악센트",
+    desc: "기본 테마 참조 · 바이올렛 악센트.",
     dot: "#7c3aed",
   },
 ]
-function renderPalettes(cur) {
-  const box = $("#accents")
-  if (!box) return
-  box.innerHTML = ""
-  PALETTES.forEach((p) => {
-    const b = document.createElement("button")
-    b.type = "button"
-    b.className = "pal" + (p.id === cur ? " sel" : "")
-    b.innerHTML =
-      '<span class="paldot" style="background:' +
-      p.dot +
-      '"></span>' +
-      '<span class="paltext"><span class="palname">' +
-      esc(p.label) +
-      "</span>" +
-      "<small>" +
-      esc(p.desc) +
-      "</small></span>"
-    b.onclick = () => saveTheme({ accent: p.id })
-    box.appendChild(b)
+function renderSelect(sel, list, cur, descEl) {
+  if (!sel) return
+  sel.innerHTML = ""
+  list.forEach((o) => {
+    const op = document.createElement("option")
+    op.value = o.id
+    op.textContent = o.label + " — " + o.short
+    if (o.id === cur) op.selected = true
+    sel.appendChild(op)
   })
+  const cur1 = list.find((o) => o.id === cur) || list[0]
+  if (descEl) descEl.textContent = cur1 ? cur1.desc : ""
+}
+function renderPalettes(cur) {
+  const sel = $("#accentsel")
+  if (!sel) return
+  renderSelect(sel, PALETTES, cur, $("#accentdesc"))
+  sel.onchange = () => saveTheme({ accent: sel.value })
+}
+const FONTS = [
+  {
+    id: "system",
+    label: "System Native",
+    short: "UI 전반·사용자 메시지",
+    desc: "OS 기본 느낌 그대로. 사이드바·버튼·입력창 등 UI 전반에 가장 선명하다. (기본값)",
+  },
+  {
+    id: "humanist",
+    label: "Classic Humanist Sans",
+    short: "업무용·문서형 대화",
+    desc: "OS 간 모습 차이가 적어 업무용 툴·문서형 대화에 안정적이다.",
+  },
+  {
+    id: "serif",
+    label: "Editorial Serif",
+    short: "읽기 중심 장문",
+    desc: "앱 전체가 명조·세리프 계열로 바뀐다. 리서치·요약 등 긴 글을 읽을 때 적합하다.",
+  },
+  {
+    id: "compact",
+    label: "Compact Dense",
+    short: "고밀도 보조 정보",
+    desc: "작은 크기에서 가독성이 좋아 정보 밀도가 높은 화면에 적합하다.",
+  },
+]
+function renderFonts(cur) {
+  const sel = $("#fontsel")
+  if (!sel) return
+  renderSelect(sel, FONTS, cur, $("#fontdesc"))
+  sel.onchange = () => saveTheme({ font: sel.value })
 }
 function applyTheme() {
   const t = loadTheme()
   const th = t.theme || "light"
   const ac = PALETTES.some((p) => p.id === t.accent) ? t.accent : "blue"
+  const fn = FONTS.some((f) => f.id === t.font) ? t.font : "system"
   document.documentElement.dataset.theme = th
   document.documentElement.dataset.accent = ac
+  document.documentElement.dataset.font = fn
   document
     .querySelectorAll("#themes .optbtn")
     .forEach((b) => b.classList.toggle("sel", b.dataset.th === th))
   renderPalettes(ac)
+  renderFonts(fn)
   applySide(!!t.side)
   applyRside(t.rside !== false)
   const kn = $("#keepn")
