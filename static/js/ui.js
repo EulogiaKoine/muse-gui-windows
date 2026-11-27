@@ -833,25 +833,25 @@ function loadTheme() {
 const PALETTES = [
   {
     id: "blue",
-    label: "기본 블루",
-    desc: "muse-gui 기본 파란 악센트.",
-    sw: ["#ffffff", "#2f6fed", "#16181d"],
+    label: "블루",
+    desc: "파란 악센트.",
+    sw: ["#f8fafd", "#0073cf", "#0c1014"],
   },
   {
     id: "green",
     label: "그린",
     desc: "차분한 녹색 악센트.",
-    sw: ["#f3f7f4", "#178a4c", "#111713"],
+    sw: ["#f8fbf9", "#008339", "#0c110d"],
   },
   {
     id: "amber",
     label: "앰버",
     desc: "따뜻한 황색 악센트.",
-    sw: ["#faf6ee", "#b45309", "#171310"],
+    sw: ["#fcf9f8", "#b25200", "#130e0c"],
   },
   {
     id: "github",
-    label: "GitHub",
+    label: "GitHub (기본)",
     desc: "Primer 참조 · 라이트/다크 전체 적용.",
     sw: ["#ffffff", "#0969da", "#0d1117"],
   },
@@ -1008,7 +1008,7 @@ function renderFonts(cur) {
 function applyTheme() {
   const t = loadTheme()
   const th = t.theme || "light"
-  const ac = PALETTES.some((p) => p.id === t.accent) ? t.accent : "blue"
+  const ac = PALETTES.some((p) => p.id === t.accent) ? t.accent : "github"
   const fn = FONTS.some((f) => f.id === t.font) ? t.font : "system"
   document.documentElement.dataset.theme = th
   document.documentElement.dataset.accent = ac
