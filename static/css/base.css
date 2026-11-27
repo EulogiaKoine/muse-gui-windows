@@ -2,20 +2,20 @@
    Theme vars, reset, app shell frame, sidebar, conversation list. */
 :root {
   color-scheme: light;
-  --bg: #ffffff;
-  --panel: #f3f4f6;
-  --bd: #e0e3e9;
-  --text: #1c1e21;
-  --muted: #68707d;
-  --me: #2f6fed;
-  --me-text: #ffffff;
+  --bg: #f8fafd;
+  --panel: #eef2f7;
+  --bd: #edeff2;
+  --text: #141b24;
+  --muted: #555f69;
+  --me: #0073cf;
+  --me-text: #fcfcfc;
   --input: #ffffff;
   --bubble: #ffffff;
-  --hover: #2f6fed14;
-  --mebg: #e8ecf3;
-  --mebd: #c2ccde;
-  --ok: #1a9e54;
-  --err: #d33;
+  --hover: #eff3f9;
+  --mebg: #ddedff;
+  --mebd: #a1c1e4;
+  --ok: #0a7e3a;
+  --err: #be222a;
   --code-tint: #8882;
 }
 :root {
@@ -55,47 +55,85 @@
 }
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #16181d;
-  --panel: #1e2128;
-  --bd: #333947;
-  --text: #e8eaf0;
-  --muted: #98a0b3;
-  --me: #3b82f6;
-  --me-text: #ffffff;
-  --input: #22262f;
-  --bubble: #1e2128;
-  --hover: #3b82f61f;
-  --mebg: #272e3d;
-  --mebd: #3d4760;
-  --ok: #3fb950;
-  --err: #f85149;
+  --bg: #0c1014;
+  --panel: #12171b;
+  --bd: #525253;
+  --text: #e3e8ee;
+  --muted: #95a0ab;
+  --me: #59aaf8;
+  --me-text: #0b121a;
+  --input: #1e252c;
+  --bubble: #181e23;
+  --hover: #214161;
+  --mebg: #142f4b;
+  --mebd: #2a5885;
+  --ok: #69c27e;
+  --err: #f66d67;
   --code-tint: #8883;
 }
 [data-accent="green"] {
-  --me: #178a4c;
-  --hover: #178a4c14;
-  --bg: #f3f7f4;
-  --panel: #e9f1e9;
-  --input: #fbfdfb;
+  --bg: #f8fbf9;
+  --panel: #eef3ef;
+  --bd: #edf0ee;
+  --text: #131d17;
+  --muted: #556159;
+  --me: #008339;
+  --me-text: #fcfcfc;
+  --input: #ffffff;
+  --bubble: #ffffff;
+  --hover: #eff4f0;
+  --mebg: #dcf2e3;
+  --mebd: #a0caad;
+  --ok: #0a7e3a;
+  --err: #be222a;
 }
 [data-accent="amber"] {
-  --me: #b45309;
-  --hover: #b4530914;
-  --bg: #faf6ee;
-  --panel: #f3ecdc;
-  --input: #fffdf8;
+  --bg: #fcf9f8;
+  --panel: #f6f1ed;
+  --bd: #f1eeec;
+  --text: #211813;
+  --muted: #665b54;
+  --me: #b25200;
+  --me-text: #fcfcfc;
+  --input: #ffffff;
+  --bubble: #ffffff;
+  --hover: #f7f1ee;
+  --mebg: #fae7db;
+  --mebd: #dab59d;
+  --ok: #0a7e3a;
+  --err: #be222a;
 }
 [data-theme="dark"][data-accent="green"] {
-  --me: #23a35c;
-  --bg: #111713;
-  --panel: #19211b;
-  --input: #1d2520;
+  --bg: #0c110d;
+  --panel: #121814;
+  --bd: #525252;
+  --text: #e3eae5;
+  --muted: #95a299;
+  --me: #4ebe7d;
+  --me-text: #0a140e;
+  --input: #1e2621;
+  --bubble: #181f1a;
+  --hover: #1d492f;
+  --mebg: #0f3620;
+  --mebd: #23643f;
+  --ok: #69c27e;
+  --err: #f66d67;
 }
 [data-theme="dark"][data-accent="amber"] {
-  --me: #d97706;
-  --bg: #171310;
-  --panel: #211b14;
-  --input: #262019;
+  --bg: #130e0c;
+  --panel: #1a1511;
+  --bd: #535251;
+  --text: #ede6e2;
+  --muted: #a89c94;
+  --me: #e18e52;
+  --me-text: #18100a;
+  --input: #2a221d;
+  --bubble: #221b17;
+  --hover: #57361e;
+  --mebg: #422611;
+  --mebd: #774826;
+  --ok: #69c27e;
+  --err: #f66d67;
 }
 /* 팔레트: GitHub Primer 참조. 라이트·다크 각각 전체 변수 세트. */
 [data-accent="github"] {
