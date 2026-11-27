@@ -7,16 +7,16 @@
 
 | # | 파일 | 역할 | 주요 심볼 |
 |---|------|------|-----------|
-| 1 | `util.js` | 순수 함수(테스트 대상). DOM 없음 | `esc`, `truncStr`, `thoughtKind`, `diffLineClass`, `diffLinesHtml`, `diffOnly`, `isOutputTruncated`, `gateFor`, `sortConvs`, `slimConvsForSave`, `thoughtSummary`, `shouldNotifyCompletion`, `routeId`, `goalFence`, `normGoalItems`, `convToMd` |
-| 2 | `conv.js` | 전역 상태 + 대화 저장소·목록·게이트·입장 | `convs`, `convKey`, `sessionId`, `saveConv`, `saveMsg`, `openConv`, `drawConvs`, `sortConvs` 사용, `inputGated`, `backfillCwd`, `liveSessions`, `renamingKey` |
+| 1 | `util.js` | 순수 함수(테스트 대상). DOM 없음 | `esc`, `truncStr`, `thoughtKind`, `diffLineClass`, `diffLinesHtml`, `diffOnly`, `isOutputTruncated`, `chatpadWidth`, `errText`, `gateFor`, `sortConvs`, `slimConvsForSave`, `thoughtSummary`, `shouldNotifyCompletion`, `routeId`, `goalFence`, `normGoalItems`, `convToMd` |
+| 2 | `conv.js` | 전역 상태 + 대화 저장소·목록·게이트·입장 | `convs`, `convKey`, `sessionId`, `saveConv`, `saveMsg`, `openConv`, `drawConvs`, `sortConvs` 사용, `inputGated`, `backfillCwd`, `liveSessions`, `renamingKey`, `placePopup`, `refreshFsRoots` |
 | 3 | `icons.js` | 인라인 SVG 상수만 | `ICON_*` |
-| 4 | `i18n.js` | 문자열·언어 상태 | `STR`, `langCur`, `t`, `applyLang` |
+| 4 | `i18n.js` | 문자열·언어 상태 | `STR`, `langCur`, `t`, `applyLang`, `paintChatChrome`, `paintSettingsStatic`, `paintFsStatic`, `paintCtxMenu` |
 | 5 | `render.js` | 마크다운/코드/수식/테이블 렌더 | `renderText`, `hl`, `renderMath`, `vizHtml`, `decorateCode`, `decorateMath`, `decorateTables` |
 | 6 | `message.js` | 말풍선·링크·수식/코드 장식 | `addMsg`, `decorateCode`, `decorateMath`, `decorateTables`, `decoratePaths`, `resolveLinkPath`, `openPathLink` |
 | 7 | `thoughts.js` | 추론 블록(라이브+기록) | `updateThought`, `collectThoughts`, `renderThoughtsStatic`, `toggleThoughtDetail`, `loadFullLog`, `ensureThoughtRow` |
 | 8 | `chat.js` | 메시지 편집·전송·턴 종료 | `startEdit`, `branchFromMessage`, `postChatStream`, `runStreamTurn`, `finishAiTurn`, `notifyCompletion` |
 | 9 | `composer.js` | 입력창·슬래시·칩·+메뉴·yolo | `drawSlash`, `renderChips`, `setMode`, `autoGrow` |
-| 10 | `usage.js` | 사용량 상태+그래프 | `usageDaily`, `drawUsage`, `bucketize`, `tsGraph` |
+| 10 | `usage.js` | 순수 함수(테스트 대상). DOM 없음 | `fmtNum`, `fmtMoney`, `rateFor`, `dayCost`, `bucketize` |
 | 11 | `ui.js` | 사이드바·모달·설정·스킬·테마·fs 일부 | `applyTheme`, `saveTheme`, `loadTheme`, `drawRside`, `loadSkills`, `showModal` |
 | 12 | `main.js` | 부팅 전용: 옵저버+초기화+딥링크 입수 | (실행문만, 정의 없음) |
 

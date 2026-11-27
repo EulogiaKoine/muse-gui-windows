@@ -138,7 +138,7 @@ vm.createContext(sandbox)
 vm.runInContext(src, sandbox)
 vm.runInContext(
   `
-globalThis.__T = { addMsg, markThoughtsDone, collectThoughts, updateThought, toggleThoughtDetail };
+globalThis.__T = { addMsg, markThoughtsDone, collectThoughts, updateThought, toggleThoughtDetail, chatpadWidth, errText };
 `,
   sandbox,
 )
@@ -296,6 +296,19 @@ function mkbox2() {
       stg.hidden === true &&
       r.det.hidden === before,
   )
+})()
+;(function () {
+  t("chatpad-widths", T.chatpadWidth(0) === "640px" && T.chatpadWidth(1) === "920px" && T.chatpadWidth(2) === "none")
+  t("chatpad-fallback", T.chatpadWidth(9) === "none" && T.chatpadWidth("x") === "none" && T.chatpadWidth() === "none")
+})()
+;(function () {
+  const tr = (k) => "T:" + k
+  t("errtext-code", T.errText({ code: "skills_bad_id", detail: "" }, tr) === "T:err.badId")
+  t("errtext-detail", T.errText({ code: "skills_exec", detail: "boom" }, tr) === "T:err.execboom")
+  t("errtext-exit", T.errText({ code: "skills_exit", detail: "1\nerr" }, tr) === "T:err.exit1\nerr)")
+  t("errtext-updated", T.errText({ code: "prices_updated", detail: "3|2026-11-27" }, tr) === "3T:err.updatedPre2026-11-27)")
+  t("errtext-cancelled", T.errText({ code: "pick_cancelled", error: "취소됨." }, tr) === "")
+  t("errtext-fallback", T.errText({ error: "oops" }, tr) === "oops" && T.errText({}, tr) === "")
 })()
 console.log("")
 console.log(pass + " passed, " + fail + " failed")

@@ -271,7 +271,8 @@ select {
   font: inherit;
 }
 aside {
-  width: 242px;
+  width: var(--side-w, 242px);
+  flex: none;
   background: var(--panel);
   border-right: 1px solid var(--bd);
   padding: 12px;

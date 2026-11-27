@@ -3,19 +3,19 @@
 // Sidebar, rside, modal, settings, themes, skills, fs modal handled elsewhere.
 function applySide(hidden) {
   document.body.classList.toggle("side-hidden", !!hidden)
-  const t = $("#sidetoggle")
-  if (!t) return
+  const btn = $("#sidetoggle")
+  if (!btn) return
   if (hidden) {
-    document.querySelector("main header").prepend(t)
-    t.innerHTML = ICON_SIDER
-    t.title = "사이드바 펼치기"
-    t.setAttribute("aria-label", "사이드바 펼치기")
+    document.querySelector("main header").prepend(btn)
+    btn.innerHTML = ICON_SIDER
+    btn.title = t("side.expand")
+    btn.setAttribute("aria-label", t("side.expand"))
   } else {
     const head = $("#sidehead")
-    if (head) head.appendChild(t)
-    t.innerHTML = ICON_SIDEL
-    t.title = "사이드바 접기"
-    t.setAttribute("aria-label", "사이드바 접기")
+    if (head) head.appendChild(btn)
+    btn.innerHTML = ICON_SIDEL
+    btn.title = t("side.collapse")
+    btn.setAttribute("aria-label", t("side.collapse"))
   }
 }
 function setSide(hidden) {
@@ -77,8 +77,10 @@ let openTabs = (loadRTabs().open || []).slice()
 let closedTabs = new Set(loadRTabs().closed || [])
 let tabLabels = loadRTabs().labels || {}
 let tabPinned = (loadRTabs().pinned || []).slice()
+const RTAB_KEYS = { goal: "rtab.goal", help: "rtab.help", files: "rtab.files", subagents: "rtab.subagents" }
 function tabLabel(id) {
-  return tabLabels[id] || (RSIDE_TABS[id] ? RSIDE_TABS[id].label : id)
+  if (tabLabels[id]) return tabLabels[id]
+  return RTAB_KEYS[id] ? t(RTAB_KEYS[id]) : id
 }
 function openTabIds() {
   const av = availTabs()
@@ -187,8 +189,7 @@ function openTabMenu(id, anchor) {
     m.appendChild(b)
   })
   const r = anchor.getBoundingClientRect()
-  m.style.left = Math.min(r.left, window.innerWidth - 170) + "px"
-  m.style.top = r.bottom + 4 + "px"
+  placePopup(m, r.left, r.bottom + 4, 170)
   m.hidden = false
 }
 function hideTabMenu() {
@@ -233,8 +234,7 @@ function openTabList() {
     m.appendChild(b)
   })
   const r = $("#rtabmenu").getBoundingClientRect()
-  m.style.left = Math.min(r.left, window.innerWidth - 170) + "px"
-  m.style.top = r.bottom + 4 + "px"
+  placePopup(m, r.left, r.bottom + 4, 170)
   m.hidden = false
 }
 function applyRside(hidden) {
@@ -276,14 +276,14 @@ function renderGoal() {
   const g = c && c.goal
   if (!g) {
     box.innerHTML =
-      '<h3>goal</h3><p class="hint">' + t("goal.emptyHtml") + "</p>"
+      "<h3>" + esc(t("rtab.goal")) + '</h3><p class="hint">' + t("goal.emptyHtml") + "</p>"
     return
   }
   const done = g.items.filter((x) => x.done).length,
     tot = g.items.length
   const pct = tot ? Math.round((done / tot) * 100) : 0
   let html =
-    "<h3>goal</h3>" + '<div class="goalobj">' + esc(g.objective) + "</div>"
+    "<h3>" + esc(t("rtab.goal")) + "</h3>" + '<div class="goalobj">' + esc(g.objective) + "</div>"
   html +=
     '<div class="goalbar"><i style="width:' +
     pct +
@@ -295,7 +295,7 @@ function renderGoal() {
     " · " +
     pct +
     "%" +
-    (g.active ? "" : " · 완료") +
+    (g.active ? "" : t("goal.doneSuffix")) +
     "</div>"
   html += '<div class="goalitems">'
   g.items.forEach((it, i) => {
@@ -317,9 +317,9 @@ function renderHelp() {
   if (!box) return
   const ui = new Set(["/new", "/clear", "/copy", "/help"])
   const groups = [
-    ["대화", []],
-    ["안내", []],
-    ["muse 명령", []],
+    ["help.groupConv", []],
+    ["help.groupGuide", []],
+    ["help.groupCli", []],
   ]
   ;(slashList || []).forEach((c) => {
     ;(ui.has(c.cmd)
@@ -329,10 +329,10 @@ function renderHelp() {
         : groups[1][1]
     ).push(c)
   })
-  let html = "<h3>help</h3>"
+  let html = "<h3>" + esc(t("rtab.help")) + "</h3>"
   groups.forEach((gr) => {
     if (!gr[1].length) return
-    html += '<div class="helpgrp"><h4>' + gr[0] + "</h4>"
+    html += '<div class="helpgrp"><h4>' + esc(t(gr[0])) + "</h4>"
     gr[1].forEach((c) => {
       html +=
         '<div class="hrow"><code>' +
@@ -343,7 +343,8 @@ function renderHelp() {
     })
     html += "</div>"
   })
-  if (!(slashList || []).length) html += '<p class="hint">불러오는 중…</p>'
+  if (!(slashList || []).length)
+    html += '<p class="hint">' + esc(t("ui.loading")) + "</p>"
   box.innerHTML = html
 }
 const FOLDER_ICON =
@@ -364,9 +365,10 @@ document.querySelector("#rsidefiles").addEventListener("click", async (e) => {
         body: JSON.stringify({ cwd, path: del.dataset.fdel }),
       })
       const j = await r.json()
-      if (!j.ok) alert("삭제 실패: " + (j.error || ""))
+      if (!j.ok)
+        alert(t("files.delFail") + ": " + (errText(j, t) || "?"))
     } catch (err) {
-      alert("삭제 실패")
+      alert(t("files.delFail"))
     }
     renderFiles()
     return
@@ -420,8 +422,8 @@ function initSideResize() {
       isR: hit.isR,
       x0: e.clientX,
       w0: hit.el.getBoundingClientRect().width,
+      w: 0,
     }
-    hit.el.style.flex = "none"
     document.body.style.cursor = "ew-resize"
     document.body.style.userSelect = "none"
   })
@@ -444,11 +446,15 @@ function initSideResize() {
       drag.isR ? 220 : 180,
       Math.min(drag.isR ? 560 : 440, Math.round(w)),
     )
-    drag.el.style.width = w + "px"
+    drag.w = w
+    document.documentElement.style.setProperty(
+      drag.isR ? "--rside-w" : "--side-w",
+      w + "px",
+    )
   })
   const stop = () => {
     if (!drag) return
-    const w = parseInt(drag.el.style.width, 10) || 0
+    const w = drag.w || 0
     const isR = drag.isR
     drag = null
     document.body.style.cursor = ""
@@ -467,15 +473,9 @@ function applySideWidths() {
   try {
     t = loadTheme()
   } catch (e) {}
-  const a = document.querySelector("aside")
-  if (a && +t.sideW >= 180) {
-    a.style.width = t.sideW + "px"
-    a.style.flex = "none"
-  }
-  const r = document.querySelector("#rside")
-  if (r && +t.rsideW >= 220) {
-    r.style.width = t.rsideW + "px"
-  }
+  const root = document.documentElement
+  if (+t.sideW >= 180) root.style.setProperty("--side-w", t.sideW + "px")
+  if (+t.rsideW >= 220) root.style.setProperty("--rside-w", t.rsideW + "px")
 }
 initSideResize()
 applySideWidths()
@@ -656,7 +656,7 @@ async function renderAgents() {
   if (rsideTab !== "subagents") return
   if (!ok && !Object.keys(subRecs).length) {
     box.innerHTML =
-      "<h3>agents</h3><p class='hint'>" + esc(t("agents.fail")) + "</p>"
+      "<h3>" + esc(t("rtab.subagents")) + "</h3><p class='hint'>" + esc(t("agents.fail")) + "</p>"
     return
   }
   const cur = typeof curConv === "function" ? curConv() : null
@@ -733,21 +733,26 @@ async function renderFiles() {
   const cwd =
     (c && c.cwd) || (typeof serverCwd !== "undefined" ? serverCwd : "") || ""
   box.innerHTML =
-    "<h3>files</h3><p class='hint'>" + esc(t("files.loading")) + "</p>"
+    "<h3>" + esc(t("rtab.files")) + "</h3><p class='hint'>" + esc(t("files.loading")) + "</p>"
   let j = null
   try {
-    const r = await fetch("/api/agent-files?cwd=" + encodeURIComponent(cwd))
+    const r = await fetch(
+      "/api/agent-files?cwd=" +
+        encodeURIComponent(cwd) +
+        "&lang=" +
+        langCur,
+    )
     j = await r.json()
   } catch (e) {
     j = null
   }
   if (!j || !j.ok) {
     box.innerHTML =
-      "<h3>files</h3><p class='hint'>" + esc(t("files.fail")) + "</p>"
+      "<h3>" + esc(t("rtab.files")) + "</h3><p class='hint'>" + esc(t("files.fail")) + "</p>"
     return
   }
   const base = j.cwd || cwd
-  let html = "<h3>files</h3>"
+  let html = "<h3>" + esc(t("rtab.files")) + "</h3>"
   j.groups.forEach((g, gi) => {
     html +=
       "<details class='fgroup'" +
@@ -833,32 +838,32 @@ function loadTheme() {
 const PALETTES = [
   {
     id: "blue",
-    label: "블루",
-    desc: "파란 악센트.",
+    labelKey: "palette.blue",
+    descKey: "palette.blueD",
     sw: ["#f8fafd", "#0073cf", "#0c1014"],
   },
   {
     id: "green",
-    label: "그린",
-    desc: "차분한 녹색 악센트.",
+    labelKey: "palette.green",
+    descKey: "palette.greenD",
     sw: ["#f8fbf9", "#008339", "#0c110d"],
   },
   {
     id: "amber",
-    label: "앰버",
-    desc: "따뜻한 황색 악센트.",
+    labelKey: "palette.amber",
+    descKey: "palette.amberD",
     sw: ["#fcf9f8", "#b25200", "#130e0c"],
   },
   {
     id: "github",
-    label: "GitHub (기본)",
-    desc: "Primer 참조 · 라이트/다크 전체 적용.",
+    labelKey: "palette.github",
+    descKey: "palette.githubD",
     sw: ["#ffffff", "#0969da", "#0d1117"],
   },
   {
     id: "obsidian",
-    label: "Obsidian",
-    desc: "기본 테마 참조 · 바이올렛 악센트.",
+    labelKey: "palette.obsidian",
+    descKey: "palette.obsidianD",
     sw: ["#ffffff", "#7c3aed", "#202020"],
   },
 ]
@@ -917,14 +922,19 @@ function palOptHtml(o) {
   return (
     swatchHtml(o.sw) +
     '<span class="cotext"><span class="coname">' +
-    esc(o.label) +
+    esc(t(o.labelKey)) +
     "</span><small>" +
-    esc(o.desc) +
+    esc(t(o.descKey)) +
     "</small></span>"
   )
 }
 function palBtnHtml(o) {
-  return swatchHtml(o.sw) + '<span class="coname">' + esc(o.label) + "</span>"
+  return (
+    swatchHtml(o.sw) +
+    '<span class="coname">' +
+    esc(t(o.labelKey)) +
+    "</span>"
+  )
 }
 function renderPalettes(cur) {
   renderCombo(
@@ -942,31 +952,31 @@ const FONTS = [
     id: "system",
     label: "System Native",
     prev: "var(--font-system)",
-    desc: "OS 기본 느낌 그대로. 사이드바·버튼·입력창 등 UI 전반에 가장 선명하다. (기본값)",
+    descKey: "font.systemD",
   },
   {
     id: "sturdy",
     label: "Sturdy Sans",
     prev: "var(--font-system)",
-    desc: "System 계열을 살짝 두껍게(본문 600). 작은 글씨·밝은 화면에서 또렷하다.",
+    descKey: "font.sturdyD",
   },
   {
     id: "humanist",
     label: "Classic Humanist Sans",
     prev: "var(--font-humanist)",
-    desc: "OS 간 모습 차이가 적어 업무용 툴·문서형 대화에 안정적이다.",
+    descKey: "font.humanistD",
   },
   {
     id: "serif",
     label: "Editorial Serif",
     prev: "var(--font-serif)",
-    desc: "앱 전체가 명조·세리프 계열로 바뀐다. 리서치·요약 등 긴 글을 읽을 때 적합하다.",
+    descKey: "font.serifD",
   },
   {
     id: "compact",
     label: "Compact Dense",
     prev: "var(--font-compact)",
-    desc: "작은 크기에서 가독성이 좋아 정보 밀도가 높은 화면에 적합하다.",
+    descKey: "font.compactD",
   },
 ]
 function fontOptHtml(o) {
@@ -977,7 +987,7 @@ function fontOptHtml(o) {
     '<span class="cotext"><span class="coname">' +
     esc(o.label) +
     "</span><small>" +
-    esc(o.desc) +
+    esc(t(o.descKey)) +
     "</small></span>"
   )
 }
@@ -1005,6 +1015,22 @@ function renderFonts(cur) {
   const cur1 = FONTS.find((f) => f.id === cur) || FONTS[0]
   if (btn && cur1) btn.dataset.f = cur1.id
 }
+const CHATPAD_KEYS = ["narrow", "mid", "wide"]
+function chatpadIdx() {
+  let v = 2
+  try {
+    const raw = loadTheme().chatpad
+    v = typeof raw === "number" ? raw : 2
+  } catch (e) {}
+  return v === 0 || v === 1 || v === 2 ? v : 2
+}
+function paintChatpad() {
+  const i = chatpadIdx()
+  const r = $("#chatpad")
+  if (r) r.value = String(i)
+  const lab = $("#chatpadlab")
+  if (lab) lab.textContent = t("chatpad." + CHATPAD_KEYS[i])
+}
 function applyTheme() {
   const t = loadTheme()
   const th = t.theme || "light"
@@ -1020,6 +1046,8 @@ function applyTheme() {
   renderFonts(fn)
   applySide(!!t.side)
   applyRside(t.rside !== false)
+  document.documentElement.style.setProperty("--chat-w", chatpadWidth(chatpadIdx()))
+  paintChatpad()
   const kn = $("#keepn")
   if (kn) kn.value = keepN()
   liveSessions = liveSessions.slice(0, keepN())
@@ -1037,15 +1065,14 @@ function saveTheme(patch) {
 function showModal() {
   $("#ovl").hidden = false
   loadAccount()
-  loadUsage()
   loadSkills()
 }
 const SK_SCOPE_ORDER = ["user", "project", "plugin", "bundled"]
 const SK_SCOPE_LABEL = {
-  user: "사용자",
-  project: "프로젝트",
-  plugin: "플러그인",
-  bundled: "내장",
+  user: "sk.scope.user",
+  project: "sk.scope.project",
+  plugin: "sk.scope.plugin",
+  bundled: "sk.scope.bundled",
 }
 function skRow(s) {
   const row = document.createElement("div")
@@ -1058,15 +1085,14 @@ function skRow(s) {
   nm.type = "button"
   nm.className = "skname"
   nm.textContent = s.name || s.id
-  nm.title = (s.id || "") + " — 상세 보기"
+  nm.title = (s.id || "") + t("skills.detail")
   const sc = document.createElement("span")
   sc.className = "skscope"
   sc.textContent = s.scope || "?"
   const tg = document.createElement("button")
   tg.type = "button"
-  tg.className = "optbtn"
-  tg.style.cssText = "margin-left:auto;padding:4px 12px;font-size:12px"
-  tg.textContent = s.activation === "on" ? "끄기" : "켜기"
+  tg.className = "optbtn sktoggle"
+  tg.textContent = s.activation === "on" ? t("skills.toggleOff") : t("skills.toggleOn")
   tg.onclick = async (e) => {
     e.stopPropagation()
     tg.disabled = true
@@ -1084,8 +1110,8 @@ function skRow(s) {
       if (jj.ok) {
         s.activation = jj.activation
         dot.classList.toggle("on", jj.activation === "on")
-        tg.textContent = jj.activation === "on" ? "끄기" : "켜기"
-      } else alert("스킬 전환 실패: " + (jj.activation || "?"))
+        tg.textContent = jj.activation === "on" ? t("skills.toggleOff") : t("skills.toggleOn")
+      } else alert(t("skills.toggleFail") + (errText(jj, t) || "?"))
     } catch (_) {}
     tg.disabled = false
   }
@@ -1098,7 +1124,7 @@ function skRow(s) {
   dp.textContent = s.description || ""
   const pre = document.createElement("pre")
   pre.className = "skbody"
-  pre.textContent = "불러오는 중…"
+  pre.textContent = t("ui.loading")
   de.append(dp, pre)
   let loaded = false
   nm.onclick = async () => {
@@ -1115,9 +1141,9 @@ function skRow(s) {
         const jj = await rr.json()
         pre.textContent = jj.ok
           ? jj.body
-          : "불러오기 실패: " + (jj.error || "?")
+          : errText(jj, t) || "?"
       } catch (_) {
-        pre.textContent = "불러오기 실패"
+        pre.textContent = t("ui.loadFail")
       }
     }
   }
@@ -1126,16 +1152,16 @@ function skRow(s) {
 }
 async function loadSkills() {
   const box = $("#skillbox")
-  box.textContent = "불러오는 중…"
+  box.textContent = t("ui.loading")
   try {
     const r = await fetch("/api/skills")
     const j = await r.json()
     if (j.error) {
-      box.textContent = j.error
+      box.textContent = errText(j, t) || j.error
       return
     }
     if (!j.skills.length) {
-      box.textContent = "스킬 없음"
+      box.textContent = t("skills.empty")
       return
     }
     box.innerHTML = ""
@@ -1155,14 +1181,14 @@ async function loadSkills() {
       div.className = "skdiv"
       div.dataset.skgroup = g
       const lb = document.createElement("span")
-      lb.textContent = SK_SCOPE_LABEL[g] || g
+      lb.textContent = t(SK_SCOPE_LABEL[g] || g)
       div.appendChild(lb)
       box.appendChild(div)
       items.forEach((s) => box.appendChild(skRow(s)))
       delete groups[g]
     })
   } catch (e) {
-    box.textContent = "불러오기 실패"
+    box.textContent = t("ui.loadFail")
   }
 }
 $("#skilladd").onclick = () => {
@@ -1178,7 +1204,7 @@ $("#sksave").onclick = async () => {
     desc = $("#skdesc").value.trim(),
     body = $("#skbody").value
   if (!name || !desc || !body.trim()) {
-    alert("이름·설명·본문을 모두 입력하세요.")
+    alert(t("skills.needAll"))
     return
   }
   try {
@@ -1189,7 +1215,7 @@ $("#sksave").onclick = async () => {
     })
     const j = await r.json()
     if (!j.ok) {
-      alert("스킬 추가 실패: " + (j.error || "?"))
+      alert(t("skills.addFail") + (errText(j, t) || "?"))
       return
     }
     $("#skillform").hidden = true
@@ -1198,7 +1224,7 @@ $("#sksave").onclick = async () => {
     $("#skbody").value = ""
     loadSkills()
   } catch (_) {
-    alert("스킬 추가 실패 (서버 오류)")
+    alert(t("skills.addFailServer"))
   }
 }
 document.querySelectorAll("#mtabs button").forEach((b) => {
@@ -1213,118 +1239,6 @@ document.querySelectorAll("#mtabs button").forEach((b) => {
       )
   }
 })
-async function loadUsage() {
-  const box = $("#usagebox")
-  box.textContent = "불러오는 중…"
-  try {
-    const r = await fetch("/api/usage")
-    const j = await r.json()
-    usageFull = j
-    usageDaily = j.daily || []
-    usagePrices = j.prices || null
-    const tot = { calls: 0, input: 0, output: 0, cost: 0 }
-    Object.keys(j.models || {}).forEach((n) => {
-      const m = j.models[n] || {}
-      tot.calls += m.calls || 0
-      tot.input += m.input || 0
-      tot.output += m.output || 0
-      if (usagePrices && usagePrices.models) {
-        const rr = rateFor(n, usagePrices)
-        tot.cost +=
-          ((m.input || 0) * rr[0] +
-            ((m.output || 0) + (m.reasoning || 0)) * rr[1]) /
-          1e6
-      }
-    })
-    let html =
-      "<p>총 " +
-      j.turns +
-      "턴 · 호출 " +
-      tot.calls +
-      " · in " +
-      tot.input +
-      " / out " +
-      tot.output +
-      (usagePrices && usagePrices.models
-        ? " · 예상 " + fmtMoney(tot.cost)
-        : "") +
-      "</p>"
-    const al = j.allowance || {}
-    html +=
-      "<p>구독: " +
-      esc(
-        al.allowance
-          ? JSON.stringify(al.allowance)
-          : al.reason || al.hint || "조회 실패",
-      ) +
-      "</p>"
-    const names = Object.keys(j.models || {})
-    if (names.length) {
-      const maxv = Math.max.apply(
-        null,
-        names
-          .map((n) => (j.models[n].input || 0) + (j.models[n].output || 0))
-          .concat([1]),
-      )
-      html += '<div class="usgrows">'
-      names.forEach((n) => {
-        const m = j.models[n]
-        const totv = (m.input || 0) + (m.output || 0)
-        const w = Math.max(2, Math.round((totv / maxv) * 100))
-        let costTxt = ""
-        if (usagePrices && usagePrices.models) {
-          const rr = rateFor(n, usagePrices)
-          costTxt =
-            " · " +
-            fmtMoney(
-              ((m.input || 0) * rr[0] +
-                ((m.output || 0) + (m.reasoning || 0)) * rr[1]) /
-                1e6,
-            )
-        }
-        html +=
-          '<div class="usgrow"><div class="usgbase"><span class="usgname">' +
-          esc(n) +
-          '</span><span class="usgnum">' +
-          m.calls +
-          "회 · in " +
-          m.input +
-          " / out " +
-          m.output +
-          costTxt +
-          "</span></div>" +
-          '<div class="usgbar"><i style="width:' +
-          w +
-          '%"></i></div></div>'
-      })
-      html += "</div>"
-      if (usagePrices && usagePrices.models)
-        html +=
-          '<p class="hint">비용은 추정치 (reasoning은 출력 단가 적용) · 단가 기준일: ' +
-          esc(usagePrices.updated || "?") +
-          "</p>"
-    }
-    const ss = (j.sessions || []).slice(0, 20)
-    if (ss.length) {
-      html += '<div class="sidchips">'
-      ss.forEach((s) => {
-        html +=
-          '<span class="sidchip" title="' +
-          esc(String(s.sid)) +
-          '">' +
-          esc(String(s.sid).slice(0, 8)) +
-          " · " +
-          s.turns +
-          "턴</span>"
-      })
-      html += "</div>"
-    }
-    box.innerHTML = html
-    drawUsage()
-  } catch (e) {
-    box.textContent = "불러오기 실패"
-  }
-}
 function hideModal() {
   $("#ovl").hidden = true
 }
@@ -1333,8 +1247,8 @@ async function loadAccount() {
     const r = await fetch("/api/account")
     const j = await r.json()
     if (!j.ok) {
-      $("#acct").innerHTML = '<p class="hint">로그인 정보 없음</p>'
-      $("#tok").textContent = "없음"
+      $("#acct").innerHTML = '<p class="hint">' + esc(t("acct.noLogin")) + "</p>"
+      $("#tok").textContent = t("acct.none")
       return
     }
     const dot = j.subs_active
@@ -1344,24 +1258,24 @@ async function loadAccount() {
       '<div class="ucards acct4">' +
       '<div class="ucard"><div class="uval small">' +
       esc(j.name) +
-      '</div><div class="ulab">이름</div></div>' +
+      '</div><div class="ulab">' + esc(t("acct.name")) + "</div></div>" +
       '<div class="ucard"><div class="uval small">' +
       esc(j.email) +
-      '</div><div class="ulab">이메일</div></div>' +
+      '</div><div class="ulab">' + esc(t("acct.email")) + "</div></div>" +
       '<div class="ucard"><div class="uval small">' +
       esc(j.provider) +
       " · " +
       esc(j.mechanism) +
-      '</div><div class="ulab">제공자</div></div>' +
+      '</div><div class="ulab">' + esc(t("acct.provider")) + "</div></div>" +
       '<div class="ucard"><div class="uval">' +
       dot +
       " " +
-      (j.subs_active ? "활성" : "없음") +
-      '</div><div class="ulab">구독</div></div>' +
+      (j.subs_active ? t("acct.active") : t("acct.none")) +
+      '</div><div class="ulab">' + esc(t("acct.subs")) + "</div></div>" +
       "</div>"
     $("#tok").textContent = j.token_masked
   } catch (e) {
-    $("#acct").textContent = "불러오기 실패"
+    $("#acct").textContent = t("ui.loadFail")
   }
 }
 const EFFORT_OPTS = [
@@ -1421,21 +1335,26 @@ async function refreshInfo() {
     serverPlatform = j.platform || ""
     updateOsChip()
     $("#srvinfo").textContent =
-      j.version + " · " + (j.muse_args.join(" ") || "서버 경로") + " · " + j.cwd
-    $("#srvinfo").title = "서버 실행 정보\n" + j.cwd
+      j.version +
+      " · " +
+      (j.muse_args.join(" ") || t("status.pathLabel")) +
+      " · " +
+      j.cwd
+    $("#srvinfo").title = t("settings.serverInfo") + "\n" + j.cwd
     if (!convKey) $("#cwd").textContent = serverCwd
-    $("#args").textContent = "muse args: " + (j.muse_args.join(" ") || "(없음)")
+    $("#args").textContent =
+      "muse args: " + (j.muse_args.join(" ") || t("status.argsNone"))
     $("#status").className = "ok"
     const sd = $("#srvdot")
     if (sd) sd.className = "svcdot on"
   } catch (e) {
     $("#status").className = "err"
-    $("#srvinfo").textContent = "서버 연결 실패"
+    $("#srvinfo").textContent = t("status.serverFail")
     const sd2 = $("#srvdot")
     if (sd2) sd2.className = "svcdot err"
   }
   try {
-    const r = await fetch("/api/slash")
+    const r = await fetch("/api/slash?lang=" + langCur)
     slashList = await r.json()
     if (helpOpen) renderHelp()
   } catch (e) {
@@ -1450,6 +1369,12 @@ if (keepnEl)
     })
     applyTheme()
   })
+const chatpadEl = $("#chatpad")
+if (chatpadEl)
+  chatpadEl.addEventListener("input", () => {
+    const v = parseInt(chatpadEl.value, 10)
+    saveTheme({ chatpad: v === 0 || v === 1 || v === 2 ? v : 2 })
+  })
 $("#rsidegoal").addEventListener("change", (e) => {
   const box = e.target.closest("[data-gi]")
   if (!box) return
@@ -1458,12 +1383,12 @@ $("#rsidegoal").addEventListener("change", (e) => {
   const it = c.goal.items[+box.dataset.gi]
   if (!it) return
   it.done = !!box.checked
-  const t = c.goal.items.length,
+  const n = c.goal.items.length,
     d = c.goal.items.filter((x) => x.done).length
-  if (t && d >= t && c.goal.active) {
+  if (n && d >= n && c.goal.active) {
     c.goal.active = false
-    addMsg("ai", "🏁 목표 달성: " + c.goal.objective)
-    saveMsg("ai", "🏁 목표 달성: " + c.goal.objective, { ts: Date.now() })
+    addMsg("ai", t("goal.achieved") + c.goal.objective)
+    saveMsg("ai", t("goal.achieved") + c.goal.objective, { ts: Date.now() })
   }
   persistConvs()
   drawConvs()

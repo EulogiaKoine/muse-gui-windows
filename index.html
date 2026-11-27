@@ -58,7 +58,7 @@
           <path
             d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
           /></svg
-        ><span>New Chat</span>
+        ><span id="newchatlab">New Chat</span>
       </button>
       <div id="convsortrow">
         <div id="sortmenu" hidden></div>
@@ -107,7 +107,7 @@
     <div id="fsovl" hidden>
       <div id="fsmodal" role="dialog" aria-label="작업 디렉터리 선택">
         <div class="mhead">
-          <h2>작업 디렉터리 선택</h2>
+          <h2 id="fstitle">작업 디렉터리 선택</h2>
           <button
             type="button"
             class="iconbtn"
@@ -165,7 +165,7 @@
     <div id="ovl" hidden>
       <div id="modal" role="dialog" aria-label="설정">
         <div class="mhead">
-          <h2>설정</h2>
+          <h2 id="settitle">설정</h2>
           <button
             type="button"
             class="iconbtn"
@@ -191,16 +191,15 @@
           <div class="tabs" id="mtabs" role="tablist">
             <button type="button" data-tab="gen" class="sel">일반</button
             ><button type="button" data-tab="acct">계정</button
-            ><button type="button" data-tab="usage">사용량</button
             ><button type="button" data-tab="skills">스킬</button>
           </div>
           <section data-pane="gen" class="on">
-            <h3>서버</h3>
+            <h3 id="srvhead">서버</h3>
             <div class="row">
               <span id="srvdot" class="svcdot"></span
               ><span id="srvinfo" title="서버 실행 정보">연결 중…</span>
             </div>
-            <h3>테마</h3>
+            <h3 id="themehead">테마</h3>
             <div class="row" id="themes">
               <button type="button" class="optbtn" data-th="light">
                 라이트</button
@@ -228,6 +227,17 @@
               ></button>
               <div class="combo-list" id="fontlist" role="listbox" hidden></div>
             </div>
+            <h3 id="chatpadhead">채팅 너비</h3>
+            <div class="row">
+              <input
+                id="chatpad"
+                type="range"
+                min="0"
+                max="2"
+                step="1"
+                value="2"
+              /><span id="chatpadlab">넓게</span>
+            </div>
             <h3 id="langhead">언어</h3>
             <div class="row" id="langrow">
               <button type="button" class="optbtn" data-lang="ko">한국어</button
@@ -235,22 +245,34 @@
                 English
               </button>
             </div>
-            <h3>세션 유지</h3>
+            <h3 id="keephead">세션 유지</h3>
             <div class="row">
               <label
-                >최근 유지 세션 수
+                ><span id="keepnlab">최근 유지 세션 수</span>
                 <input id="keepn" type="number" min="1" max="5" step="1"
               /></label>
             </div>
-            <p class="hint">
+            <p class="hint" id="keephint">
               탭을 옮겨도 이 개수만큼의 최근 세션은 이어가기 없이 바로 입력할 수
               있다.
             </p>
           </section>
           <section data-pane="acct">
-            <h3>계정</h3>
+            <h3 id="accthead">계정</h3>
             <div id="acct"><p class="hint">불러오는 중…</p></div>
-            <h3>API 토큰</h3>
+            <h3 id="consolehead">Meta AI 콘솔 / 사용량 대시보드</h3>
+            <div class="row">
+              <a
+                class="optbtn"
+                id="consolelink"
+                href="https://dev.meta.ai/usage"
+                target="_blank"
+                rel="noopener"
+                title="Meta 개발자 콘솔"
+                >dev.meta.ai 콘솔 열기</a
+              >
+            </div>
+            <h3 id="tokenhead">API 토큰</h3>
             <div class="row">
               <code id="tok" class="grow">…</code
               ><button
@@ -276,12 +298,12 @@
                 </svg>
               </button>
             </div>
-            <h3>로그인 가이드</h3>
+            <h3 id="guidehead">로그인 가이드</h3>
             <details class="guide">
-              <summary>
+              <summary id="guidesum">
                 서버 종료 → 로그인 → 재시작 순서로 진행 (펼치기)
               </summary>
-              <ol>
+              <ol id="guidelist">
                 <li>
                   실행 중인 <code>muse-gui</code> 서버를 종료합니다 (터미널
                   <code>Ctrl+C</code> 또는 <code>kill</code>).
@@ -297,39 +319,15 @@
                   때만 실행하세요.
                 </li>
               </ol>
-              <p class="hint">
+              <p class="hint" id="guidehint">
                 로그인·로그아웃은 터미널에서만 가능합니다 (브라우저 승인 / 자격
                 삭제).
               </p>
             </details>
           </section>
-          <section data-pane="usage">
-            <h3>총 사용량</h3>
-            <div class="row">
-              <a
-                class="optbtn"
-                id="dashlink"
-                href="https://dev.meta.ai"
-                target="_blank"
-                rel="noopener"
-                title="Meta 개발자 콘솔"
-                >dev.meta.ai 콘솔 열기</a
-              >
-            </div>
-            <div class="urange" id="urange" role="group" aria-label="기간">
-              <button type="button" data-r="7" class="sel">7d</button
-              ><button type="button" data-r="30">30d</button
-              ><button type="button" data-r="90">90d</button>
-              <select id="umodel" title="모델별 보기">
-                <option value="">통합</option>
-              </select>
-            </div>
-            <div id="ucards"></div>
-            <div id="usagebox">불러오는 중…</div>
-          </section>
           <section data-pane="skills">
-            <h3>에이전트 스킬</h3>
-            <p class="hint">
+            <h3 id="skillhead">에이전트 스킬</h3>
+            <p class="hint" id="skillhint">
               muse CLI 스킬 목록. 토글로 활성화/비활성화를 변경한다. (대화형
               세션에 적용, headless exec는 스킬 미로드)
             </p>
@@ -340,11 +338,11 @@
             </div>
             <div id="skillform" hidden>
               <label
-                >이름
+                ><span id="sknamelab">이름</span>
                 <input id="skname" placeholder="my-skill" autocomplete="off"
               /></label>
               <label
-                >설명
+                ><span id="skdesclab">설명</span>
                 <input
                   id="skdesc"
                   placeholder="언제 사용하는지 한 줄로"
@@ -405,7 +403,7 @@
       </div>
       <div id="chat" aria-live="polite"></div>
       <form id="f">
-        <div id="slash" role="listbox"></div>
+        <div id="slash" role="listbox" hidden></div>
         <div id="inwrap">
           <div id="attachbar" hidden></div>
           <div id="inbox">

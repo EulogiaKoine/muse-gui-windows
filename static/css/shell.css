@@ -65,8 +65,30 @@ header {
 #cwd:hover {
   text-decoration: underline;
 }
+/* 채팅 너비 설정: #chat·입력폼·푸터를 가운데로 좁힌다.
+   viz iframe은 width:100%라 좁혀진 열 안에서 그대로 동작한다. */
+#chat,
+main:not(.lobby) form#f,
+main:not(.lobby) footer {
+  width: 100%;
+  max-width: var(--chat-w, none);
+  margin-left: auto;
+  margin-right: auto;
+}
+#chatpad {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--me);
+}
+#chatpadlab {
+  flex: none;
+  min-width: 48px;
+  text-align: right;
+  color: var(--muted);
+  font-size: 13px;
+}
 #rside {
-  width: 284px;
+  width: var(--rside-w, 284px);
   flex: none;
   background: var(--panel);
   border-left: 1px solid var(--bd);

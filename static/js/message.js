@@ -23,9 +23,9 @@ async function openAgentFile(rel) {
       body: JSON.stringify({ cwd, path: rel }),
     })
     const j = await r.json()
-    if (!j.ok) alert("열기 실패: " + (j.error || rel))
+    if (!j.ok) alert(errText(j, t) || t("file.openFail") + rel)
   } catch (e) {
-    alert("열기 실패: " + rel)
+    alert(t("file.openFail") + rel)
   }
 }
 function attRowHtml(atts) {
@@ -69,25 +69,35 @@ function addMsg(who, text, think, foot, withActs, extra) {
       : "") +
     renderText(text) +
     (think
-      ? "<details><summary>상세</summary>" + esc(think) + "</details>"
+      ? "<details><summary>" + esc(t("msg.detail")) + "</summary>" + esc(think) + "</details>"
       : "")
   if (withActs === undefined) withActs = true
   if (who === "ai") {
     chat.querySelectorAll(".msg.ai [data-retry]").forEach((b) => b.remove())
     if (withActs)
       html +=
-        '<div class="acts"><button type="button" data-retry title="재시도 (마지막 질문을 새 세션으로 분기)">' +
+        '<div class="acts"><button type="button" data-retry title="' +
+        escAttr(t("act.retryLast")) +
+        '">' +
         ICON_RETRY +
-        '</button><button type="button" data-copy title="복사">' +
+        '</button><button type="button" data-copy title="' +
+        escAttr(t("act.copy")) +
+        '">' +
         ICON_COPY +
         "</button></div>"
   } else
     html +=
-      '<div class="acts"><button type="button" data-retry title="재시도 (이 메시지부터 새 세션으로 분기)">' +
+      '<div class="acts"><button type="button" data-retry title="' +
+      escAttr(t("act.retryFrom")) +
+      '">' +
       ICON_RETRY +
-      '</button><button type="button" data-copy title="복사">' +
+      '</button><button type="button" data-copy title="' +
+      escAttr(t("act.copy")) +
+      '">' +
       ICON_COPY +
-      '</button><button type="button" data-edit title="수정 후 다시 전송">✎</button></div>'
+      '</button><button type="button" data-edit title="' +
+      escAttr(t("act.editResend")) +
+      '">✎</button></div>'
   let mtime = null
   if (foot && who === "me") mtime = foot
   else if (foot) html += '<div class="meta">' + esc(foot) + "</div>"
@@ -101,7 +111,9 @@ function addMsg(who, text, think, foot, withActs, extra) {
       content +
       '<div class="foldfade"></div></div>' +
       rest +
-      '<button type="button" class="foldbtn" data-fold title="펼치기/접기">' +
+      '<button type="button" class="foldbtn" data-fold title="' +
+      escAttr(t("act.toggle")) +
+      '">' +
       ICON_CHEVD +
       "</button>"
   }
@@ -161,9 +173,9 @@ async function openPathLink(a) {
       body: JSON.stringify({ path: abs }),
     })
     const j = await r.json()
-    if (!j.ok) alert("열기 실패: " + (j.error || abs))
+    if (!j.ok) alert(errText(j, t) || t("file.openFail") + abs)
   } catch (e) {
-    alert("열기 실패: " + abs)
+    alert(t("file.openFail") + abs)
   }
 }
 function decorateMath(el) {
@@ -172,7 +184,7 @@ function decorateMath(el) {
     const b = document.createElement("button")
     b.type = "button"
     b.setAttribute("data-mathcopy", "")
-    b.title = "수식 복사"
+    b.title = t("act.mathCopy")
     b.innerHTML = ICON_COPY
     b.onclick = async (e) => {
       e.stopPropagation()
@@ -192,7 +204,7 @@ function decorateCode(el) {
     const b = document.createElement("button")
     b.type = "button"
     b.setAttribute("data-codecopy", "")
-    b.title = "복사"
+    b.title = t("act.copy")
     b.innerHTML = ICON_COPY
     b.onclick = async (e) => {
       e.stopPropagation()
@@ -211,13 +223,13 @@ function decorateTables(el) {
     const b = document.createElement("button")
     b.type = "button"
     b.setAttribute("data-tblcopy", "")
-    b.title = "표 복사"
+    b.title = t("act.tableCopy")
     b.innerHTML = ICON_COPY
     const menu = document.createElement("div")
     menu.className = "tblmenu"
     menu.hidden = true
     ;[
-      ["md", "마크다운"],
+      ["md", t("msg.tableMd")],
       ["csv", "CSV"],
     ].forEach(([fmt, label]) => {
       const o = document.createElement("button")
