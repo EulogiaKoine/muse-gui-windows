@@ -58,6 +58,14 @@ footer select:focus {
 #yolo:hover {
   border-color: var(--me);
 }
+#netmsg {
+  margin-left: auto;
+  color: var(--err);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 #yolo.on {
   border-color: var(--me);
   color: var(--me);

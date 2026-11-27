@@ -133,6 +133,7 @@ function activateRsideTab(id) {
   rsideTab = id
   rsideHold = false
   saveRTabs()
+  applyRside(false)
   drawRside()
 }
 function closeRsideTab(id) {
@@ -254,6 +255,7 @@ function openRside(tab) {
   rsideTab = tab
   rsideHold = false
   saveRTabs()
+  applyRside(false)
   drawRside()
 }
 function drawRside() {
@@ -264,8 +266,6 @@ function drawRside() {
     return
   }
   if (!ids.includes(rsideTab)) rsideTab = ids[0]
-  if (document.body.classList.contains("rside-hidden") && !rsideHold)
-    applyRside(false)
   renderRsideTabs()
   RSIDE_TABS[rsideTab].render()
 }
@@ -831,54 +831,193 @@ function loadTheme() {
   }
 }
 const PALETTES = [
-  { id: "blue", label: "기본 블루", desc: "muse-gui 기본", dot: "#2f6fed" },
-  { id: "green", label: "그린", desc: "그린 악센트", dot: "#178a4c" },
-  { id: "amber", label: "앰버", desc: "앰버 악센트", dot: "#b45309" },
+  {
+    id: "blue",
+    label: "기본 블루",
+    desc: "muse-gui 기본 파란 악센트.",
+    sw: ["#ffffff", "#2f6fed", "#16181d"],
+  },
+  {
+    id: "green",
+    label: "그린",
+    desc: "차분한 녹색 악센트.",
+    sw: ["#f3f7f4", "#178a4c", "#111713"],
+  },
+  {
+    id: "amber",
+    label: "앰버",
+    desc: "따뜻한 황색 악센트.",
+    sw: ["#faf6ee", "#b45309", "#171310"],
+  },
   {
     id: "github",
     label: "GitHub",
-    desc: "Primer 참조 · 라이트/다크 전체 적용",
-    dot: "#0969da",
+    desc: "Primer 참조 · 라이트/다크 전체 적용.",
+    sw: ["#ffffff", "#0969da", "#0d1117"],
   },
   {
     id: "obsidian",
     label: "Obsidian",
-    desc: "기본 테마 참조 · 바이올렛 악센트",
-    dot: "#7c3aed",
+    desc: "기본 테마 참조 · 바이올렛 악센트.",
+    sw: ["#ffffff", "#7c3aed", "#202020"],
   },
 ]
-function renderPalettes(cur) {
-  const box = $("#accents")
-  if (!box) return
+function closeCombos() {
+  document.querySelectorAll(".combo-list").forEach((l) => {
+    l.hidden = true
+  })
+  document.querySelectorAll(".combo-btn").forEach((b) => {
+    b.setAttribute("aria-expanded", "false")
+  })
+}
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".combo")) closeCombos()
+})
+function swatchHtml(sw) {
+  return (
+    '<span class="sw">' +
+    sw.map((c) => '<i style="background:' + c + '"></i>').join("") +
+    "</span>"
+  )
+}
+function renderCombo(btnId, listId, list, cur, onPick, optHtml, btnHtml) {
+  const btn = $("#" + btnId)
+  const box = $("#" + listId)
+  if (!btn || !box) return
+  const cur1 = list.find((o) => o.id === cur) || list[0]
+  btn.innerHTML = btnHtml(cur1)
+  btn.setAttribute("aria-expanded", box.hidden ? "false" : "true")
+  btn.onclick = () => {
+    const willOpen = box.hidden
+    closeCombos()
+    if (willOpen) {
+      box.hidden = false
+      btn.setAttribute("aria-expanded", "true")
+    }
+  }
   box.innerHTML = ""
-  PALETTES.forEach((p) => {
+  list.forEach((o) => {
+    const sel = cur1 && o.id === cur1.id
     const b = document.createElement("button")
     b.type = "button"
-    b.className = "pal" + (p.id === cur ? " sel" : "")
-    b.innerHTML =
-      '<span class="paldot" style="background:' +
-      p.dot +
-      '"></span>' +
-      '<span class="paltext"><span class="palname">' +
-      esc(p.label) +
-      "</span>" +
-      "<small>" +
-      esc(p.desc) +
-      "</small></span>"
-    b.onclick = () => saveTheme({ accent: p.id })
+    b.className = "copt" + (sel ? " sel" : "")
+    b.dataset.opt = o.id
+    b.setAttribute("role", "option")
+    b.setAttribute("aria-selected", sel ? "true" : "false")
+    b.innerHTML = optHtml(o)
+    b.onclick = () => {
+      box.hidden = true
+      btn.setAttribute("aria-expanded", "false")
+      onPick(o.id)
+    }
     box.appendChild(b)
   })
+}
+function palOptHtml(o) {
+  return (
+    swatchHtml(o.sw) +
+    '<span class="cotext"><span class="coname">' +
+    esc(o.label) +
+    "</span><small>" +
+    esc(o.desc) +
+    "</small></span>"
+  )
+}
+function palBtnHtml(o) {
+  return swatchHtml(o.sw) + '<span class="coname">' + esc(o.label) + "</span>"
+}
+function renderPalettes(cur) {
+  renderCombo(
+    "accentsel",
+    "accentlist",
+    PALETTES,
+    cur,
+    (id) => saveTheme({ accent: id }),
+    palOptHtml,
+    palBtnHtml,
+  )
+}
+const FONTS = [
+  {
+    id: "system",
+    label: "System Native",
+    prev: "var(--font-system)",
+    desc: "OS 기본 느낌 그대로. 사이드바·버튼·입력창 등 UI 전반에 가장 선명하다. (기본값)",
+  },
+  {
+    id: "sturdy",
+    label: "Sturdy Sans",
+    prev: "var(--font-system)",
+    desc: "System 계열을 살짝 두껍게(본문 600). 작은 글씨·밝은 화면에서 또렷하다.",
+  },
+  {
+    id: "humanist",
+    label: "Classic Humanist Sans",
+    prev: "var(--font-humanist)",
+    desc: "OS 간 모습 차이가 적어 업무용 툴·문서형 대화에 안정적이다.",
+  },
+  {
+    id: "serif",
+    label: "Editorial Serif",
+    prev: "var(--font-serif)",
+    desc: "앱 전체가 명조·세리프 계열로 바뀐다. 리서치·요약 등 긴 글을 읽을 때 적합하다.",
+  },
+  {
+    id: "compact",
+    label: "Compact Dense",
+    prev: "var(--font-compact)",
+    desc: "작은 크기에서 가독성이 좋아 정보 밀도가 높은 화면에 적합하다.",
+  },
+]
+function fontOptHtml(o) {
+  return (
+    '<span class="fprev" style="font-family:' +
+    o.prev +
+    '">가Aa</span>' +
+    '<span class="cotext"><span class="coname">' +
+    esc(o.label) +
+    "</span><small>" +
+    esc(o.desc) +
+    "</small></span>"
+  )
+}
+function fontBtnHtml(o) {
+  return (
+    '<span class="fprev" style="font-family:' +
+    o.prev +
+    '">가Aa</span>' +
+    '<span class="coname">' +
+    esc(o.label) +
+    "</span>"
+  )
+}
+function renderFonts(cur) {
+  renderCombo(
+    "fontsel",
+    "fontlist",
+    FONTS,
+    cur,
+    (id) => saveTheme({ font: id }),
+    fontOptHtml,
+    fontBtnHtml,
+  )
+  const btn = $("#fontsel")
+  const cur1 = FONTS.find((f) => f.id === cur) || FONTS[0]
+  if (btn && cur1) btn.dataset.f = cur1.id
 }
 function applyTheme() {
   const t = loadTheme()
   const th = t.theme || "light"
   const ac = PALETTES.some((p) => p.id === t.accent) ? t.accent : "blue"
+  const fn = FONTS.some((f) => f.id === t.font) ? t.font : "system"
   document.documentElement.dataset.theme = th
   document.documentElement.dataset.accent = ac
+  document.documentElement.dataset.font = fn
   document
     .querySelectorAll("#themes .optbtn")
     .forEach((b) => b.classList.toggle("sel", b.dataset.th === th))
   renderPalettes(ac)
+  renderFonts(fn)
   applySide(!!t.side)
   applyRside(t.rside !== false)
   const kn = $("#keepn")
