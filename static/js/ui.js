@@ -92,7 +92,10 @@ function openTabIds() {
 }
 function renderRsideTabs() {
   const box = $("#rsidetabs")
-  if (!box) return
+  if (!box) {
+    console.warn("[rside] #rsidetabs missing from document")
+    return
+  }
   box.innerHTML = ""
   const ids = openTabIds()
   const pinned = ids.filter((id) => tabPinned.includes(id))

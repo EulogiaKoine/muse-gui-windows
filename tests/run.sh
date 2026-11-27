@@ -30,3 +30,4 @@ node tests/render.test.js
 node tests/usage.test.js
 node tests/interaction.test.js
 node tests/boot.test.js
+python3 tests/html_ids.py
