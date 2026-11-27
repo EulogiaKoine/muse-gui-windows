@@ -70,6 +70,8 @@ function startEdit(msgEl) {
   const cc0 = typeof curConv === "function" ? curConv() : null
   const srcAtts = (cc0 && cc0.msgs[mi0] && cc0.msgs[mi0].atts) || []
   msgEl._editAtts = srcAtts.slice()
+  const sibRow = siblingRow(msgEl)
+  if (sibRow) sibRow.hidden = true
   msgEl.innerHTML =
     '<div class="editatt"></div><textarea class="medit">' +
     esc(old) +
@@ -108,9 +110,25 @@ function startEdit(msgEl) {
   }
   editingEl = msgEl
 }
+function siblingRow(msgEl) {
+  const par = msgEl.parentElement || msgEl.parentNode
+  if (!par || !par.children) return null
+  const kids = par.children
+  for (let i = 0; i < kids.length; i++) {
+    const k = kids[i]
+    if (
+      k !== msgEl &&
+      (" " + (k.className || "") + " ").indexOf(" mrow ") >= 0
+    )
+      return k
+  }
+  return null
+}
 function cancelEdit(msgEl) {
   if (!msgEl) return
   msgEl.classList.remove("editing")
+  const sibRow = siblingRow(msgEl)
+  if (sibRow) sibRow.hidden = false
   if (msgEl.dataset.orig !== undefined) {
     msgEl.innerHTML = msgEl.dataset.orig
     delete msgEl.dataset.orig
@@ -289,7 +307,7 @@ chat.addEventListener("click", async (e) => {
   }
   const ed = e.target.closest("[data-edit]")
   if (ed) {
-    const msgEl = ed.closest(".msg")
+    const msgEl = bubbleFor(ed)
     if (msgEl) startEdit(msgEl)
     return
   }
@@ -307,7 +325,7 @@ chat.addEventListener("click", async (e) => {
   }
   const rt = e.target.closest("[data-retry]")
   if (rt) {
-    const msgEl = rt.closest(".msg")
+    const msgEl = bubbleFor(rt)
     if (msgEl) {
       const mi = +(msgEl.dataset.mi ?? -1)
       const c = curConv()
@@ -353,8 +371,17 @@ chat.addEventListener("click", async (e) => {
   }
   const b = e.target.closest("[data-copy]")
   if (!b) return
-  flashCopy(b, b.closest(".msg").dataset.raw || "")
+  const bm = bubbleFor(b)
+  flashCopy(b, (bm && bm.dataset.raw) || "")
 })
+function bubbleFor(el) {
+  const m = el.closest(".msg")
+  if (m) return m
+  const row = el.closest(".mrow")
+  const par = row && (row.parentElement || row.parentNode)
+  if (par && par.querySelector) return par.querySelector(".msg")
+  return null
+}
 function notifyCompletion(title, body) {
   try {
     if (typeof Notification === "undefined") return false
@@ -477,7 +504,16 @@ function saveMsgTo(c, who, text, meta) {
 function sealAiTurn(ph, t0, fr, conv) {
   const el = ((Date.now() - t0) / 1000).toFixed(1)
   const foot = timeStr(t0) + " · " + el + t("time.sec")
-  ph.innerHTML += '<div class="meta">' + esc(foot) + "</div>"
+  let actsBox = ph.querySelector(".acts")
+  if (!actsBox) {
+    actsBox = document.createElement("div")
+    actsBox.className = "acts"
+    ph.appendChild(actsBox)
+  }
+  const mt = document.createElement("span")
+  mt.className = "mtime"
+  mt.textContent = foot
+  actsBox.appendChild(mt)
   saveMsgTo(conv || curConv(), "ai", ph.dataset.raw || "", {
     ts: t0,
     el,

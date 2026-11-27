@@ -39,6 +39,29 @@ def _gui_version():
 
 GUI_VERSION = _gui_version()
 
+
+def asset_version(rel):
+    """정적 애셋의 캐시버스터: 파일 mtime(초). 파일이 없으면 GUI 버전."""
+    try:
+        return str(int(os.path.getmtime(os.path.join(BASE_DIR, rel))))
+    except OSError:
+        return GUI_VERSION
+
+
+def _asset_v_tagged(data):
+    """index.html 안의 `?v=__GUI_VERSION__`을 애셋별 mtime으로 바꾼다.
+
+    같은 URL이 절대 재사용되지 않으므로, 파일이 바뀌면 다음 로드 때
+    반드시 새 파일을 받는다. 서버 재시작 없이도 적용된다.
+    """
+    def _rep(m):
+        rel = m.group(2).decode("ascii", "replace").lstrip("/")
+        return (m.group(1) + b'="' + m.group(2) +
+                b"?v=" + asset_version(rel).encode("ascii") +
+                b'"')
+    return re.sub(br'(src|href)="(/static/[^"]+?)\?v=__GUI_VERSION__"',
+                  _rep, data)
+
 UI_COMMANDS = [
     {"cmd": "/new", "desc": "새 대화 시작 (세션 초기화)"},
     {"cmd": "/clear", "desc": "화면 지우기 (로컬 표시만)"},
@@ -1912,8 +1935,7 @@ class Handler(BaseHTTPRequestHandler):
         except OSError:
             self._send(500, "index.html 없음")
             return
-        data = data.replace(b"__GUI_VERSION__",
-                            GUI_VERSION.encode("ascii"))
+        data = _asset_v_tagged(data)
         self._send(200, data, "text/html; charset=utf-8")
 
     def do_GET(self):

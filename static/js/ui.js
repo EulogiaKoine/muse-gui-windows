@@ -110,6 +110,13 @@ function renderRsideTabs() {
     if (id === rsideTab) b.classList.add("sel")
     b.onclick = (e) => {
       if (e.target.closest(".tx")) return
+      if (id === rsideTab && !tabPinned.includes(id)) closeRsideTab(id)
+      else activateRsideTab(id)
+    }
+    b.oncontextmenu = (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.target.closest(".tx")) return
       openTabMenu(id, b)
     }
     if (!tabPinned.includes(id)) {
@@ -160,7 +167,6 @@ function openTabMenu(id, anchor) {
   hideTabMenu()
   const m = $("#tabmenu")
   const items = [
-    { k: "open", label: t("rtab.open") },
     { k: "rename", label: t("rtab.rename") },
     {
       k: tabPinned.includes(id) ? "unpin" : "pin",
@@ -174,8 +180,7 @@ function openTabMenu(id, anchor) {
     b.onclick = (e) => {
       e.stopPropagation()
       hideTabMenu()
-      if (it.k === "open") activateRsideTab(id)
-      else if (it.k === "rename") renameRsideTab(id)
+      if (it.k === "rename") renameRsideTab(id)
       else if (it.k === "pin" && !tabPinned.includes(id)) {
         tabPinned.push(id)
         saveRTabs()
@@ -214,7 +219,7 @@ function renameRsideTab(id) {
   saveRTabs()
   drawRside()
 }
-function openTabList() {
+function openTabList(anchor) {
   hideTabMenu()
   const m = $("#tabmenu")
   availTabs().forEach((id) => {
@@ -233,7 +238,8 @@ function openTabList() {
     }
     m.appendChild(b)
   })
-  const r = $("#rtabmenu").getBoundingClientRect()
+  const src = anchor && anchor.getBoundingClientRect ? anchor : $("#rtabmenu")
+  const r = src.getBoundingClientRect()
   placePopup(m, r.left, r.bottom + 4, 170)
   m.hidden = false
 }
@@ -383,17 +389,15 @@ document.querySelector("#rtabmenu").addEventListener("click", (e) => {
     hideTabMenu()
     return
   }
-  openTabList()
-})
-document.querySelector("#rtabadd").addEventListener("click", (e) => {
-  e.stopPropagation()
-  const next = availTabs().find((id) => !openTabs.includes(id))
-  if (next) activateRsideTab(next)
-  else openTabList()
+  openTabList(e.currentTarget)
 })
 document.addEventListener("click", (e) => {
   if (!e.target.closest("#tabmenu") && !e.target.closest("#rsidehead"))
     hideTabMenu()
+})
+document.addEventListener("contextmenu", (e) => {
+  if (!e.target.closest) return
+  if (!e.target.closest("#tabmenu")) hideTabMenu()
 })
 function sideEdgeHit(e) {
   if (!e.target || !e.target.closest) return null

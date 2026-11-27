@@ -834,9 +834,7 @@ main.dragover #chat {
 .msg.ai .acts {
   justify-content: flex-start;
 }
-.msg.me .acts {
-  justify-content: flex-end;
-}
+
 .msg .acts button {
   display: inline-flex;
   align-items: center;
@@ -858,16 +856,7 @@ main.dragover #chat {
   color: var(--me);
   transform: scale(1.15);
 }
-.msg.me .acts button {
-  color: var(--muted);
-  opacity: 0.9;
-}
-.msg.me .acts button:hover {
-  opacity: 1;
-  color: var(--me);
-  background: var(--hover);
-  transform: scale(1.15);
-}
+
 .msg pre [data-codecopy] {
   position: absolute;
   top: 5px;
@@ -1204,9 +1193,7 @@ main.lobby form {
 .msg.ai .acts {
   justify-content: flex-start;
 }
-.msg.me .acts {
-  justify-content: flex-end;
-}
+
 .msg .acts button {
   display: inline-flex;
   align-items: center;
@@ -1228,16 +1215,7 @@ main.lobby form {
   color: var(--me);
   transform: scale(1.15);
 }
-.msg.me .acts button {
-  color: var(--muted);
-  opacity: 0.9;
-}
-.msg.me .acts button:hover {
-  opacity: 1;
-  color: var(--me);
-  background: var(--hover);
-  transform: scale(1.15);
-}
+
 .msg pre [data-codecopy] {
   position: absolute;
   top: 5px;

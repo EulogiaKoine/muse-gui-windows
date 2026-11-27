@@ -30,11 +30,6 @@
   max-width: none;
   padding: 2px 0;
 }
-.msg .meta {
-  font-size: 11px;
-  color: var(--muted);
-  margin-top: 6px;
-}
 .msg.me .mfold {
   position: relative;
 }

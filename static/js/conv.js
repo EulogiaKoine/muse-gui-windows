@@ -747,4 +747,3 @@ $("#fsgo").onclick = () => {
 }
 $("#rsidetoggle").onclick = () => setRside(true)
 $("#rsideopen").onclick = () => setRside(false)
-$("#filesbtn").onclick = () => openRside("files")

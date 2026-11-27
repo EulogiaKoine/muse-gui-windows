@@ -351,8 +351,25 @@ function diffOnly(s) {
 function shouldNotifyCompletion(permission, hidden) {
   return permission === "granted" && !!hidden
 }
-function timeStr(ts) {
+function timeStr(ts, now) {
   if (!ts) return ""
   const d = new Date(ts)
-  return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0")
+  const n = new Date(now === undefined ? Date.now() : now)
+  const hm =
+    String(d.getHours()).padStart(2, "0") +
+    ":" +
+    String(d.getMinutes()).padStart(2, "0")
+  if (
+    d.getFullYear() === n.getFullYear() &&
+    d.getMonth() === n.getMonth() &&
+    d.getDate() === n.getDate()
+  )
+    return hm
+  if (d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth())
+    return d.getDate() + " " + hm
+  if (d.getFullYear() === n.getFullYear())
+    return d.getMonth() + 1 + "/" + d.getDate() + " " + hm
+  return (
+    d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate() + " " + hm
+  )
 }

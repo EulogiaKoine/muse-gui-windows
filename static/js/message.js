@@ -72,11 +72,11 @@ function addMsg(who, text, think, foot, withActs, extra) {
       ? "<details><summary>" + esc(t("msg.detail")) + "</summary>" + esc(think) + "</details>"
       : "")
   if (withActs === undefined) withActs = true
-  if (who === "ai") {
-    chat.querySelectorAll(".msg.ai [data-retry]").forEach((b) => b.remove())
-    if (withActs)
-      html +=
-        '<div class="acts"><button type="button" data-retry title="' +
+  let actsInner = ""
+  if (withActs) {
+    if (who === "ai")
+      actsInner =
+        '<button type="button" data-retry title="' +
         escAttr(t("act.retryLast")) +
         '">' +
         ICON_RETRY +
@@ -84,33 +84,33 @@ function addMsg(who, text, think, foot, withActs, extra) {
         escAttr(t("act.copy")) +
         '">' +
         ICON_COPY +
-        "</button></div>"
-  } else
-    html +=
-      '<div class="acts"><button type="button" data-retry title="' +
-      escAttr(t("act.retryFrom")) +
-      '">' +
-      ICON_RETRY +
-      '</button><button type="button" data-copy title="' +
-      escAttr(t("act.copy")) +
-      '">' +
-      ICON_COPY +
-      '</button><button type="button" data-edit title="' +
-      escAttr(t("act.editResend")) +
-      '">✎</button></div>'
+        "</button>"
+    else
+      actsInner =
+        '<button type="button" data-retry title="' +
+        escAttr(t("act.retryFrom")) +
+        '">' +
+        ICON_RETRY +
+        '</button><button type="button" data-copy title="' +
+        escAttr(t("act.copy")) +
+        '">' +
+        ICON_COPY +
+        '</button><button type="button" data-edit title="' +
+        escAttr(t("act.editResend")) +
+        '">✎</button>'
+  }
+  if (who === "ai") {
+    chat.querySelectorAll(".msg.ai [data-retry]").forEach((b) => b.remove())
+    if (actsInner) html += '<div class="acts">' + actsInner + "</div>"
+  }
   let mtime = null
-  if (foot && who === "me") mtime = foot
-  else if (foot) html += '<div class="meta">' + esc(foot) + "</div>"
+  if (foot) mtime = foot
   if (who === "me" && text.length >= 200) {
     d.classList.add("folded")
-    const ai = html.indexOf('<div class="acts">')
-    const content = ai >= 0 ? html.slice(0, ai) : html
-    const rest = ai >= 0 ? html.slice(ai) : ""
     html =
       '<div class="mfold">' +
-      content +
+      html +
       '<div class="foldfade"></div></div>' +
-      rest +
       '<button type="button" class="foldbtn" data-fold title="' +
       escAttr(t("act.toggle")) +
       '">' +
@@ -122,16 +122,42 @@ function addMsg(who, text, think, foot, withActs, extra) {
   decorateMath(d)
   decorateTables(d)
   decoratePaths(d)
-  if (mtime && who === "me") {
+  if (who === "me") {
     const wrap = document.createElement("div")
     wrap.className = "mewrap"
     wrap.dataset.mi = d.dataset.mi
-    const mt = document.createElement("div")
-    mt.className = "mtime"
-    mt.textContent = mtime
-    wrap.append(mt, d)
+    wrap.appendChild(d)
+    if (withActs || mtime) {
+      const row = document.createElement("div")
+      row.className = "mrow"
+      if (mtime) {
+        const mt = document.createElement("span")
+        mt.className = "mtime"
+        mt.textContent = mtime
+        row.appendChild(mt)
+      }
+      if (actsInner) {
+        const ab = document.createElement("div")
+        ab.className = "acts"
+        ab.innerHTML = actsInner
+        row.appendChild(ab)
+      }
+      wrap.appendChild(row)
+    }
     chat.appendChild(wrap)
   } else {
+    if (mtime) {
+      let box = d.querySelector(".acts")
+      if (!box) {
+        box = document.createElement("div")
+        box.className = "acts"
+        d.appendChild(box)
+      }
+      const mt = document.createElement("span")
+      mt.className = "mtime"
+      mt.textContent = mtime
+      box.appendChild(mt)
+    }
     chat.appendChild(d)
   }
   chat.scrollTop = chat.scrollHeight
