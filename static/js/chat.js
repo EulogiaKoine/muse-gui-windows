@@ -232,9 +232,9 @@ function exportConv(c) {
   }, 1000)
 }
 function footFor(m) {
-  const t = timeStr(m.ts)
-  if (!t && !m.el) return ""
-  return t + (m.el ? " · " + m.el + t("time.sec") : "")
+  const ts = timeStr(m.ts)
+  if (!ts && !m.el) return ""
+  return ts + (m.el ? " · " + m.el + t("time.sec") : "")
 }
 function lastAiText() {
   const nodes = chat.querySelectorAll(".msg.ai")
@@ -476,7 +476,7 @@ function saveMsgTo(c, who, text, meta) {
 }
 function sealAiTurn(ph, t0, fr, conv) {
   const el = ((Date.now() - t0) / 1000).toFixed(1)
-  const foot = timeStr(t0) + " · " + el + "초"
+  const foot = timeStr(t0) + " · " + el + t("time.sec")
   ph.innerHTML += '<div class="meta">' + esc(foot) + "</div>"
   saveMsgTo(conv || curConv(), "ai", ph.dataset.raw || "", {
     ts: t0,
