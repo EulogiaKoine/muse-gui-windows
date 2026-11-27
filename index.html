@@ -207,15 +207,27 @@
               ><button type="button" class="optbtn" data-th="dark">다크</button>
             </div>
             <h3 id="palhead">팔레트</h3>
-            <div class="row">
-              <select id="accentsel"></select>
+            <div class="combo" id="accentcombo">
+              <button
+                type="button"
+                class="combo-btn"
+                id="accentsel"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              ></button>
+              <div class="combo-list" id="accentlist" role="listbox" hidden></div>
             </div>
-            <p class="hint" id="accentdesc"></p>
             <h3 id="fonthead">타이포그래피</h3>
-            <div class="row">
-              <select id="fontsel"></select>
+            <div class="combo" id="fontcombo">
+              <button
+                type="button"
+                class="combo-btn"
+                id="fontsel"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              ></button>
+              <div class="combo-list" id="fontlist" role="listbox" hidden></div>
             </div>
-            <p class="hint" id="fontdesc"></p>
             <h3 id="langhead">언어</h3>
             <div class="row" id="langrow">
               <button type="button" class="optbtn" data-lang="ko">한국어</button
