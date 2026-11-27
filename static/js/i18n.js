@@ -106,7 +106,6 @@ const STR = {
     "settings.open": "설정",
     "settings.tabGeneral": "일반",
     "settings.tabAccount": "계정",
-    "settings.tabUsage": "사용량",
     "settings.tabSkills": "스킬",
     "settings.server": "서버",
     "settings.serverInfo": "서버 실행 정보",
@@ -189,35 +188,8 @@ const STR = {
     "feat.upload": "파일 첨부",
     "feat.uploadDesc": "이미지·파일 첨부",
     "feat.soon": "(추후 추가)",
-    "usage.total": "총 사용량",
     "usage.console": "dev.meta.ai 콘솔 열기",
     "usage.consoleTitle": "Meta 개발자 콘솔",
-    "usage.period": "기간",
-    "usage.modelTitle": "모델별 보기",
-    "usage.combined": "통합",
-    "usage.turns": "턴",
-    "usage.calls": "호출",
-    "usage.totalPre": "총 ",
-    "usage.est": "예상 ",
-    "usage.subs": "구독: ",
-    "usage.times": "회",
-    "usage.costHint": "비용은 추정치 (reasoning은 출력 단가 적용) · 단가 기준일: ",
-    "usage.noDaily": "일자별 기록 없음 (세션 로그에 model_completed 없음)",
-    "usage.inLabel": "입력",
-    "usage.outLabel": "출력",
-    "usage.requests": "요청",
-    "usage.inTokens": "입력 토큰",
-    "usage.outTokens": "출력 토큰",
-    "usage.tokensTitle": "토큰 사용량",
-    "usage.costTitle": "예상 비용",
-    "usage.noData": "기록 없음",
-    "usage.noPrices": "단가 정보 없음",
-    "usage.refresh": "비용 업데이트",
-    "usage.refreshing": "갱신 중…",
-    "usage.refreshConfirm":
-      "해당 기능은 토큰을 소비합니다.\n에이전트 세션을 열어 최신 단가를 검색하고 반영할까요?",
-    "usage.refreshFail": "실패: ",
-    "usage.unknown": "알 수 없음",
     "skills.title": "에이전트 스킬",
     "skills.hint":
       "muse CLI 스킬 목록. 토글로 활성화/비활성화를 변경한다. (대화형 세션에 적용, headless exec는 스킬 미로드)",
@@ -239,6 +211,7 @@ const STR = {
     "sk.scope.plugin": "플러그인",
     "sk.scope.bundled": "내장",
     "acct.title": "계정",
+    "acct.console": "Meta AI 콘솔 / 사용량 대시보드",
     "acct.token": "API 토큰",
     "acct.tokenCopy": "토큰 복사",
     "acct.guide": "로그인 가이드",
@@ -427,7 +400,6 @@ const STR = {
     "settings.open": "Settings",
     "settings.tabGeneral": "General",
     "settings.tabAccount": "Account",
-    "settings.tabUsage": "Usage",
     "settings.tabSkills": "Skills",
     "settings.server": "Server",
     "settings.serverInfo": "Server info",
@@ -510,35 +482,8 @@ const STR = {
     "feat.upload": "Attach files",
     "feat.uploadDesc": "Images and files",
     "feat.soon": "(coming soon)",
-    "usage.total": "Total usage",
     "usage.console": "Open dev.meta.ai console",
     "usage.consoleTitle": "Meta developer console",
-    "usage.period": "Range",
-    "usage.modelTitle": "Filter by model",
-    "usage.combined": "All",
-    "usage.turns": "turns",
-    "usage.calls": "calls",
-    "usage.totalPre": "Total ",
-    "usage.est": "Est. ",
-    "usage.subs": "Plan: ",
-    "usage.times": "×",
-    "usage.costHint": "Cost is estimated (reasoning at output rate) · price date: ",
-    "usage.noDaily": "No daily records (no model_completed in logs)",
-    "usage.inLabel": "Input",
-    "usage.outLabel": "Output",
-    "usage.requests": "Requests",
-    "usage.inTokens": "Input tokens",
-    "usage.outTokens": "Output tokens",
-    "usage.tokensTitle": "Token usage",
-    "usage.costTitle": "Estimated cost",
-    "usage.noData": "No data",
-    "usage.noPrices": "No price data",
-    "usage.refresh": "Update prices",
-    "usage.refreshing": "Updating…",
-    "usage.refreshConfirm":
-      "This uses tokens.\nOpen an agent session to fetch the latest prices?",
-    "usage.refreshFail": "Failed: ",
-    "usage.unknown": "unknown",
     "skills.title": "Agent skills",
     "skills.hint":
       "muse CLI skills. Toggle to enable/disable. (interactive sessions; headless exec loads none)",
@@ -560,6 +505,7 @@ const STR = {
     "sk.scope.plugin": "Plugin",
     "sk.scope.bundled": "Bundled",
     "acct.title": "Account",
+    "acct.console": "Meta AI console / Usage dashboard",
     "acct.token": "API token",
     "acct.tokenCopy": "Copy token",
     "acct.guide": "Login guide",
@@ -754,7 +700,6 @@ function paintSettingsStatic() {
   const tabs = {
     gen: "settings.tabGeneral",
     acct: "settings.tabAccount",
-    usage: "settings.tabUsage",
     skills: "settings.tabSkills",
   }
   document.querySelectorAll("#mtabs [data-tab]").forEach((b) => {
@@ -796,18 +741,10 @@ function paintSettingsStatic() {
       t("acct.g5") +
       "</li>"
   setText("#guidehint", t("acct.gHint"))
-  setText("#usagehead", t("usage.total"))
-  setText("#dashlink", t("usage.console"))
-  const dl = document.querySelector("#dashlink")
+  setText("#consolehead", t("acct.console"))
+  setText("#consolelink", t("usage.console"))
+  const dl = document.querySelector("#consolelink")
   if (dl) dl.title = t("usage.consoleTitle")
-  const ur = document.querySelector("#urange")
-  if (ur) ur.setAttribute("aria-label", t("usage.period"))
-  const um = document.querySelector("#umodel")
-  if (um) {
-    um.title = t("usage.modelTitle")
-    const o = um.querySelector("option")
-    if (o) o.textContent = t("usage.combined")
-  }
   setText("#skillhead", t("skills.title"))
   setText("#skillhint", t("skills.hint"))
   setText("#skilladd", t("skills.add"))
@@ -906,7 +843,6 @@ function applyLang(l, save) {
   const ovl = $("#ovl")
   if (ovl && !ovl.hidden) {
     if (typeof loadAccount === "function") loadAccount()
-    if (typeof loadUsage === "function") loadUsage()
     if (typeof loadSkills === "function") {
       const sf = $("#skillform")
       if (!sf || sf.hidden) loadSkills()

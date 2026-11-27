@@ -191,7 +191,6 @@
           <div class="tabs" id="mtabs" role="tablist">
             <button type="button" data-tab="gen" class="sel">일반</button
             ><button type="button" data-tab="acct">계정</button
-            ><button type="button" data-tab="usage">사용량</button
             ><button type="button" data-tab="skills">스킬</button>
           </div>
           <section data-pane="gen" class="on">
@@ -261,6 +260,18 @@
           <section data-pane="acct">
             <h3 id="accthead">계정</h3>
             <div id="acct"><p class="hint">불러오는 중…</p></div>
+            <h3 id="consolehead">Meta AI 콘솔 / 사용량 대시보드</h3>
+            <div class="row">
+              <a
+                class="optbtn"
+                id="consolelink"
+                href="https://dev.meta.ai/usage"
+                target="_blank"
+                rel="noopener"
+                title="Meta 개발자 콘솔"
+                >dev.meta.ai 콘솔 열기</a
+              >
+            </div>
             <h3 id="tokenhead">API 토큰</h3>
             <div class="row">
               <code id="tok" class="grow">…</code
@@ -313,30 +324,6 @@
                 삭제).
               </p>
             </details>
-          </section>
-          <section data-pane="usage">
-            <h3 id="usagehead">총 사용량</h3>
-            <div class="row">
-              <a
-                class="optbtn"
-                id="dashlink"
-                href="https://dev.meta.ai"
-                target="_blank"
-                rel="noopener"
-                title="Meta 개발자 콘솔"
-                >dev.meta.ai 콘솔 열기</a
-              >
-            </div>
-            <div class="urange" id="urange" role="group" aria-label="기간">
-              <button type="button" data-r="7" class="sel">7d</button
-              ><button type="button" data-r="30">30d</button
-              ><button type="button" data-r="90">90d</button>
-              <select id="umodel" title="모델별 보기">
-                <option value="">통합</option>
-              </select>
-            </div>
-            <div id="ucards"></div>
-            <div id="usagebox">불러오는 중…</div>
           </section>
           <section data-pane="skills">
             <h3 id="skillhead">에이전트 스킬</h3>

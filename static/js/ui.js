@@ -3,19 +3,19 @@
 // Sidebar, rside, modal, settings, themes, skills, fs modal handled elsewhere.
 function applySide(hidden) {
   document.body.classList.toggle("side-hidden", !!hidden)
-  const t = $("#sidetoggle")
-  if (!t) return
+  const btn = $("#sidetoggle")
+  if (!btn) return
   if (hidden) {
-    document.querySelector("main header").prepend(t)
-    t.innerHTML = ICON_SIDER
-    t.title = t("side.expand")
-    t.setAttribute("aria-label", t("side.expand"))
+    document.querySelector("main header").prepend(btn)
+    btn.innerHTML = ICON_SIDER
+    btn.title = t("side.expand")
+    btn.setAttribute("aria-label", t("side.expand"))
   } else {
     const head = $("#sidehead")
-    if (head) head.appendChild(t)
-    t.innerHTML = ICON_SIDEL
-    t.title = t("side.collapse")
-    t.setAttribute("aria-label", t("side.collapse"))
+    if (head) head.appendChild(btn)
+    btn.innerHTML = ICON_SIDEL
+    btn.title = t("side.collapse")
+    btn.setAttribute("aria-label", t("side.collapse"))
   }
 }
 function setSide(hidden) {
@@ -1065,7 +1065,6 @@ function saveTheme(patch) {
 function showModal() {
   $("#ovl").hidden = false
   loadAccount()
-  loadUsage()
   loadSkills()
 }
 const SK_SCOPE_ORDER = ["user", "project", "plugin", "bundled"]
@@ -1240,124 +1239,6 @@ document.querySelectorAll("#mtabs button").forEach((b) => {
       )
   }
 })
-async function loadUsage() {
-  const box = $("#usagebox")
-  box.textContent = t("ui.loading")
-  try {
-    const r = await fetch("/api/usage")
-    const j = await r.json()
-    usageFull = j
-    usageDaily = j.daily || []
-    usagePrices = j.prices || null
-    const tot = { calls: 0, input: 0, output: 0, cost: 0 }
-    Object.keys(j.models || {}).forEach((n) => {
-      const m = j.models[n] || {}
-      tot.calls += m.calls || 0
-      tot.input += m.input || 0
-      tot.output += m.output || 0
-      if (usagePrices && usagePrices.models) {
-        const rr = rateFor(n, usagePrices)
-        tot.cost +=
-          ((m.input || 0) * rr[0] +
-            ((m.output || 0) + (m.reasoning || 0)) * rr[1]) /
-          1e6
-      }
-    })
-    let html =
-      "<p>" +
-      esc(t("usage.totalPre")) +
-      j.turns +
-      esc(t("usage.turns")) +
-      " · " +
-      tot.calls +
-      esc(t("usage.calls")) +
-      " · in " +
-      tot.input +
-      " / out " +
-      tot.output +
-      (usagePrices && usagePrices.models
-        ? " · " + esc(t("usage.est")) + fmtMoney(tot.cost)
-        : "") +
-      "</p>"
-    const al = j.allowance || {}
-    html +=
-      "<p>" +
-      esc(t("usage.subs")) +
-      esc(
-        al.allowance
-          ? JSON.stringify(al.allowance)
-          : al.reason || al.hint || t("usage.subsFail"),
-      ) +
-      "</p>"
-    const names = Object.keys(j.models || {})
-    if (names.length) {
-      const maxv = Math.max.apply(
-        null,
-        names
-          .map((n) => (j.models[n].input || 0) + (j.models[n].output || 0))
-          .concat([1]),
-      )
-      html += '<div class="usgrows">'
-      names.forEach((n) => {
-        const m = j.models[n]
-        const totv = (m.input || 0) + (m.output || 0)
-        const w = Math.max(2, Math.round((totv / maxv) * 100))
-        let costTxt = ""
-        if (usagePrices && usagePrices.models) {
-          const rr = rateFor(n, usagePrices)
-          costTxt =
-            " · " +
-            fmtMoney(
-              ((m.input || 0) * rr[0] +
-                ((m.output || 0) + (m.reasoning || 0)) * rr[1]) /
-                1e6,
-            )
-        }
-        html +=
-          '<div class="usgrow"><div class="usgbase"><span class="usgname">' +
-          esc(n) +
-          '</span><span class="usgnum">' +
-          m.calls +
-          esc(t("usage.times")) +
-          " · in " +
-          m.input +
-          " / out " +
-          m.output +
-          costTxt +
-          "</span></div>" +
-          '<div class="usgbar"><i style="width:' +
-          w +
-          '%"></i></div></div>'
-      })
-      html += "</div>"
-      if (usagePrices && usagePrices.models)
-        html +=
-          '<p class="hint">' +
-          esc(t("usage.costHint")) +
-          esc(usagePrices.updated || "?") +
-          "</p>"
-    }
-    const ss = (j.sessions || []).slice(0, 20)
-    if (ss.length) {
-      html += '<div class="sidchips">'
-      ss.forEach((s) => {
-        html +=
-          '<span class="sidchip" title="' +
-          esc(String(s.sid)) +
-          '">' +
-          esc(String(s.sid).slice(0, 8)) +
-          " · " +
-          s.turns +
-          esc(t("usage.turns")) + "</span>"
-      })
-      html += "</div>"
-    }
-    box.innerHTML = html
-    drawUsage()
-  } catch (e) {
-    box.textContent = t("ui.loadFail")
-  }
-}
 function hideModal() {
   $("#ovl").hidden = true
 }
@@ -1502,9 +1383,9 @@ $("#rsidegoal").addEventListener("change", (e) => {
   const it = c.goal.items[+box.dataset.gi]
   if (!it) return
   it.done = !!box.checked
-  const t = c.goal.items.length,
+  const n = c.goal.items.length,
     d = c.goal.items.filter((x) => x.done).length
-  if (t && d >= t && c.goal.active) {
+  if (n && d >= n && c.goal.active) {
     c.goal.active = false
     addMsg("ai", t("goal.achieved") + c.goal.objective)
     saveMsg("ai", t("goal.achieved") + c.goal.objective, { ts: Date.now() })

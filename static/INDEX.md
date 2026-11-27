@@ -16,7 +16,7 @@
 | 7 | `thoughts.js` | 추론 블록(라이브+기록) | `updateThought`, `collectThoughts`, `renderThoughtsStatic`, `toggleThoughtDetail`, `loadFullLog`, `ensureThoughtRow` |
 | 8 | `chat.js` | 메시지 편집·전송·턴 종료 | `startEdit`, `branchFromMessage`, `postChatStream`, `runStreamTurn`, `finishAiTurn`, `notifyCompletion` |
 | 9 | `composer.js` | 입력창·슬래시·칩·+메뉴·yolo | `drawSlash`, `renderChips`, `setMode`, `autoGrow` |
-| 10 | `usage.js` | 사용량 상태+그래프 | `usageDaily`, `drawUsage`, `bucketize`, `tsGraph` |
+| 10 | `usage.js` | 순수 함수(테스트 대상). DOM 없음 | `fmtNum`, `fmtMoney`, `rateFor`, `dayCost`, `bucketize` |
 | 11 | `ui.js` | 사이드바·모달·설정·스킬·테마·fs 일부 | `applyTheme`, `saveTheme`, `loadTheme`, `drawRside`, `loadSkills`, `showModal` |
 | 12 | `main.js` | 부팅 전용: 옵저버+초기화+딥링크 입수 | (실행문만, 정의 없음) |
 

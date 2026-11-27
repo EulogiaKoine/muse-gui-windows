@@ -651,90 +651,6 @@ def live_agents():
                     "sideOf": s.get("sideOf") or ""})
     return out
 
-
-PRICES_FILE = os.path.join(BASE_DIR, "prices.json")
-
-DEFAULT_PRICES = {
-    "updated": "2026-11-26",
-    "source": "Meta Model API 공개가 정리 (third-party aggregator cross-check)",
-    "models": {
-        "muse-spark-1.3": {"input": 1.25, "output": 4.25},
-        "muse-spark-1.2": {"input": 1.25, "output": 4.25},
-        "muse-spark-1.3-contributor": {"input": 0.10, "output": 0.20},
-        "muse-spark-1.2-contributor": {"input": 0.10, "output": 0.20},
-        "muse-ember-1.0": {"input": 0.10, "output": 0.50},
-    },
-}
-
-
-def load_prices():
-    """단가 맵을 읽는다. 파일이 없거나 깨지면 내장 기본값을 돌려준다.
-
-    reasoning 토큰은 output 단가로 계산한다."""
-    try:
-        with open(PRICES_FILE, encoding="utf-8") as f:
-            d = json.load(f)
-        models = d.get("models")
-        if isinstance(models, dict) and models:
-            return {"updated": d.get("updated") or "?",
-                    "source": d.get("source") or "?",
-                    "models": models}
-    except (OSError, ValueError):
-        pass
-    return {"updated": DEFAULT_PRICES["updated"] + " (built-in)",
-            "source": DEFAULT_PRICES["source"],
-            "models": DEFAULT_PRICES["models"]}
-
-
-def model_rate(model, prices):
-    """모델의 (input, output) 단가를 돌려준다. 모르면 spark 표준으로."""
-    m = (prices.get("models") or {}).get(model) or {}
-    try:
-        pin = float(m.get("input", 1.25))
-        pout = float(m.get("output", 4.25))
-    except (TypeError, ValueError):
-        pin, pout = 1.25, 4.25
-    return pin, pout
-
-
-def usage_report():
-    """로컬 원장 집계 + 구독 allowance. 실패해도 원장은 돌려준다."""
-    try:
-        with open(USAGE_FILE) as f:
-            data = json.load(f)
-        if not isinstance(data, dict):
-            data = {}
-    except (OSError, ValueError):
-        data = {}
-    turns, models, sessions = 0, {}, []
-    for sid, e in data.items():
-        if not isinstance(e, dict):
-            continue
-        t = e.get("turns", 0) or 0
-        turns += t
-        for name, a in (e.get("models") or {}).items():
-            if not isinstance(a, dict):
-                continue
-            acc = models.setdefault(
-                name, {"calls": 0, "input": 0, "output": 0, "reasoning": 0})
-            for k in ("calls", "input", "output", "reasoning"):
-                acc[k] += a.get(k, 0) or 0
-        sessions.append({"sid": sid, "turns": t,
-                         "models": e.get("models") or {}})
-    allowance = None
-    try:
-        proc = subprocess.run(["muse", "usage", "--json"],
-                              capture_output=True, text=True, timeout=30,
-                              stdin=subprocess.DEVNULL)
-        allowance = json.loads(proc.stdout or "{}")
-    except (OSError, subprocess.TimeoutExpired, ValueError):
-        allowance = None
-    return {"turns": turns, "models": models, "sessions": sessions,
-            "allowance": allowance, "prices": load_prices(),
-            "daily": daily_usage([sid for sid in data
-                                  if isinstance(data.get(sid), dict)])}
-
-
 def find_session_dirs(sids):
     """원장 sid들의 로그 디렉터리를 한 번의 walk로 찾는다.
 
@@ -775,7 +691,7 @@ def find_tool_output(call_id, sid=None):
     잘린 터미널 출력(truncated)의 전체 본문을 같은 머신의 로그에서
     읽어오는 용도. (sid, call_id)는 검증된 토큰만 사용한다."""
     if not isinstance(call_id, str) or not CALL_RE.match(call_id):
-        return None, "호출 id 형식이 아닙니다.", "tool_bad_id", "", "tool_bad_id", ""
+        return None, "호출 id 형식이 아닙니다.", "tool_bad_id", ""
     root = os.path.realpath(sessions_root())
     scope = None
     if isinstance(sid, str) and SID_RE.match(sid):
@@ -813,136 +729,15 @@ def find_tool_output(call_id, sid=None):
             consider(dirpath)
             dirnames[:] = [d for d in dirnames if d != "subagent"]
     if best is None:
-        return None, "전체 로그를 찾지 못했습니다.", "tool_not_found", "", "tool_not_found", ""
+        return None, "전체 로그를 찾지 못했습니다.", "tool_not_found", ""
     try:
         with open(best[1], "rb") as f:
             raw = f.read(200 * 1024 + 1)
     except OSError:
-        return None, "로그를 읽지 못했습니다.", "tool_read", "", "tool_read", ""
+        return None, "로그를 읽지 못했습니다.", "tool_read", ""
     cut = len(raw) > 200 * 1024
     return {"text": raw[:200 * 1024].decode("utf-8", errors="replace"),
             "truncated": cut}, "", "", ""
-
-
-def daily_usage(sids):
-    """세션 로그를 일자별로 집계한다.
-
-    원장(usage.json)에 타임스탬프가 없어 로그가 source of truth다.
-    model_completed 1건 = 요청 1건, 토큰은 event.usage 실측.
-    recorded_at 단위 방어: µs(>1e14) / ms(>1e11) / 그 외 스킵.
-    """
-    from datetime import datetime
-    days = {}
-    for sid, d in find_session_dirs(sids).items():
-        try:
-            f = open(os.path.join(d, "session.jsonl"),
-                     encoding="utf-8", errors="ignore")
-        except OSError:
-            continue
-        with f:
-            for line in f:
-                if '"model_completed"' not in line:
-                    continue
-                try:
-                    r = json.loads(line)
-                except ValueError:
-                    continue
-                ev = (r.get("payload") or {}).get("event") or {}
-                if ev.get("kind") != "model_completed":
-                    continue
-                ts = r.get("recorded_at", 0) or 0
-                sec = (ts / 1e6 if ts > 1e14
-                       else ts / 1e3 if ts > 1e11 else 0)
-                if not sec:
-                    continue
-                try:
-                    day = datetime.fromtimestamp(sec).date().isoformat()
-                except (OSError, OverflowError, ValueError):
-                    continue
-                e = days.setdefault(day, {"requests": 0, "input": 0,
-                                          "output": 0, "reasoning": 0,
-                                          "models": {}})
-                e["requests"] += 1
-                u = ev.get("usage") or {}
-                iu = u.get("input_tokens", 0) or 0
-                ou = u.get("output_tokens", 0) or 0
-                ru = u.get("reasoning_tokens", 0) or 0
-                e["input"] += iu
-                e["output"] += ou
-                e["reasoning"] += ru
-                name = (ev.get("model") or ev.get("model_id") or
-                        (ev.get("model_info") or {}).get("id") or "unknown")
-                m = e["models"].setdefault(
-                    name, {"requests": 0, "input": 0, "output": 0,
-                           "reasoning": 0})
-                m["requests"] += 1
-                m["input"] += iu
-                m["output"] += ou
-                m["reasoning"] += ru
-    return [{"date": k, **v} for k, v in sorted(days.items())]
-
-
-PRICES_PROMPT = (
-    "Use web search to verify current Muse model API pricing first. "
-    "Return ONLY a JSON object, no prose, no fences: "
-    "{\"models\": {\"<model-id>\": {\"input\": <USD per 1M input tokens>, "
-    "\"output\": <USD per 1M output tokens>}}} "
-    "with current Muse model API pricing "
-    "(models like muse-spark-1.3, muse-spark-1.3-contributor, "
-    "muse-spark-1.2, muse-spark-1.2-contributor, muse-ember-1.0) "
-    "as of today. If unsure about a model, omit it.")
-
-
-def _parse_price_map(text):
-    t = (text or "").strip()
-    if "```" in t:
-        t = re.sub(r"^```[a-zA-Z]*\n|```$", "", t.strip(),
-                   flags=re.MULTILINE).strip()
-    d = json.loads(t)
-    models = d.get("models")
-    if not isinstance(models, dict) or not models:
-        raise ValueError("no models")
-    out = {}
-    for name, v in models.items():
-        if not isinstance(name, str) or not name or not isinstance(v, dict):
-            continue
-        try:
-            pin = float(v["input"])
-            pout = float(v["output"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if pin < 0 or pout < 0:
-            continue
-        out[name] = {"input": pin, "output": pout}
-    if not out:
-        raise ValueError("no valid entries")
-    return out
-
-
-def refresh_prices():
-    """임시 에이전트 세션으로 웹 검색해 단가 맵을 갱신한다.
-
-    성공 시 (True, 요약), 실패 시 (False, 사유)."""
-    from datetime import date as _date
-    sid, text, _workdir = run_muse_exec(PRICES_PROMPT)
-    try:
-        fresh = _parse_price_map(text)
-    except (ValueError, AttributeError) as e:
-        return False, "단가 파싱 실패 (%s). 기존 단가를 유지합니다." % e, "prices_parse", str(e)
-    cur = load_prices()
-    merged = dict(cur.get("models") or {})
-    merged.update(fresh)
-    payload = {"updated": _date.today().isoformat(),
-               "source": "agent refresh (%s)" % (sid or "adhoc"),
-               "models": merged}
-    try:
-        with open(PRICES_FILE, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=1)
-    except OSError as e:
-        return False, "저장 실패: %s" % e, "prices_save", str(e)
-    return True, ("%d개 모델 단가 갱신됨 (%s)." % (len(fresh), payload["updated"]),
-                  "prices_updated", "%d|%s" % (len(fresh), payload["updated"]))
-
 
 SKILL_ID_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_:./-]*$")
 SKILL_SCOPE_MAP = {"bundled": "built-in", "user": "user",
@@ -2178,9 +1973,6 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps(
                 slash_command_list((q.get("lang") or ["ko"])[0]),
                 ensure_ascii=False))
-        elif path == "/api/usage":
-            self._send(200, json.dumps(usage_report(),
-                                      ensure_ascii=False))
         elif path == "/api/skills":
             self._send(200, json.dumps(skills_list(),
                                       ensure_ascii=False))
@@ -2389,13 +2181,6 @@ class Handler(BaseHTTPRequestHandler):
                                         "code": code or None,
                                         "detail": detail},
                                       ensure_ascii=False))
-            return
-        if path == "/api/prices/refresh":
-            ok, text, code, detail = refresh_prices()
-            self._send(200, json.dumps(
-                {"ok": ok, "text" if ok else "error": text,
-                 "code": code or None, "detail": detail},
-                ensure_ascii=False))
             return
         if path == "/api/session/archive":
             ok, msg = archive_session(body.get("session_id") or "",
