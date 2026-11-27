@@ -6,6 +6,34 @@ let pendingPrefix = null
 let skipEcho = false
 let activeStreamAbort = null
 let sendBusy = false
+const NET_OFFLINE_MSG =
+  "!현재 인터넷이 연결되어있지 않아 요청을 보낼 수 없습니다"
+function netOnline() {
+  try {
+    if (typeof navigator !== "undefined" && navigator.onLine === false)
+      return false
+  } catch (e) {}
+  return true
+}
+function showNetOffline() {
+  const m = $("#netmsg")
+  if (m) {
+    m.textContent = NET_OFFLINE_MSG
+    m.hidden = false
+  }
+  const w = $("#inwrap")
+  if (w && w.classList) {
+    w.classList.remove("shake")
+    void w.offsetWidth
+    w.classList.add("shake")
+  }
+}
+function hideNetMsg() {
+  const m = $("#netmsg")
+  if (m) m.hidden = true
+}
+if (typeof window !== "undefined" && window.addEventListener)
+  window.addEventListener("online", hideNetMsg)
 function paintSendTitle() {
   const btn = document.querySelector("#f button[type=submit]")
   if (!btn) return
@@ -648,6 +676,11 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode, atts, turnConv) {
 }
 $("#f").addEventListener("submit", async (e) => {
   e.preventDefault()
+  if (!netOnline()) {
+    showNetOffline()
+    return
+  }
+  hideNetMsg()
   try {
     if (
       typeof Notification !== "undefined" &&
