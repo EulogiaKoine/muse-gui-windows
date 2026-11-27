@@ -133,6 +133,7 @@ function activateRsideTab(id) {
   rsideTab = id
   rsideHold = false
   saveRTabs()
+  applyRside(false)
   drawRside()
 }
 function closeRsideTab(id) {
@@ -254,6 +255,7 @@ function openRside(tab) {
   rsideTab = tab
   rsideHold = false
   saveRTabs()
+  applyRside(false)
   drawRside()
 }
 function drawRside() {
@@ -264,8 +266,6 @@ function drawRside() {
     return
   }
   if (!ids.includes(rsideTab)) rsideTab = ids[0]
-  if (document.body.classList.contains("rside-hidden") && !rsideHold)
-    applyRside(false)
   renderRsideTabs()
   RSIDE_TABS[rsideTab].render()
 }
