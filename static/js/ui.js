@@ -394,6 +394,9 @@ document.querySelector("#rtabmenu").addEventListener("click", (e) => {
   }
   openTabList(e.currentTarget)
 })
+const filesBtn = document.querySelector("#filesbtn")
+if (filesBtn) filesBtn.addEventListener("click", () => openRside("files"))
+else console.warn("[rside] #filesbtn missing from document")
 document.addEventListener("click", (e) => {
   if (!e.target.closest("#tabmenu") && !e.target.closest("#rsidehead"))
     hideTabMenu()

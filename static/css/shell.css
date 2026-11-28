@@ -104,6 +104,10 @@ body.rside-hidden #rside {
 main.lobby + #rside {
   display: none;
 }
+main.lobby #rsideopen,
+main.lobby #filesbtn {
+  display: none;
+}
 #rsidehead {
   display: flex;
   align-items: center;
@@ -193,8 +197,15 @@ main.lobby + #rside {
   padding: 4px 6px;
   cursor: pointer;
   flex: none;
+  align-self: flex-start;
   line-height: 1;
   font-size: 14px;
+  margin-top: 2px;
+  transition: background-color 0.15s ease;
+}
+#rtabmenu:hover {
+  background-color: color-mix(in srgb, var(--hover) 65%, transparent);
+  color: var(--text);
 }
 #rtabmenu:hover {
   color: var(--text);
@@ -255,18 +266,19 @@ main.lobby + #rside {
   display: none;
 }
 #filesbtn {
-  border: 1px solid var(--bd);
-  background: var(--bg);
+  border: 0;
+  background: transparent;
   border-radius: 8px;
-  padding: 4px 10px;
+  padding: 4px 8px;
   cursor: pointer;
   color: var(--muted);
-  font-size: 12px;
+  line-height: 0;
   flex: none;
+  transition: background-color 0.15s ease;
 }
 #filesbtn:hover {
-  border-color: var(--me);
-  color: var(--me);
+  background-color: color-mix(in srgb, var(--hover) 65%, transparent);
+  color: var(--text);
 }
 .fgroup {
   border: 1px solid var(--bd);

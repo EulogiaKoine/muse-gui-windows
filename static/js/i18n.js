@@ -793,6 +793,7 @@ function applyLang(l, save) {
     t(bodyHas("rside-hidden") ? "side.expand" : "side.collapse"),
   )
   setTip("#rsideopen", t("side.expand"))
+  setTip("#filesbtn", t("rtab.files"))
   paintCtxMenu()
   paintFsStatic()
   paintSettingsStatic()
