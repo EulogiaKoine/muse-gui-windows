@@ -215,7 +215,7 @@ async function branchFromMessage(c, mi, newText, atts) {
       Object.keys(ex).length ? ex : null,
     )
   })
-  chat.scrollTop = chat.scrollHeight
+  chatscroll.scrollTop = chatscroll.scrollHeight
   setRoute("/" + c.k)
   input.value = newText
   input.focus()
@@ -607,7 +607,7 @@ async function goalAutoChain(goalMode, j, conv) {
     const msg = t("goal.autoCap")
     if (turnIsCurrent(conv)) {
       addMsg("ai", msg)
-      chat.scrollTop = chat.scrollHeight
+      chatscroll.scrollTop = chatscroll.scrollHeight
     }
     saveMsgTo(cc, "ai", msg)
     drawConvs()
@@ -733,7 +733,7 @@ $("#f").addEventListener("submit", async (e) => {
       isFamilyConv(activeTurnConv, cur)
     ) {
       addMsg("ai", t("send.famBusy"))
-      chat.scrollTop = chat.scrollHeight
+      chatscroll.scrollTop = chatscroll.scrollHeight
       return
     }
     try {
@@ -904,7 +904,7 @@ $("#f").addEventListener("submit", async (e) => {
       }
       drawConvs()
       refreshPrefs()
-      chat.scrollTop = chat.scrollHeight
+      chatscroll.scrollTop = chatscroll.scrollHeight
     } else {
       await runStreamTurn(
         seedPre + full,
@@ -918,7 +918,7 @@ $("#f").addEventListener("submit", async (e) => {
       )
       drawConvs()
       refreshPrefs()
-      chat.scrollTop = chat.scrollHeight
+      chatscroll.scrollTop = chatscroll.scrollHeight
     }
   } catch (err) {
     ph.dataset.raw = t("chat.sendFail") + err
