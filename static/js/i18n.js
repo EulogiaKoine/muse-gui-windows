@@ -177,6 +177,8 @@ const STR = {
     "msg.detail": "상세",
     "msg.tableMd": "마크다운",
     "file.openFail": "열기 실패: ",
+    "file.notFound": "경로를 찾을 수 없습니다: ",
+    "file.wslShellFail": "WSL 셸을 열 수 없습니다: ",
     "feat.viz": "시각화",
     "feat.vizDesc": "인터랙티브 패널로 답변 요청",
     "feat.web": "웹 검색",
@@ -469,6 +471,8 @@ const STR = {
     "msg.detail": "Details",
     "msg.tableMd": "Markdown",
     "file.openFail": "Failed to open: ",
+    "file.notFound": "Path not found: ",
+    "file.wslShellFail": "Cannot open a WSL shell: ",
     "feat.viz": "Visualization",
     "feat.vizDesc": "Answer with an interactive panel",
     "feat.web": "Web search",
@@ -774,7 +778,6 @@ function applyLang(l, save) {
   }
   setText("#cwdlabel", t("cwd.label"))
   setText("#rsideempty1", t("rside.empty"))
-  setText("#rsideempty2", t("rside.emptyHint"))
   const rtm = $("#rtabmenu")
   if (rtm) {
     rtm.title = t("rtab.list")

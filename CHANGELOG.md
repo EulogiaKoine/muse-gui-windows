@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.11.27.100
+- 파일/폴더 열기 오경보 수정: 성공 반환 규격화(2-튜플→4-튜플)·존재 확인 후 발사·WSL 루트 폴더는 `wsl --cd` 셸로 열기
+- 열기 실패 alert 한영 대응(file.notFound·file.wslShellFail) + refcheck ERRMAP 값 검사 확장
+- 햄버거 메뉴 재클릭 닫기, 탭 스트립 좌클릭은 전환 전용, 빈 사이드바 메시지 1행 정리
+
 ## 2026.11.27.99
 - 우측 탭 미표시 복구: rtabmenu 닫는태그 `>` 누락으로 `#rsidetabs`가 파싱 과정에서 삼켜지던 문제 수정(무에러·탭/내용 미표시)
 - `#rsidetabs` 부재 시 console.warn 추가(조용한 실패 방지)

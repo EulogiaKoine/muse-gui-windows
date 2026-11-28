@@ -95,6 +95,10 @@ if keys:
     for m in re.finditer(r"""\bt\(\s*(['"])([A-Za-z0-9_.]+)\1\s*[,)]""",
                          all_js):
         literal.add(m.group(2))
+    mk = re.search(r"ERR_KEYS\s*=\s*\{([^}]*)\}", all_js)
+    if mk:
+        for m in re.finditer(r':\s*"([A-Za-z][A-Za-z0-9_.]*)"', mk.group(1)):
+            literal.add(m.group(1))
     rtab = re.search(r"RTAB_KEYS\s*=\s*\{([^}]*)\}", all_js)
     if rtab:
         literal.update(re.findall(r'"([A-Za-z0-9_.]+)"', rtab.group(1)))

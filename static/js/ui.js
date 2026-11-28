@@ -113,8 +113,7 @@ function renderRsideTabs() {
     if (id === rsideTab) b.classList.add("sel")
     b.onclick = (e) => {
       if (e.target.closest(".tx")) return
-      if (id === rsideTab && !tabPinned.includes(id)) closeRsideTab(id)
-      else activateRsideTab(id)
+      activateRsideTab(id)
     }
     b.oncontextmenu = (e) => {
       e.preventDefault()
@@ -233,7 +232,8 @@ function openTabList(anchor) {
     b.onclick = (e) => {
       e.stopPropagation()
       hideTabMenu()
-      if (openTabs.includes(id)) activateRsideTab(id)
+      if (openTabs.includes(id) && !tabPinned.includes(id))
+        closeRsideTab(id)
       else {
         closedTabs.delete(id)
         activateRsideTab(id)

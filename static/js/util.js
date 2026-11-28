@@ -274,6 +274,8 @@ const ERR_KEYS = {
   folder_win_convert: "err.convertFail",
   folder_exec: "err.exec",
   folder_open: "file.openFail",
+  folder_not_found: "file.notFound",
+  folder_wsl_shell: "file.wslShellFail",
   folder_no_tool: "err.noOpenerA",
   pick_no_powershell: "err.noPowershell",
   pick_exec: "err.exec",
