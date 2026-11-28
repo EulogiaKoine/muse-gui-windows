@@ -107,6 +107,17 @@ const STR = {
     "settings.tabSkills": "스킬",
     "settings.server": "서버",
     "settings.serverInfo": "서버 실행 정보",
+    "settings.agentDir": "기본 에이전트 루트",
+    "settings.agentDirPh": "예: C:\\muse-agent 또는 /mnt/c/muse-agent",
+    "settings.agentBrowse": "찾아보기",
+    "agentdir.required": "설정 > 일반 > 기본 에이전트 루트를 지정해야 세션 자동 생성이 가능합니다",
+    "agentdir.wslRoot": "WSL 루트 밑에는 지정할 수 없습니다: ",
+    "agentdir.notDir": "폴더가 아닙니다: ",
+    "agentdir.createFail": "기본 폴더에 세션을 만들지 못했습니다: ",
+    "agentdir.invalid": "유효한 폴더가 아닙니다: ",
+    "cwdbox.pick": "작업 디렉터리 선택",
+    "cwdbox.unset": "미지정",
+    "cwdbox.auto": "자동 생성",
     "settings.connecting": "연결 중…",
     "settings.theme": "테마",
     "settings.light": "라이트",
@@ -245,6 +256,8 @@ const STR = {
     "palette.githubD": "Primer 참조 · 라이트/다크 전체 적용.",
     "palette.obsidian": "Obsidian",
     "palette.obsidianD": "기본 테마 참조 · 바이올렛 악센트.",
+    "palette.teal": "틸",
+    "palette.tealD": "청록색 악센트.",
     "font.systemD":
       "OS 기본 느낌 그대로. 사이드바·버튼·입력창 등 UI 전반에 가장 선명하다. (기본값)",
     "font.sturdyD":
@@ -401,6 +414,17 @@ const STR = {
     "settings.tabSkills": "Skills",
     "settings.server": "Server",
     "settings.serverInfo": "Server info",
+    "settings.agentDir": "Default agent root",
+    "settings.agentDirPh": "e.g. C:\\muse-agent or /mnt/c/muse-agent",
+    "settings.agentBrowse": "Browse",
+    "agentdir.required": "Set the default agent root in Settings > General to auto-create sessions",
+    "agentdir.wslRoot": "Cannot use a path under the WSL root: ",
+    "agentdir.notDir": "Not a directory: ",
+    "agentdir.createFail": "Could not create a session under the default folder: ",
+    "agentdir.invalid": "Not a valid folder: ",
+    "cwdbox.pick": "Select work directory",
+    "cwdbox.unset": "Not set",
+    "cwdbox.auto": "auto-create",
     "settings.connecting": "Connecting…",
     "settings.theme": "Theme",
     "settings.light": "Light",
@@ -539,6 +563,8 @@ const STR = {
     "palette.githubD": "Primer-based, full light/dark.",
     "palette.obsidian": "Obsidian",
     "palette.obsidianD": "Default-theme-based violet accent.",
+    "palette.teal": "Teal",
+    "palette.tealD": "Teal accent.",
     "font.systemD":
       "Native OS feel. Sharpest across sidebar, buttons, and inputs. (default)",
     "font.sturdyD":
@@ -609,6 +635,26 @@ function setTip(sel, s) {
     el.title = s
     el.setAttribute("aria-label", s)
   }
+}
+function paintAgentStatic() {
+  const inp = document.querySelector("#agentdir")
+  if (inp) {
+    inp.placeholder = t("settings.agentDirPh")
+    if (document.activeElement !== inp && !inp.value) {
+      let cur = ""
+      try {
+        cur = (loadTheme().agentDir || "").trim()
+      } catch (e) {}
+      if (cur) inp.value = cur
+    }
+  }
+  const pb = document.querySelector("#agentpick")
+  if (pb) {
+    pb.textContent = t("settings.agentBrowse")
+    pb.title = t("settings.agentBrowse")
+    pb.setAttribute("aria-label", t("settings.agentBrowse"))
+  }
+  if (typeof updateCwdBox === "function") updateCwdBox()
 }
 function setPh(sel, s) {
   const el = document.querySelector(sel)
@@ -796,7 +842,9 @@ function applyLang(l, save) {
     t(bodyHas("rside-hidden") ? "side.expand" : "side.collapse"),
   )
   setTip("#filesbtn", t("rtab.files"))
+  setText("#agenthead", t("settings.agentDir"))
   paintCtxMenu()
+  paintAgentStatic()
   paintFsStatic()
   paintSettingsStatic()
   document.querySelectorAll("#langrow [data-lang]").forEach((b) => {

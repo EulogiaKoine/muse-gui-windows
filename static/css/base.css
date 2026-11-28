@@ -249,6 +249,63 @@
   --mark: #5c4a00;
   --callout-bd: #333333;
 }
+/* 팔레트: 청록(틸) 악센트. 라이트·다크 각각 전체 변수 세트. */
+[data-accent="teal"] {
+  --bg: #f7fcfc;
+  --panel: #eaf3f3;
+  --bd: #dde9e9;
+  --text: #123237;
+  --muted: #5b7077;
+  --me: #0e7490;
+  --me-text: #ffffff;
+  --input: #ffffff;
+  --bubble: #ffffff;
+  --hover: #0e749014;
+  --mebg: #dcf2f5;
+  --mebd: #a9d8e2;
+  --ok: #0a7e3a;
+  --err: #be222a;
+  --code-tint: #5b707722;
+  --hd: #0e7490;
+  --hdbd: #dde9e9;
+  --code-bg: #f2f8f8;
+  --hl-k: #0f766e;
+  --hl-s: #1f7a3d;
+  --hl-c: #8a9a9e;
+  --hl-n: #0284c7;
+  --hl-f: #7c3aed;
+  --hl-t: #b45309;
+  --mark: #fff3b0;
+  --callout-bd: #dde9e9;
+}
+[data-theme="dark"][data-accent="teal"] {
+  --bg: #0b1214;
+  --panel: #111b1e;
+  --bd: #2f3d42;
+  --text: #e2ecee;
+  --muted: #93a3a8;
+  --me: #2dd4bf;
+  --me-text: #062a26;
+  --input: #0f1a1d;
+  --bubble: #131e21;
+  --hover: #2dd4bf1f;
+  --mebg: #0b3230;
+  --mebd: #145e59;
+  --ok: #69c27e;
+  --err: #f66d67;
+  --code-tint: #93a3a822;
+  --hd: #5eead4;
+  --hdbd: #2f3d42;
+  --code-bg: #0d1518;
+  --hl-k: #2dd4bf;
+  --hl-s: #7ee0a3;
+  --hl-c: #7a8a8e;
+  --hl-n: #79c0ff;
+  --hl-f: #a5b4fc;
+  --hl-t: #fbbf24;
+  --mark: #5c4a00;
+  --callout-bd: #2f3d42;
+}
 * {
   box-sizing: border-box;
 }
