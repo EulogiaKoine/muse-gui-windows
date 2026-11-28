@@ -374,13 +374,11 @@
             id="cwd"
             title="작업 디렉터리 — 클릭하면 탐색기로 열기"
           ></span></span
-        ><button id="filesbtn" type="button">파일</button
         ><button
-          id="rsideopen"
+          id="filesbtn"
           type="button"
-          title="사이드바 펼치기"
-          aria-label="사이드바 펼치기"
-          hidden
+          title="파일"
+          aria-label="파일"
         >
           <svg
             viewBox="0 0 24 24"
@@ -392,7 +390,26 @@
             stroke-linecap="round"
             stroke-linejoin="round"
           >
-            <polyline points="15 18 9 12 15 6" />
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg></button
+        ><button
+          id="rsidetoggle"
+          type="button"
+          title="사이드바 접기"
+          aria-label="사이드바 접기"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="9 18 15 12 9 6" />
           </svg>
         </button>
       </header>
@@ -446,7 +463,18 @@
           title="기능 추가"
           aria-label="기능 추가"
         >
-          +
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
         </button>
         <div id="plusmenu" hidden></div>
         <label
@@ -469,24 +497,6 @@
     <aside id="rside">
       <div id="rsidehead">
         <button
-          id="rsidetoggle"
-          type="button"
-          title="사이드바 접기"
-          aria-label="사이드바 접기"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline points="9 18 15 12 9 6" />
-          </svg></button
-        ><button
           id="rtabmenu"
           type="button"
           title="탭 목록"
@@ -505,14 +515,7 @@
             <line x1="4" y1="12" x2="20" y2="12" />
             <circle cx="8" cy="18" r="1.6" fill="currentColor" stroke="none" />
             <line x1="12" y1="18" x2="20" y2="18" />
-          </svg></button
-        ><button
-          id="rtabadd"
-          type="button"
-          title="탭 열기"
-          aria-label="탭 열기"
-        >
-          +
+          </svg>
         </button>
         <div id="rsidetabs" role="tablist"></div>
         <div id="tabmenu" hidden></div>
@@ -524,7 +527,6 @@
       <section id="rsideempty" data-rpane="empty" hidden>
         <div class="emptybox">
           <p id="rsideempty1">열린 탭이 없습니다</p>
-          <p class="hint" id="rsideempty2">/goal · /help 로 탭을 여세요</p>
         </div>
       </section>
     </aside>

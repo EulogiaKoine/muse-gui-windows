@@ -7,6 +7,18 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable both-edges;
+}
+#chat::-webkit-scrollbar {
+  width: 8px;
+}
+#chat::-webkit-scrollbar-track {
+  background: transparent;
+}
+#chat::-webkit-scrollbar-thumb {
+  background: var(--bd);
+  border-radius: 4px;
 }
 .msg {
   max-width: 78ch;
@@ -19,7 +31,7 @@
   padding: 10px 14px;
   background: var(--mebg);
   color: var(--text);
-  border: 1px solid var(--mebd);
+  border: 0;
   border-radius: 14px 14px 4px 14px;
 }
 .msg.me a {
@@ -29,11 +41,6 @@
   align-self: stretch;
   max-width: none;
   padding: 2px 0;
-}
-.msg .meta {
-  font-size: 11px;
-  color: var(--muted);
-  margin-top: 6px;
 }
 .msg.me .mfold {
   position: relative;

@@ -67,7 +67,6 @@ const STR = {
       "저장 공간이 부족해 대화를 저장하지 못했습니다. 오래된 대화를 삭제해 주세요.",
     "goal.autoCap":
       "목표가 끝나지 않았지만 자동 계속 상한에 도달해 멈췄습니다. 계속하려면 메시지를 보내세요.",
-    "files.btn": "파일",
     "files.loading": "불러오는 중…",
     "files.fail": "파일 목록을 불러오지 못했습니다.",
     "files.empty": "파일 없음",
@@ -82,13 +81,12 @@ const STR = {
     "agents.enter": "이 세션으로 들어가기",
     "agents.noCwd": "작업 디렉터리를 알 수 없어 들어갈 수 없습니다.",
     "rtab.close": "탭 닫기",
-    "rtab.open": "이 탭 열기",
     "rtab.rename": "이름 변경",
     "rtab.renameAsk": "탭 새 이름 (지우면 기본값)",
     "rtab.pin": "고정",
     "rtab.unpin": "고정 해제",
     "rtab.list": "탭 목록",
-    "rtab.add": "탭 열기",
+
     "agents.active": "실행 중",
     "agents.idle": "대기",
     "agents.state_done": "완료(결과 회수)",
@@ -179,6 +177,8 @@ const STR = {
     "msg.detail": "상세",
     "msg.tableMd": "마크다운",
     "file.openFail": "열기 실패: ",
+    "file.notFound": "경로를 찾을 수 없습니다: ",
+    "file.wslShellFail": "WSL 셸을 열 수 없습니다: ",
     "feat.viz": "시각화",
     "feat.vizDesc": "인터랙티브 패널로 답변 요청",
     "feat.web": "웹 검색",
@@ -361,7 +361,6 @@ const STR = {
       "Storage full; conversations could not be saved. Please delete old conversations.",
     "goal.autoCap":
       "Goal not finished, but auto-continue limit reached. Send a message to continue.",
-    "files.btn": "Files",
     "files.loading": "Loading…",
     "files.fail": "Could not load the file list.",
     "files.empty": "No files",
@@ -376,13 +375,12 @@ const STR = {
     "agents.enter": "Enter this session",
     "agents.noCwd": "Cannot enter: unknown working directory.",
     "rtab.close": "Close tab",
-    "rtab.open": "Open this tab",
     "rtab.rename": "Rename",
     "rtab.renameAsk": "New tab name (clear for default)",
     "rtab.pin": "Pin",
     "rtab.unpin": "Unpin",
     "rtab.list": "Tab list",
-    "rtab.add": "Open tab",
+
     "agents.active": "active",
     "agents.idle": "idle",
     "agents.state_done": "done (result collected)",
@@ -473,6 +471,8 @@ const STR = {
     "msg.detail": "Details",
     "msg.tableMd": "Markdown",
     "file.openFail": "Failed to open: ",
+    "file.notFound": "Path not found: ",
+    "file.wslShellFail": "Cannot open a WSL shell: ",
     "feat.viz": "Visualization",
     "feat.vizDesc": "Answer with an interactive panel",
     "feat.web": "Web search",
@@ -778,18 +778,11 @@ function applyLang(l, save) {
   }
   setText("#cwdlabel", t("cwd.label"))
   setText("#rsideempty1", t("rside.empty"))
-  setText("#rsideempty2", t("rside.emptyHint"))
   const rtm = $("#rtabmenu")
   if (rtm) {
     rtm.title = t("rtab.list")
     rtm.setAttribute("aria-label", t("rtab.list"))
   }
-  const rta = $("#rtabadd")
-  if (rta) {
-    rta.title = t("rtab.add")
-    rta.setAttribute("aria-label", t("rtab.add"))
-  }
-  setText("#filesbtn", t("files.btn"))
   setText("#newchatlab", t("conv.new"))
   const cwdEl = $("#cwd")
   if (cwdEl) cwdEl.title = t("cwd.openTitle")
@@ -802,7 +795,7 @@ function applyLang(l, save) {
     "#rsidetoggle",
     t(bodyHas("rside-hidden") ? "side.expand" : "side.collapse"),
   )
-  setTip("#rsideopen", t("side.expand"))
+  setTip("#filesbtn", t("rtab.files"))
   paintCtxMenu()
   paintFsStatic()
   paintSettingsStatic()

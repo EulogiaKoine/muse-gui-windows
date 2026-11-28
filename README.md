@@ -250,7 +250,9 @@ http://127.0.0.1:8765/
 설정 모달의 스킬 패널에서 `muse skills list` 결과를 scope별(사용자·
 프로젝트·플러그인·내장)로 보고, 켜기/끄기·본문 보기가 됩니다.
 `새로 만들기`는 이름·설명·본문을 받아 검증(`muse skills validate`)을
-통과한 것만 사용자 scope에 설치합니다.
+통과한 것만 사용자 scope에 설치합니다. 프로젝트 내장 검증 스킬
+(`.agents/skills/ui-verify`)도 있으며, UI 변경은 `bash tests/run.sh`
+게이트를 통과시킨다.
 
 채팅에서는 ` ```viz-html ` 코드펜스로 인터랙티브 시각화를 넣을 수
 있습니다. `allow-scripts` 단독 sandbox iframe으로만 실행되며
@@ -270,7 +272,8 @@ MIT입니다. 서버가 의존하는 내부 라이브러리는 표준 라이브�
 ## 9. Contribute
 
 포크 후 Pull Request는 자유롭게 받습니다. 동작을 바꾸는 변경은
-`tests/run.sh`(JS 구문·py 컴파일·렌더 하네스)를 통과시켜서 올립니다.
+`tests/run.sh`(JS 구문·py 컴파일·렌더 하네스·HTML/CSS 구조·참조 검사)를 통과시켜서 올립니다.
+UI 변경은 내장 ui-verify 스킬(`.agents/skills/ui-verify`) 게이트를 따릅니다.
 배포 브랜치(`main`) 통합은 사람 손으로 하며, 이때 JS는 세미콜론 없이
 1줄 조건식은 중괄호 없이 쓰는 스타일로 정리합니다.
 

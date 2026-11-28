@@ -745,6 +745,7 @@ $("#fsgo").onclick = () => {
   const p = $("#fspath").value.trim()
   if (p) fsLoad(p)
 }
-$("#rsidetoggle").onclick = () => setRside(true)
-$("#rsideopen").onclick = () => setRside(false)
-$("#filesbtn").onclick = () => openRside("files")
+$("#rsidetoggle").onclick = () => {
+  setRside(!bodyHas("rside-hidden"))
+  setTip("#rsidetoggle", t(bodyHas("rside-hidden") ? "side.expand" : "side.collapse"))
+}

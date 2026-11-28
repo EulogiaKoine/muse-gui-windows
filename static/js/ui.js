@@ -77,10 +77,10 @@ let openTabs = (loadRTabs().open || []).slice()
 let closedTabs = new Set(loadRTabs().closed || [])
 let tabLabels = loadRTabs().labels || {}
 let tabPinned = (loadRTabs().pinned || []).slice()
-const RTAB_KEYS = { goal: "rtab.goal", help: "rtab.help", files: "rtab.files", subagents: "rtab.subagents" }
+const RTAB_LABEL = { goal: "Goal", help: "Help", files: "Files", subagents: "Subagents" }
 function tabLabel(id) {
   if (tabLabels[id]) return tabLabels[id]
-  return RTAB_KEYS[id] ? t(RTAB_KEYS[id]) : id
+  return RTAB_LABEL[id] || id
 }
 function openTabIds() {
   const av = availTabs()
@@ -92,7 +92,10 @@ function openTabIds() {
 }
 function renderRsideTabs() {
   const box = $("#rsidetabs")
-  if (!box) return
+  if (!box) {
+    console.warn("[rside] #rsidetabs missing from document")
+    return
+  }
   box.innerHTML = ""
   const ids = openTabIds()
   const pinned = ids.filter((id) => tabPinned.includes(id))
@@ -109,6 +112,12 @@ function renderRsideTabs() {
     b.appendChild(lab)
     if (id === rsideTab) b.classList.add("sel")
     b.onclick = (e) => {
+      if (e.target.closest(".tx")) return
+      activateRsideTab(id)
+    }
+    b.oncontextmenu = (e) => {
+      e.preventDefault()
+      e.stopPropagation()
       if (e.target.closest(".tx")) return
       openTabMenu(id, b)
     }
@@ -160,7 +169,6 @@ function openTabMenu(id, anchor) {
   hideTabMenu()
   const m = $("#tabmenu")
   const items = [
-    { k: "open", label: t("rtab.open") },
     { k: "rename", label: t("rtab.rename") },
     {
       k: tabPinned.includes(id) ? "unpin" : "pin",
@@ -174,8 +182,7 @@ function openTabMenu(id, anchor) {
     b.onclick = (e) => {
       e.stopPropagation()
       hideTabMenu()
-      if (it.k === "open") activateRsideTab(id)
-      else if (it.k === "rename") renameRsideTab(id)
+      if (it.k === "rename") renameRsideTab(id)
       else if (it.k === "pin" && !tabPinned.includes(id)) {
         tabPinned.push(id)
         saveRTabs()
@@ -214,7 +221,7 @@ function renameRsideTab(id) {
   saveRTabs()
   drawRside()
 }
-function openTabList() {
+function openTabList(anchor) {
   hideTabMenu()
   const m = $("#tabmenu")
   availTabs().forEach((id) => {
@@ -225,7 +232,8 @@ function openTabList() {
     b.onclick = (e) => {
       e.stopPropagation()
       hideTabMenu()
-      if (openTabs.includes(id)) activateRsideTab(id)
+      if (openTabs.includes(id) && !tabPinned.includes(id))
+        closeRsideTab(id)
       else {
         closedTabs.delete(id)
         activateRsideTab(id)
@@ -233,14 +241,16 @@ function openTabList() {
     }
     m.appendChild(b)
   })
-  const r = $("#rtabmenu").getBoundingClientRect()
+  const src = anchor && anchor.getBoundingClientRect ? anchor : $("#rtabmenu")
+  const r = src.getBoundingClientRect()
   placePopup(m, r.left, r.bottom + 4, 170)
   m.hidden = false
 }
 function applyRside(hidden) {
   document.body.classList.toggle("rside-hidden", !!hidden)
-  const b = $("#rsideopen")
-  if (b) b.hidden = !hidden
+  const t = $("#rsidetoggle")
+  if (t) t.classList.toggle("flipped", !!hidden)
+  else console.warn("[rside] #rsidetoggle missing from document")
 }
 function setRside(hidden) {
   rsideHold = !!hidden
@@ -276,14 +286,14 @@ function renderGoal() {
   const g = c && c.goal
   if (!g) {
     box.innerHTML =
-      "<h3>" + esc(t("rtab.goal")) + '</h3><p class="hint">' + t("goal.emptyHtml") + "</p>"
+      '<p class="hint">' + t("goal.emptyHtml") + "</p>"
     return
   }
   const done = g.items.filter((x) => x.done).length,
     tot = g.items.length
   const pct = tot ? Math.round((done / tot) * 100) : 0
   let html =
-    "<h3>" + esc(t("rtab.goal")) + "</h3>" + '<div class="goalobj">' + esc(g.objective) + "</div>"
+    '<div class="goalobj">' + esc(g.objective) + "</div>"
   html +=
     '<div class="goalbar"><i style="width:' +
     pct +
@@ -329,7 +339,7 @@ function renderHelp() {
         : groups[1][1]
     ).push(c)
   })
-  let html = "<h3>" + esc(t("rtab.help")) + "</h3>"
+  let html = ""
   groups.forEach((gr) => {
     if (!gr[1].length) return
     html += '<div class="helpgrp"><h4>' + esc(t(gr[0])) + "</h4>"
@@ -383,17 +393,18 @@ document.querySelector("#rtabmenu").addEventListener("click", (e) => {
     hideTabMenu()
     return
   }
-  openTabList()
+  openTabList(e.currentTarget)
 })
-document.querySelector("#rtabadd").addEventListener("click", (e) => {
-  e.stopPropagation()
-  const next = availTabs().find((id) => !openTabs.includes(id))
-  if (next) activateRsideTab(next)
-  else openTabList()
-})
+const filesBtn = document.querySelector("#filesbtn")
+if (filesBtn) filesBtn.addEventListener("click", () => openRside("files"))
+else console.warn("[rside] #filesbtn missing from document")
 document.addEventListener("click", (e) => {
   if (!e.target.closest("#tabmenu") && !e.target.closest("#rsidehead"))
     hideTabMenu()
+})
+document.addEventListener("contextmenu", (e) => {
+  if (!e.target.closest) return
+  if (!e.target.closest("#tabmenu")) hideTabMenu()
 })
 function sideEdgeHit(e) {
   if (!e.target || !e.target.closest) return null
@@ -656,7 +667,7 @@ async function renderAgents() {
   if (rsideTab !== "subagents") return
   if (!ok && !Object.keys(subRecs).length) {
     box.innerHTML =
-      "<h3>" + esc(t("rtab.subagents")) + "</h3><p class='hint'>" + esc(t("agents.fail")) + "</p>"
+      "<p class='hint'>" + esc(t("agents.fail")) + "</p>"
     return
   }
   const cur = typeof curConv === "function" ? curConv() : null
@@ -733,7 +744,7 @@ async function renderFiles() {
   const cwd =
     (c && c.cwd) || (typeof serverCwd !== "undefined" ? serverCwd : "") || ""
   box.innerHTML =
-    "<h3>" + esc(t("rtab.files")) + "</h3><p class='hint'>" + esc(t("files.loading")) + "</p>"
+    "<p class='hint'>" + esc(t("files.loading")) + "</p>"
   let j = null
   try {
     const r = await fetch(
@@ -748,11 +759,11 @@ async function renderFiles() {
   }
   if (!j || !j.ok) {
     box.innerHTML =
-      "<h3>" + esc(t("rtab.files")) + "</h3><p class='hint'>" + esc(t("files.fail")) + "</p>"
+      "<p class='hint'>" + esc(t("files.fail")) + "</p>"
     return
   }
   const base = j.cwd || cwd
-  let html = "<h3>" + esc(t("rtab.files")) + "</h3>"
+  let html = ""
   j.groups.forEach((g, gi) => {
     html +=
       "<details class='fgroup'" +

@@ -39,6 +39,29 @@ def _gui_version():
 
 GUI_VERSION = _gui_version()
 
+
+def asset_version(rel):
+    """정적 애셋의 캐시버스터: 파일 mtime(초). 파일이 없으면 GUI 버전."""
+    try:
+        return str(int(os.path.getmtime(os.path.join(BASE_DIR, rel))))
+    except OSError:
+        return GUI_VERSION
+
+
+def _asset_v_tagged(data):
+    """index.html 안의 `?v=__GUI_VERSION__`을 애셋별 mtime으로 바꾼다.
+
+    같은 URL이 절대 재사용되지 않으므로, 파일이 바뀌면 다음 로드 때
+    반드시 새 파일을 받는다. 서버 재시작 없이도 적용된다.
+    """
+    def _rep(m):
+        rel = m.group(2).decode("ascii", "replace").lstrip("/")
+        return (m.group(1) + b'="' + m.group(2) +
+                b"?v=" + asset_version(rel).encode("ascii") +
+                b'"')
+    return re.sub(br'(src|href)="(/static/[^"]+?)\?v=__GUI_VERSION__"',
+                  _rep, data)
+
 UI_COMMANDS = [
     {"cmd": "/new", "desc": "새 대화 시작 (세션 초기화)"},
     {"cmd": "/clear", "desc": "화면 지우기 (로컬 표시만)"},
@@ -1466,48 +1489,110 @@ def is_openable_path(path):
         r"^(?:[A-Za-z]:[\\/]|\\\\\\\\|/(?!/)|~(?:/|$)|\\./|\\.\\./)", path))
 
 
-def open_folder(path):
-    """OS 기본 연결로 경로 열기. 폴더→탐색기, 파일→기본 앱.
+def _ps_quote(s):
+    return "'" + s.replace("'", "''") + "'"
 
-    존재 여부는 검사하지 않고 OS에 위임한다. 성공 시 (True, ''),
-    실패 시 (False, 사유)."""
+
+def _ps_run(script, timeout=30):
+    """powershell 실행. (returncode, stdout, stderr).
+    returncode가 None이면 powershell 자체가 뜨지 못한 것이다."""
+    try:
+        proc = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-Command", script],
+            capture_output=True, text=True, timeout=timeout,
+            stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return None, "", "%s: %s" % (type(e).__name__, e)
+    return proc.returncode, proc.stdout or "", proc.stderr or ""
+
+
+def _linux_side_path(path):
+    """경로의 Linux 쪽 실체. Windows형(C:/UNC)은 wslpath -u로 되돌리고,
+    Linux형은 expanduser+절대화한다. 판정 불가면 None."""
+    if re.match(r"^[A-Za-z]:[\\/]", path):
+        try:
+            out = subprocess.run(
+                ["wslpath", "-u", path], capture_output=True,
+                text=True, timeout=10).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        return out or None
+    if path.startswith("\\\\"):
+        return None
+    p = os.path.expanduser(path)
+    if not os.path.isabs(p):
+        p = os.path.join(os.getcwd(), p)
+    return os.path.normpath(p)
+
+
+def _is_wsl_root_dir(lin):
+    """/mnt/<드라이브>/ 이하는 Windows 네이티브, 그 외 Linux 절대경로는
+    WSL 루트 이하로 취급한다."""
+    return bool(os.path.isabs(lin)
+               and not re.match(r"^/mnt/[A-Za-z](/|$)", lin))
+
+
+def _windows_side_path(path, lin):
+    if re.match(r"^[A-Za-z]:[\\/]", path) or path.startswith("\\\\"):
+        return path
+    base = lin if lin is not None else os.path.expanduser(path)
+    if not os.path.isabs(base):
+        base = os.path.join(os.getcwd(), base)
+    try:
+        win = subprocess.run(
+            ["wslpath", "-w", base], capture_output=True,
+            text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return win
+
+
+def _start_detached(win):
+    """연결 앱으로 열기.
+    존재 확인이 끝난 뒤라 발사 실패는 세지 않는다: 실행 중 앱에 새 탭
+    등으로 열리는 경우 stub 종료 코드가 실패로 보여 오경보를 내던
+    문제를 없앤다. 연결 없음 등은 OS가 직접 안내한다. 전면화는
+    시도하지 않는다(보장 불가 + 대기 지연)."""
+    script = "Start-Process -FilePath %s" % _ps_quote(win)
+    rc, _, err = _ps_run(script)
+    if rc is None:
+        return False, "실행 실패.", "folder_exec", err
+    return True, "", None, ""
+
+
+def _open_wsl_shell(lin):
+    """WSL 루트 이하 폴더: `wsl --cd`로 해당 디렉터리에 들어간 셸 창.
+    직접 띄운 프로세스라 실패는 실제 실패다. 기본 distro 기준."""
+    script = ("Start-Process -FilePath 'wsl.exe' "
+              "-ArgumentList '--cd', %s -ErrorAction Stop" % _ps_quote(lin))
+    rc, _, err = _ps_run(script)
+    if rc is None:
+        return False, "실행 실패.", "folder_exec", err
+    if rc != 0:
+        return False, "WSL 셸 열기 실패.", "folder_wsl_shell", \
+            err.strip()[-300:]
+    return True, "", None, ""
+
+
+def open_folder(path):
+    """OS 기본 연결로 경로 열기. 항상 (ok, msg, code, detail) 4-튜플 반환.
+
+    WSL: 존재 확인 후 발사한다. 없는 경로는 열기 전에 돌려보내고,
+    발사는 -ErrorAction Stop 없이 시도한다. WSL 루트 이하 폴더는
+    탐색기 대신 `wsl --cd` 셸 창으로 연다."""
     if not is_openable_path(path):
         return False, "올바른 경로 형식이 아닙니다.", "folder_bad_path", ""
     if _is_wsl():
-        # Windows 경로는 그대로, WSL 경로는 변환 후 Start-Process에 위임.
-        # 폴더는 탐색기로, 파일은 기본 앱으로 열린다. 없는 경로는 OS가
-        # 즉시 오류를 낸다.
-        if re.match(r"^[A-Za-z]:[\\/]", path) or path.startswith("\\\\"):
-            win = path
-        else:
-            p = os.path.expanduser(path)
-            if not os.path.isabs(p):
-                p = os.path.join(os.getcwd(), p)
-            try:
-                win = subprocess.run(
-                    ["wslpath", "-w", p], capture_output=True,
-                    text=True, timeout=10).stdout.strip()
-            except (OSError, subprocess.TimeoutExpired):
-                win = ""
-            if not win:
-                return False, "Windows 경로 변환 실패: %s" % path, "folder_win_convert", path
-        script = ("Start-Process -FilePath '%s' -ErrorAction Stop"
-                  % win.replace("'", "''"))
-        try:
-            proc = subprocess.run(
-                ["powershell.exe", "-NoProfile", "-Command", script],
-                capture_output=True, text=True, timeout=30,
-                stdin=subprocess.DEVNULL)
-        except (OSError, subprocess.TimeoutExpired) as e:
-            return False, "실행 실패: %s" % e, "folder_exec", str(e)
-        if proc.returncode != 0:
-            lines = [l.strip() for l in
-                     clean_ansi(proc.stderr or "").strip().splitlines()
-                     if l.strip()]
-            first = lines[0] if lines else ""
-            msg = re.sub(r"^[\w-]+ : ", "", first)[-300:] or "알 수 없는 오류"
-            return False, "열기 실패: %s" % msg, "folder_open", msg
-        return True, ""
+        lin = _linux_side_path(path)
+        if lin is not None and not os.path.exists(lin):
+            return False, "경로를 찾을 수 없습니다.", "folder_not_found", path
+        if (lin is not None and os.path.isdir(lin)
+                and _is_wsl_root_dir(lin)):
+            return _open_wsl_shell(lin)
+        win = _windows_side_path(path, lin)
+        if not win:
+            return False, "Windows 경로 변환 실패.", "folder_win_convert", path
+        return _start_detached(win)
     opener = "open" if sys.platform == "darwin" else "xdg-open"
     if not shutil.which(opener):
         return False, ("폴더 열기 도구를 찾지 못했습니다 (%s 없음)." % opener,
@@ -1515,7 +1600,7 @@ def open_folder(path):
     try:
         subprocess.Popen([opener, path], stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
-        return True, ""
+        return True, "", None, ""
     except OSError as e:
         return False, "열기 실패: %s" % e, "folder_open", str(e)
 
@@ -1912,8 +1997,7 @@ class Handler(BaseHTTPRequestHandler):
         except OSError:
             self._send(500, "index.html 없음")
             return
-        data = data.replace(b"__GUI_VERSION__",
-                            GUI_VERSION.encode("ascii"))
+        data = _asset_v_tagged(data)
         self._send(200, data, "text/html; charset=utf-8")
 
     def do_GET(self):
