@@ -6,7 +6,7 @@ function drawSlash(filter) {
   slash.innerHTML = ""
   slashIdx = 0
   if (!items.length || !filter.startsWith("/")) {
-    slash.style.display = "none"
+    slash.hidden = true
     return
   }
   items.forEach((c, i) => {
@@ -17,19 +17,19 @@ function drawSlash(filter) {
     b.onclick = () => {
       input.value = c.cmd + " "
       input.focus()
-      slash.style.display = "none"
+      slash.hidden = true
     }
     slash.appendChild(b)
   })
-  slash.style.display = "block"
+  slash.hidden = false
 }
 input.addEventListener("input", () => {
   const v = input.value
   if (v.startsWith("/") && !v.includes(" ") && !v.includes("\n")) drawSlash(v)
-  else slash.style.display = "none"
+  else slash.hidden = true
 })
 input.addEventListener("keydown", (e) => {
-  const popup = slash.style.display === "block"
+  const popup = !slash.hidden
   if (popup && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
     e.preventDefault()
     const bs = [...slash.querySelectorAll("button")]
@@ -72,17 +72,17 @@ const FEAT_ICONS = {
 }
 const FEATS = {
   viz: {
-    chip: "시각화",
+    chipKey: "feat.viz",
     prefix:
       "[시각화 요청] 답변에 인터랙티브 시각화가 필요하면 설명과 함께 아래 형식 코드블록을 포함하라.\n```viz-html\n(외부 CDN 없이 동작하는 단일 HTML 문서. <script> 사용 가능. sandbox라서 same-origin 접근·팝업·다운로드 불가)\n```\n높이는 ```viz-html:높이 로 지정(기본 360). 시각화가 필요 없으면 생략해도 된다. 시각화 문서의 페이지 배경은 투명(transparent)으로 하여 채팅 배경과 어울리게 하라.",
   },
   web: {
-    chip: "웹 검색",
+    chipKey: "feat.web",
     prefix:
       "[웹 검색 필수] 아래 요청에 답하기 전에 반드시 웹 검색을 수행하고 검색 결과와 함께 답하라. 검색 없이 알던 내용으로 답하지 마라. 사용한 검색어와 핵심 근거를 밝혀라. 근거가 된 문장 끝에는 [출처: 사이트명](URL) 형태로 표기하라.",
   },
   autoanswer: {
-    chip: "자동 응답",
+    chipKey: "feat.auto",
     prefix:
       "[자동 응답] 작업 중 선택이 필요하면 사용자에게 묻지 말고 권장(기본) 선택지로 진행하고, 무엇을 선택했는지 결과에 밝혀라. 되돌릴 수 없는 파괴적 조치는 제외하고, 그 경우에만 질문하라.",
   },
@@ -90,29 +90,29 @@ const FEATS = {
 const DOCK_FEATURES = [
   {
     id: "viz",
-    label: "시각화",
-    desc: "인터랙티브 패널로 답변 요청",
+    labelKey: "feat.viz",
+    descKey: "feat.vizDesc",
     ready: true,
     feat: "viz",
   },
   {
     id: "web",
-    label: "웹 검색",
-    desc: "반드시 검색 후 답변",
+    labelKey: "feat.web",
+    descKey: "feat.webDesc",
     ready: true,
     feat: "web",
   },
   {
     id: "autoanswer",
-    label: "자동 응답",
-    desc: "선택지를 묻지 않고 권장안으로 진행",
+    labelKey: "feat.auto",
+    descKey: "feat.autoDesc",
     ready: true,
     feat: "autoanswer",
   },
   {
     id: "upload",
-    label: "파일 첨부",
-    desc: "이미지·파일 첨부",
+    labelKey: "feat.upload",
+    descKey: "feat.uploadDesc",
     ready: true,
     act: "upload",
   },
@@ -124,11 +124,11 @@ function addFeat(id) {
   s.className = "fchip"
   s.dataset.f = id
   s.innerHTML =
-    (FEAT_ICONS[id] || "") + "<span>" + esc(FEATS[id].chip) + "</span> "
+    (FEAT_ICONS[id] || "") + "<span>" + esc(t(FEATS[id].chipKey)) + "</span> "
   const x = document.createElement("button")
   x.type = "button"
   x.textContent = "×"
-  x.title = "제거"
+  x.title = t("act.remove")
   x.onclick = (e) => {
     e.stopPropagation()
     s.remove()
@@ -136,6 +136,12 @@ function addFeat(id) {
   }
   s.appendChild(x)
   $("#feats").appendChild(s)
+}
+function renderFeats() {
+  const box = $("#feats")
+  const cur = [...box.querySelectorAll(".fchip")].map((c) => c.dataset.f)
+  box.innerHTML = ""
+  cur.forEach((id) => addFeat(id))
 }
 function featPrefixes() {
   return [...document.querySelectorAll("#feats .fchip")].map(
@@ -151,9 +157,9 @@ function renderPlusMenu() {
     b.disabled = !f.ready
     const wrap = document.createElement("span")
     const lab = document.createElement("span")
-    lab.textContent = f.label
+    lab.textContent = t(f.labelKey)
     const sm = document.createElement("small")
-    sm.textContent = f.ready ? f.desc : f.desc + " (추후 추가)"
+    sm.textContent = f.ready ? t(f.descKey) : t(f.descKey) + t("feat.soon")
     wrap.appendChild(lab)
     wrap.appendChild(sm)
     b.innerHTML = FEAT_ICONS[f.feat] || ""
@@ -289,7 +295,7 @@ function renderAttachBar() {
     const x = document.createElement("button")
     x.type = "button"
     x.textContent = "×"
-    x.title = "제거"
+    x.title = t("act.remove")
     x.onclick = () => {
       pendingAtts.splice(i, 1)
       renderAttachBar()

@@ -29,6 +29,11 @@ footer {
   align-items: center;
   color: var(--muted);
 }
+footer label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 footer select {
   font-size: 13px;
   max-width: 220px;
@@ -54,6 +59,9 @@ footer select:focus {
   padding: 4px 12px;
   cursor: pointer;
   font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 #yolo:hover {
   border-color: var(--me);
@@ -192,16 +200,54 @@ form {
 .mewrap {
   align-self: flex-end;
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
   max-width: 78ch;
 }
-.mewrap .mtime {
+.mewrap .mrow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+  max-width: 100%;
+}
+.mewrap .mrow .mtime {
   flex: none;
   font-size: 11px;
   color: var(--muted);
-  padding-bottom: 4px;
   white-space: nowrap;
+}
+.mewrap .mrow button {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  background: none;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 6px;
+  line-height: 0;
+  color: var(--muted);
+  opacity: 0.9;
+  transition:
+    transform 0.12s ease,
+    color 0.12s ease,
+    background 0.12s ease;
+}
+.mewrap .mrow button:hover {
+  opacity: 1;
+  color: var(--me);
+  background: var(--hover);
+  transform: scale(1.15);
+}
+.mewrap .mrow svg {
+  display: block;
+}
+.msg.ai .acts .mtime {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  margin-left: 2px;
 }
 .att {
   flex: none;

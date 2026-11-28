@@ -6,8 +6,9 @@ let pendingPrefix = null
 let skipEcho = false
 let activeStreamAbort = null
 let sendBusy = false
-const NET_OFFLINE_MSG =
-  "!현재 인터넷이 연결되어있지 않아 요청을 보낼 수 없습니다"
+function netOfflineMsg() {
+  return t("chat.offline")
+}
 function netOnline() {
   try {
     if (typeof navigator !== "undefined" && navigator.onLine === false)
@@ -18,7 +19,7 @@ function netOnline() {
 function showNetOffline() {
   const m = $("#netmsg")
   if (m) {
-    m.textContent = NET_OFFLINE_MSG
+    m.textContent = netOfflineMsg()
     m.hidden = false
   }
   const w = $("#inwrap")
@@ -69,21 +70,19 @@ function startEdit(msgEl) {
   const cc0 = typeof curConv === "function" ? curConv() : null
   const srcAtts = (cc0 && cc0.msgs[mi0] && cc0.msgs[mi0].atts) || []
   msgEl._editAtts = srcAtts.slice()
+  const sibRow = siblingRow(msgEl)
+  if (sibRow) sibRow.hidden = true
   msgEl.innerHTML =
     '<div class="editatt"></div><textarea class="medit">' +
     esc(old) +
     "</textarea>" +
-    '<div class="meditbar"><button type="button" class="optbtn" data-msave>저장</button>' +
-    '<button type="button" class="optbtn" data-mcancel>취소</button></div>'
+    '<div class="meditbar"><button type="button" class="optbtn" data-msave>' + esc(t("act.save")) + '</button>' +
+    '<button type="button" class="optbtn" data-mcancel>' + esc(t("act.cancel")) + '</button></div>'
   const renderEditAtts = () => {
     const box = msgEl.querySelector(".editatt")
     if (!box) return
     box.innerHTML = ""
-    if (!msgEl._editAtts.length) {
-      box.style.display = "none"
-      return
-    }
-    box.style.display = ""
+    // 빈 경우 `.editatt:empty{display:none}` 규칙으로 숨겨진다.
     msgEl._editAtts.forEach((a, i) => {
       const s = document.createElement("span")
       s.className = "achip"
@@ -91,7 +90,7 @@ function startEdit(msgEl) {
       const x = document.createElement("button")
       x.type = "button"
       x.textContent = "×"
-      x.title = "제거"
+      x.title = t("act.remove")
       x.onclick = (e) => {
         e.stopPropagation()
         msgEl._editAtts.splice(i, 1)
@@ -111,9 +110,25 @@ function startEdit(msgEl) {
   }
   editingEl = msgEl
 }
+function siblingRow(msgEl) {
+  const par = msgEl.parentElement || msgEl.parentNode
+  if (!par || !par.children) return null
+  const kids = par.children
+  for (let i = 0; i < kids.length; i++) {
+    const k = kids[i]
+    if (
+      k !== msgEl &&
+      (" " + (k.className || "") + " ").indexOf(" mrow ") >= 0
+    )
+      return k
+  }
+  return null
+}
 function cancelEdit(msgEl) {
   if (!msgEl) return
   msgEl.classList.remove("editing")
+  const sibRow = siblingRow(msgEl)
+  if (sibRow) sibRow.hidden = false
   if (msgEl.dataset.orig !== undefined) {
     msgEl.innerHTML = msgEl.dataset.orig
     delete msgEl.dataset.orig
@@ -211,13 +226,13 @@ async function branchFromMessage(c, mi, newText, atts) {
 }
 function exportConv(c) {
   if (!c || !c.msgs || !c.msgs.length) {
-    alert("내보낼 대화가 없습니다.")
+    alert(t("conv.exportEmpty"))
     return
   }
   const body = convToMd(c)
   const name =
     "muse-gui-" +
-    String(c.t || "대화")
+    String(c.t || t("conv.untitled"))
       .replace(/[^\w가-힣-]+/g, "_")
       .slice(0, 40) +
     "-" +
@@ -235,9 +250,9 @@ function exportConv(c) {
   }, 1000)
 }
 function footFor(m) {
-  const t = timeStr(m.ts)
-  if (!t && !m.el) return ""
-  return t + (m.el ? " · " + m.el + "초" : "")
+  const ts = timeStr(m.ts)
+  if (!ts && !m.el) return ""
+  return ts + (m.el ? " · " + m.el + t("time.sec") : "")
 }
 function lastAiText() {
   const nodes = chat.querySelectorAll(".msg.ai")
@@ -292,7 +307,7 @@ chat.addEventListener("click", async (e) => {
   }
   const ed = e.target.closest("[data-edit]")
   if (ed) {
-    const msgEl = ed.closest(".msg")
+    const msgEl = bubbleFor(ed)
     if (msgEl) startEdit(msgEl)
     return
   }
@@ -310,7 +325,7 @@ chat.addEventListener("click", async (e) => {
   }
   const rt = e.target.closest("[data-retry]")
   if (rt) {
-    const msgEl = rt.closest(".msg")
+    const msgEl = bubbleFor(rt)
     if (msgEl) {
       const mi = +(msgEl.dataset.mi ?? -1)
       const c = curConv()
@@ -356,8 +371,17 @@ chat.addEventListener("click", async (e) => {
   }
   const b = e.target.closest("[data-copy]")
   if (!b) return
-  flashCopy(b, b.closest(".msg").dataset.raw || "")
+  const bm = bubbleFor(b)
+  flashCopy(b, (bm && bm.dataset.raw) || "")
 })
+function bubbleFor(el) {
+  const m = el.closest(".msg")
+  if (m) return m
+  const row = el.closest(".mrow")
+  const par = row && (row.parentElement || row.parentNode)
+  if (par && par.querySelector) return par.querySelector(".msg")
+  return null
+}
 function notifyCompletion(title, body) {
   try {
     if (typeof Notification === "undefined") return false
@@ -442,14 +466,14 @@ function finishAiTurn(j, ph, goalMode, conv) {
     markThoughtsDone(tbox)
     th = collectThoughts(tbox)
   }
-  ph.dataset.raw = j.text || "(빈 응답)"
+  ph.dataset.raw = j.text || t("chat.emptyResp")
   ph.innerHTML =
     renderText(ph.dataset.raw) +
-    '<div class="acts"><button type="button" data-copy title="복사">' +
+    '<div class="acts"><button type="button" data-copy title="' + escAttr(t("act.copy")) + '">' +
     ICON_COPY +
     "</button></div>"
   if (!(goalMode && goalPendingIn(cc)))
-    notifyCompletion("muse-gui · 응답 완료", ph.dataset.raw)
+    notifyCompletion(t("notify.done"), ph.dataset.raw)
   if (tbox) ph.prepend(tbox)
   decorateCode(ph)
   decorateMath(ph)
@@ -479,16 +503,25 @@ function saveMsgTo(c, who, text, meta) {
 }
 function sealAiTurn(ph, t0, fr, conv) {
   const el = ((Date.now() - t0) / 1000).toFixed(1)
-  const foot = timeStr(t0) + " · " + el + "초"
-  ph.innerHTML += '<div class="meta">' + esc(foot) + "</div>"
+  const foot = timeStr(t0) + " · " + el + t("time.sec")
+  let actsBox = ph.querySelector(".acts")
+  if (!actsBox) {
+    actsBox = document.createElement("div")
+    actsBox.className = "acts"
+    ph.appendChild(actsBox)
+  }
+  const mt = document.createElement("span")
+  mt.className = "mtime"
+  mt.textContent = foot
+  actsBox.appendChild(mt)
   saveMsgTo(conv || curConv(), "ai", ph.dataset.raw || "", {
     ts: t0,
     el,
     th: fr.th,
   })
   if (fr.justDone) {
-    if (turnIsCurrent(conv)) addMsg("ai", "🏁 목표 달성: " + fr.justDone)
-    saveMsgTo(conv || curConv(), "ai", "🏁 목표 달성: " + fr.justDone, {
+    if (turnIsCurrent(conv)) addMsg("ai", t("goal.achieved") + fr.justDone)
+    saveMsgTo(conv || curConv(), "ai", t("goal.achieved") + fr.justDone, {
       ts: Date.now(),
     })
   }
@@ -502,6 +535,7 @@ async function postChatStream(message, sid, cwd, signal, onRun, atts) {
       session_id: sid,
       cwd,
       attachments: atts || [],
+      lang: typeof langCur !== "undefined" ? langCur : "ko",
     }),
     signal: signal || undefined,
   })
@@ -536,7 +570,7 @@ async function postChatStream(message, sid, cwd, signal, onRun, atts) {
     if (it.done) break
   }
   if (!gotDone || !doneJ)
-    throw new Error("스트림이 끝나기 전에 연결이 끊어졌습니다.")
+    throw new Error(t("chat.streamCut"))
   return doneJ
 }
 let goalAutoN = 0
@@ -548,10 +582,10 @@ function goalPending() {
 }
 function makeTurnPh(turnConv) {
   if (turnIsCurrent(turnConv))
-    return addMsg("ai", "응답 생성 중…", null, null, false)
+    return addMsg("ai", t("chat.generating"), null, null, false)
   const d = document.createElement("div")
   d.className = "msg ai"
-  d.dataset.raw = "응답 생성 중…"
+  d.dataset.raw = t("chat.generating")
   return d
 }
 function markBusy(conv, on) {
@@ -577,12 +611,12 @@ async function goalAutoChain(goalMode, j, conv) {
     }
     saveMsgTo(cc, "ai", msg)
     drawConvs()
-    notifyCompletion("muse-gui · 응답 완료", msg)
+    notifyCompletion(t("notify.done"), msg)
     return
   }
   if (/실패|시간 초과|전송 실패|empty/i.test(j.text || "")) {
     goalAutoN = 0
-    notifyCompletion("muse-gui · 응답 완료", j.text || "")
+    notifyCompletion(t("notify.done"), j.text || "")
     return
   }
   goalAutoN++
@@ -605,7 +639,7 @@ async function goalAutoChain(goalMode, j, conv) {
       cc,
     )
   } catch (err) {
-    const alt = "자동 계속 실패: " + err
+    const alt = t("chat.autoFail") + err
     finishAiTurn({ text: alt, session_id: null }, ph, null, cc)
     sealAiTurn(ph, t0, { text: alt, session_id: null }, cc)
   }
@@ -616,11 +650,11 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode, atts, turnConv) {
   const thead = document.createElement("div")
   thead.className = "thead"
   thead.innerHTML =
-    '<span class="tspin"></span><span class="ttype" hidden>통합</span>' +
+    '<span class="tspin"></span><span class="ttype" hidden>' + esc(t("th.all")) + '</span>' +
     '<span class="tsum">' +
     esc(t("th.preparing")) +
     "</span>" +
-    '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button>'
+    '<button type="button" class="ttoggle" data-ttoggle title="' + escAttr(t("act.toggle")) + '">›</button>'
   const tbody = document.createElement("div")
   tbody.className = "tbody"
   tbody.hidden = true
@@ -663,8 +697,8 @@ async function runStreamTurn(full, sid, cwd, ph, t0, goalMode, atts, turnConv) {
     const aborted = err && err.name === "AbortError"
     const base = tstate.texts.join("").trim()
     const alt = base
-      ? base + (aborted ? "\n\n[중단됨]" : "")
-      : "전송 실패: " + err
+      ? base + (aborted ? "\n\n" + t("chat.aborted") : "")
+      : t("chat.sendFail") + err
     const fr = finishAiTurn({ text: alt, session_id: null }, ph, null, tc)
     sealAiTurn(ph, t0, fr, tc)
   } finally {
@@ -719,7 +753,7 @@ $("#f").addEventListener("submit", async (e) => {
     sendText = null
   if (text === "/help" || text.startsWith("/help ")) {
     input.value = ""
-    slash.style.display = "none"
+    slash.hidden = true
     $("#feats").innerHTML = ""
     input.style.height = "auto"
     input.style.overflowY = "hidden"
@@ -729,7 +763,7 @@ $("#f").addEventListener("submit", async (e) => {
   if (text === "/goal" || text.startsWith("/goal ")) {
     const obj = text.slice(5).trim()
     input.value = ""
-    slash.style.display = "none"
+    slash.hidden = true
     $("#feats").innerHTML = ""
     input.style.height = "auto"
     input.style.overflowY = "hidden"
@@ -739,7 +773,7 @@ $("#f").addEventListener("submit", async (e) => {
       else
         addMsg(
           "ai",
-          "진행 중인 목표가 없습니다. `/goal 목표 내용` 으로 시작하세요.",
+          t("goal.noneHint"),
         )
       return
     }
@@ -748,7 +782,7 @@ $("#f").addEventListener("submit", async (e) => {
   }
   const pre = text.startsWith("/") ? [] : featPrefixes()
   input.value = ""
-  slash.style.display = "none"
+  slash.hidden = true
   input.style.height = "auto"
   input.style.overflowY = "hidden"
   $("#feats").innerHTML = ""
@@ -796,14 +830,14 @@ $("#f").addEventListener("submit", async (e) => {
   }
   if (text === "/copy" || text.startsWith("/copy ")) {
     const done = (await copyText(lastAiText()))
-      ? "복사했습니다."
-      : "복사할 답변이 없습니다."
+      ? t("chat.copied")
+      : t("chat.copyNone")
     addMsg("ai", done)
     saveMsg("ai", done)
     drawConvs()
     return
   }
-  const ph = addMsg("ai", "응답 생성 중…", null, null, false)
+  const ph = addMsg("ai", t("chat.generating"), null, null, false)
   const t0 = Date.now()
   const tc0 = curConv()
   activeTurnConv = tc0
@@ -825,6 +859,7 @@ $("#f").addEventListener("submit", async (e) => {
           session_id: sessionId,
           cwd,
           attachments: atts,
+          lang: typeof langCur !== "undefined" ? langCur : "ko",
         }),
       })
       const j = await r.json()
@@ -867,7 +902,7 @@ $("#f").addEventListener("submit", async (e) => {
       chat.scrollTop = chat.scrollHeight
     }
   } catch (err) {
-    ph.dataset.raw = "전송 실패: " + err
+    ph.dataset.raw = t("chat.sendFail") + err
     ph.innerHTML = renderText(ph.dataset.raw)
     decorateCode(ph)
     decorateMath(ph)

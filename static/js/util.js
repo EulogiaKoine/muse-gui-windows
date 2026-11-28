@@ -238,6 +238,85 @@ function slimConvsForSave(list) {
     }
   })
 }
+function chatpadWidth(i) {
+  const ws = ["640px", "920px", "none"]
+  return ws[Number(i)] || "none"
+}
+const ERR_KEYS = {
+  skills_list: "err.fetch",
+  skills_inspect: "err.inspect",
+  skills_bad_id: "err.badId",
+  skills_bad_scope: "err.badScope",
+  skills_exec: "err.exec",
+  skills_exit: "err.exit",
+  skills_preview_loc: "err.previewLoc",
+  skills_bad_path: "err.badPath",
+  skills_too_big: "err.tooBig",
+  skills_read: "err.read",
+  skills_name: "err.nameRule",
+  skills_desc: "err.needDesc",
+  skills_desc_long: "err.descLong",
+  skills_body: "err.needBody",
+  skills_body_long: "err.bodyLong",
+  skills_validate: "err.validate",
+  skills_install: "err.install",
+  skills_create_exec: "err.exec",
+  fs_need_path: "err.needPath",
+  fs_no_dir: "err.noDir",
+  fs_read: "err.read",
+  prices_save: "err.saveFail",
+  session_bad_id: "err.sessionBadId",
+  session_running: "err.sessionRunning",
+  session_not_found: "err.sessionNotFound",
+  session_outside: "err.sessionOutside",
+  session_rm_fail: "err.read",
+  folder_bad_path: "err.badPathFmt",
+  folder_win_convert: "err.convertFail",
+  folder_exec: "err.exec",
+  folder_open: "file.openFail",
+  folder_not_found: "file.notFound",
+  folder_wsl_shell: "file.wslShellFail",
+  folder_no_tool: "err.noOpenerA",
+  pick_no_powershell: "err.noPowershell",
+  pick_exec: "err.exec",
+  pick_timeout: "err.pickTimeoutA",
+  pick_convert: "err.convertFail",
+  pick_fail: "err.pickFail",
+  pick_empty: "err.pickEmpty",
+  pick_cancelled: "",
+  tool_bad_id: "err.badCallId",
+  tool_not_found: "err.notFound",
+  tool_read: "err.read",
+}
+function errText(j, tr) {
+  const t = tr || function (k) {
+    return k
+  }
+  const code = j && j.code
+  const det = j && j.detail !== undefined && j.detail !== null
+    ? String(j.detail)
+    : ""
+  if (code === "pick_cancelled") return ""
+  if (code === "prices_parse") return t("err.parseFail") + det + t("err.parseKeep")
+  if (code === "prices_updated") {
+    const parts = det.split("|")
+    return (parts[0] || "") + t("err.updatedPre") + (parts[1] || "") + ")"
+  }
+  const key = (code && ERR_KEYS[code]) || ""
+  if (!key) return (j && (j.error || j.text)) || ""
+  if (code === "skills_exit") return t(key) + det + ")"
+  if (code === "skills_validate" || code === "skills_install")
+    return t(key) + (det ? " " + det : "")
+  if (code === "pick_timeout") return t(key) + det + t("err.pickTimeoutB")
+  if (code === "pick_fail") {
+    const i = det.indexOf("\n")
+    const rc = i < 0 ? det : det.slice(0, i)
+    const rest = i < 0 ? "" : det.slice(i + 1)
+    return t(key) + " (exit " + rc + (rest ? ": " + rest : "") + ")."
+  }
+  if (code === "folder_no_tool") return t(key) + det + t("err.noOpenerB")
+  return t(key) + det
+}
 function gateFor(c, live) {
   if (!c) return "pick-new"
   if (c.sid) return live ? "" : "resume"
@@ -274,8 +353,25 @@ function diffOnly(s) {
 function shouldNotifyCompletion(permission, hidden) {
   return permission === "granted" && !!hidden
 }
-function timeStr(ts) {
+function timeStr(ts, now) {
   if (!ts) return ""
   const d = new Date(ts)
-  return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0")
+  const n = new Date(now === undefined ? Date.now() : now)
+  const hm =
+    String(d.getHours()).padStart(2, "0") +
+    ":" +
+    String(d.getMinutes()).padStart(2, "0")
+  if (
+    d.getFullYear() === n.getFullYear() &&
+    d.getMonth() === n.getMonth() &&
+    d.getDate() === n.getDate()
+  )
+    return hm
+  if (d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth())
+    return d.getDate() + " " + hm
+  if (d.getFullYear() === n.getFullYear())
+    return d.getMonth() + 1 + "/" + d.getDate() + " " + hm
+  return (
+    d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate() + " " + hm
+  )
 }

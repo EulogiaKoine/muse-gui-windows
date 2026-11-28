@@ -52,7 +52,7 @@ function ensureThoughtRow(tbox, tstate, tid, type, summary) {
   const btn = document.createElement("button")
   btn.type = "button"
   btn.className = "ttoggle"
-  btn.title = "펼치기/접기"
+  btn.title = t("act.toggle")
   btn.textContent = "›"
   btn.setAttribute("data-ttoggle", "")
   btn.hidden = true
@@ -85,7 +85,7 @@ function syncThoughtHead(tbox) {
   if (m === 0) return
   if (d >= m) st.headSum.textContent = thoughtSummary(langCur === "en", counts)
   else st.headSum.textContent = truncStr(st.last || t("th.preparing"), 140)
-  if (st.headSpin) st.headSpin.style.display = d >= m ? "none" : ""
+  if (st.headSpin) st.headSpin.hidden = d >= m
 }
 function updateThoughtHead(tstate) {
   if (tstate && tstate.tbox) syncThoughtHead(tstate.tbox)
@@ -100,7 +100,7 @@ function loadFullLog(btn, callId) {
   fetch("/api/tool_output?" + q)
     .then((r) => r.json())
     .then((j) => {
-      if (!j.ok) throw new Error(j.error || "failed")
+      if (!j.ok) throw new Error(errText(j, t) || "failed")
       const box = btn.closest(".tsubbody")
       const log = box ? box.querySelector(".tlog") : null
       if (log)
@@ -122,10 +122,10 @@ function addThoughtLog(r, head, body, extra) {
   hb.type = "button"
   hb.className = "tsubhead"
   hb.setAttribute("data-ttoggle", "")
-  hb.title = "펼치기/접기"
+  hb.title = t("act.toggle")
   const hs = document.createElement("span")
   hs.className = "tsum"
-  hs.textContent = truncStr(head, 80) || "로그"
+  hs.textContent = truncStr(head, 80) || t("th.log")
   const tg = document.createElement("span")
   tg.className = "ttoggle"
   tg.textContent = "›"
@@ -167,7 +167,7 @@ function addWebResultLog(r, query, results) {
   hb.type = "button"
   hb.className = "tsubhead"
   hb.setAttribute("data-ttoggle", "")
-  hb.title = "펼치기/접기"
+  hb.title = t("act.toggle")
   const hs = document.createElement("span")
   hs.className = "tsum"
   hs.textContent = truncStr(query || t("web.results"), 80)
@@ -393,7 +393,7 @@ function markThoughtsDone(tbox) {
   })
   if (st.rows.size === 0 && st.headSum) {
     st.headSum.textContent = t("th.none")
-    if (st.headSpin) st.headSpin.style.display = "none"
+    if (st.headSpin) st.headSpin.hidden = true
   }
   syncThoughtHead(tbox)
 }
@@ -438,9 +438,9 @@ function renderThoughtsStatic(thoughts) {
         sh +=
           '<div class="tsub tsub-' +
           esc(String(th.k || "tool")) +
-          '"><button type="button" class="tsubhead" data-ttoggle title="펼치기/접기">' +
+          '"><button type="button" class="tsubhead" data-ttoggle title="' + escAttr(t("act.toggle")) + '">' +
           '<span class="tsum">' +
-          esc(s.h || "로그") +
+          esc(s.h || t("th.log")) +
           '</span><span class="ttoggle"' +
           (th.static ? " hidden" : "") +
           ">›</span></button>" +
@@ -468,7 +468,7 @@ function renderThoughtsStatic(thoughts) {
       esc(th.s || "") +
       "</span>" +
       (subs.length && !th.static
-        ? '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button>'
+        ? '<button type="button" class="ttoggle" data-ttoggle title="' + escAttr(t("act.toggle")) + '">›</button>'
         : "") +
       "</div>" +
       det
@@ -482,11 +482,11 @@ function renderThoughtsStatic(thoughts) {
   })
   return (
     '<div class="thoughts static"><div class="thead">' +
-    '<span class="ttype">통합</span>' +
+    '<span class="ttype">' + esc(t("th.all")) + '</span>' +
     '<span class="tsum">' +
     esc(thoughtSummary(langCur === "en", counts)) +
     "</span>" +
-    '<button type="button" class="ttoggle" data-ttoggle title="펼치기/접기">›</button></div>' +
+    '<button type="button" class="ttoggle" data-ttoggle title="' + escAttr(t("act.toggle")) + '">›</button></div>' +
     '<div class="tbody" hidden>' +
     rows +
     "</div></div>"

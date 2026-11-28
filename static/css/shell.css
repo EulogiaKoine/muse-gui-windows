@@ -65,8 +65,30 @@ header {
 #cwd:hover {
   text-decoration: underline;
 }
+/* 채팅 너비 설정: #chat·입력폼·푸터를 가운데로 좁힌다.
+   viz iframe은 width:100%라 좁혀진 열 안에서 그대로 동작한다. */
+#chat,
+main:not(.lobby) form#f,
+main:not(.lobby) footer {
+  width: 100%;
+  max-width: var(--chat-w, none);
+  margin-left: auto;
+  margin-right: auto;
+}
+#chatpad {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--me);
+}
+#chatpadlab {
+  flex: none;
+  min-width: 48px;
+  text-align: right;
+  color: var(--muted);
+  font-size: 13px;
+}
 #rside {
-  width: 284px;
+  width: var(--rside-w, 284px);
   flex: none;
   background: var(--panel);
   border-left: 1px solid var(--bd);
@@ -77,6 +99,13 @@ header {
   min-height: 0;
 }
 body.rside-hidden #rside {
+  display: none;
+}
+main.lobby + #rside {
+  display: none;
+}
+main.lobby #rsidetoggle,
+main.lobby #filesbtn {
   display: none;
 }
 #rsidehead {
@@ -92,7 +121,7 @@ body.rside-hidden #rside {
   min-width: 0;
 }
 #rsidehead {
-  border-bottom: 1px solid var(--bd);
+  border-bottom: 1px solid color-mix(in srgb, var(--panel) 80%, var(--text));
 }
 #rsidetabs {
   overflow-x: auto;
@@ -100,28 +129,26 @@ body.rside-hidden #rside {
 }
 #rsidetabs button {
   flex: none;
-  width: 132px;
+  width: auto;
+  min-width: max-content;
   display: inline-flex;
   align-items: center;
   border: 1px solid transparent;
   border-bottom: 0;
   background: none;
   color: var(--muted);
-  border-radius: 8px 8px 0 0;
-  padding: 7px 4px;
+  border-radius: 6px 6px 0 0;
+  padding: 5px 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 10px;
   margin-bottom: -1px;
-}
-#rsidetabs button .tlab {
-  mask-image: linear-gradient(to right, #000 82%, transparent);
+  transition: background-color 0.15s ease;
 }
 #rsidetabs button:hover {
   color: var(--text);
-  background: var(--hover);
+  background-color: color-mix(in srgb, var(--hover) 65%, transparent);
 }
 #rsidetabs button.sel {
-  background: var(--bg);
   color: var(--text);
   font-weight: 600;
   border-color: var(--bd);
@@ -152,15 +179,14 @@ body.rside-hidden #rside {
 #rsidetabs button.pinned .tlab::before {
   content: "";
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: var(--me);
-  margin-right: 5px;
+  margin-right: 4px;
   vertical-align: 1px;
 }
-#rtabmenu,
-#rtabadd {
+#rtabmenu {
   border: 1px solid transparent;
   background: none;
   color: var(--muted);
@@ -170,9 +196,13 @@ body.rside-hidden #rside {
   flex: none;
   line-height: 1;
   font-size: 14px;
+  transition: background-color 0.15s ease;
 }
-#rtabmenu:hover,
-#rtabadd:hover {
+#rtabmenu:hover {
+  background-color: color-mix(in srgb, var(--hover) 65%, transparent);
+  color: var(--text);
+}
+#rtabmenu:hover {
   color: var(--text);
   background: var(--hover);
 }
@@ -208,8 +238,7 @@ body.rside-hidden #rside {
   color: var(--me);
   font-weight: 600;
 }
-#rsidetoggle,
-#rsideopen {
+#rsidetoggle {
   border: 1px solid var(--bd);
   background: var(--bg);
   border-radius: 8px;
@@ -219,30 +248,30 @@ body.rside-hidden #rside {
   line-height: 0;
   flex: none;
 }
-#rsidetoggle:hover,
-#rsideopen:hover {
+#rsidetoggle:hover {
   border-color: var(--me);
   color: var(--me);
 }
-#rsideopen {
-  margin-left: auto;
+#rsidetoggle svg {
+  transition: transform 0.15s ease;
 }
-#rsideopen[hidden] {
-  display: none;
+#rsidetoggle.flipped svg {
+  transform: scaleX(-1);
 }
 #filesbtn {
-  border: 1px solid var(--bd);
-  background: var(--bg);
+  border: 0;
+  background: transparent;
   border-radius: 8px;
-  padding: 4px 10px;
+  padding: 4px 8px;
   cursor: pointer;
   color: var(--muted);
-  font-size: 12px;
+  line-height: 0;
   flex: none;
+  transition: background-color 0.15s ease;
 }
 #filesbtn:hover {
-  border-color: var(--me);
-  color: var(--me);
+  background-color: color-mix(in srgb, var(--hover) 65%, transparent);
+  color: var(--text);
 }
 .fgroup {
   border: 1px solid var(--bd);

@@ -138,7 +138,7 @@ vm.createContext(sandbox)
 vm.runInContext(src, sandbox)
 vm.runInContext(
   `
-globalThis.__T = { addMsg, markThoughtsDone, collectThoughts, updateThought, toggleThoughtDetail };
+globalThis.__T = { addMsg, markThoughtsDone, collectThoughts, updateThought, toggleThoughtDetail, chatpadWidth, errText, timeStr };
 `,
   sandbox,
 )
@@ -172,21 +172,79 @@ try {
   t("addmsg-empty", !!m4)
   t(
     "addmsg-count",
-    chat.children.filter(
-      (c) => (c.className || "").split(" ").indexOf("msg") >= 0,
-    ).length === 3 && chat.children.length === 4,
+    chat.children.filter((c) => (c.className || "") === "mewrap").length ===
+      3 &&
+      chat.children.filter(
+        (c) => (c.className || "").split(" ").indexOf("msg") >= 0,
+      ).length === 1 &&
+      chat.children.length === 4,
     String(chat.children.length),
   )
   t(
     "addmsg-mtime",
     (() => {
       const w = chat.querySelector(".mewrap")
+      if (!w || w.children.length !== 2) return false
+      if (w.children[0].className.indexOf("msg me") < 0) return false
+      const row = w.children[1]
+      if (!row || row.className !== "mrow" || row.children.length !== 2)
+        return false
       return (
-        !!w &&
-        w.children.length === 2 &&
-        w.children[0].className === "mtime" &&
-        w.children[0].textContent === "12:00" &&
-        w.children[1].className.indexOf("msg me") >= 0
+        row.children[0].className === "mtime" &&
+        row.children[0].textContent === "12:00" &&
+        row.children[1].className === "acts"
+      )
+    })(),
+    "",
+  )
+  t(
+    "addmsg-ai-time",
+    (() => {
+      const acts = m2.children.filter((c) => c.className === "acts")
+      if (!acts.length) return false
+      const tm = acts[acts.length - 1].children.filter(
+        (c) => c.className === "mtime",
+      )
+      return tm.length > 0 && tm[tm.length - 1].textContent === "12:01"
+    })(),
+    "",
+  )
+  t(
+    "addmsg-acts-present",
+    (() => {
+      const meActs = chat.querySelector(".mrow .acts")
+      const meOk =
+        !!meActs &&
+        meActs.innerHTML.indexOf("data-retry") >= 0 &&
+        meActs.innerHTML.indexOf("data-copy") >= 0 &&
+        meActs.innerHTML.indexOf("data-edit") >= 0
+      return (
+        meOk &&
+        m2.innerHTML.indexOf("data-retry") >= 0 &&
+        m2.innerHTML.indexOf("data-copy") >= 0 &&
+        m2.innerHTML.indexOf('class="acts"') >= 0
+      )
+    })(),
+    "",
+  )
+  t(
+    "addmsg-me-no-inner-acts",
+    m1.innerHTML.indexOf('class="acts"') < 0,
+    "",
+  )
+  t(
+    "timeStr-day",
+    (() => {
+      const noon = new Date(2026, 4, 15, 12, 0, 0).getTime()
+      return (
+        T.timeStr(new Date(2026, 4, 15, 9, 41).getTime(), noon) === "09:41" &&
+        T.timeStr(new Date(2026, 4, 14, 8, 5).getTime(), noon) ===
+          "14 08:05" &&
+        T.timeStr(new Date(2026, 3, 2, 23, 59).getTime(), noon) ===
+          "4/2 23:59" &&
+        T.timeStr(new Date(2025, 11, 31, 0, 7).getTime(), noon) ===
+          "2025/12/31 00:07" &&
+        T.timeStr(0, noon) === ""
       )
     })(),
     "",
@@ -296,6 +354,19 @@ function mkbox2() {
       stg.hidden === true &&
       r.det.hidden === before,
   )
+})()
+;(function () {
+  t("chatpad-widths", T.chatpadWidth(0) === "640px" && T.chatpadWidth(1) === "920px" && T.chatpadWidth(2) === "none")
+  t("chatpad-fallback", T.chatpadWidth(9) === "none" && T.chatpadWidth("x") === "none" && T.chatpadWidth() === "none")
+})()
+;(function () {
+  const tr = (k) => "T:" + k
+  t("errtext-code", T.errText({ code: "skills_bad_id", detail: "" }, tr) === "T:err.badId")
+  t("errtext-detail", T.errText({ code: "skills_exec", detail: "boom" }, tr) === "T:err.execboom")
+  t("errtext-exit", T.errText({ code: "skills_exit", detail: "1\nerr" }, tr) === "T:err.exit1\nerr)")
+  t("errtext-updated", T.errText({ code: "prices_updated", detail: "3|2026-11-27" }, tr) === "3T:err.updatedPre2026-11-27)")
+  t("errtext-cancelled", T.errText({ code: "pick_cancelled", error: "취소됨." }, tr) === "")
+  t("errtext-fallback", T.errText({ error: "oops" }, tr) === "oops" && T.errText({}, tr) === "")
 })()
 console.log("")
 console.log(pass + " passed, " + fail + " failed")

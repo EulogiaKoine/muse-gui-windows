@@ -19,7 +19,7 @@ function loadConvs() {
       const msgs = Array.isArray(c.msgs) ? c.msgs : []
       return {
         k: c.k,
-        t: c.t || "새 대화",
+        t: c.t || t("conv.new"),
         sid: c.sid || null,
         cwd: c.cwd || null,
         pin: !!c.pin,
@@ -104,7 +104,7 @@ function saveConv(title) {
   } else
     convs.unshift({
       k: convKey,
-      t: title || "새 대화",
+      t: title || t("conv.new"),
       sid: null,
       cwd: serverCwd,
       msgs: [],
@@ -255,19 +255,22 @@ let fsCb = null,
   fsCur = "",
   fsParent = null,
   fsEntries = []
-async function openFsPicker(cb) {
-  fsCb = cb
-  $("#fsfilter").value = ""
-  $("#fsovl").hidden = false
+async function refreshFsRoots() {
   let start = serverCwd || "/"
   try {
-    const r = await fetch("/api/fs/roots")
+    const r = await fetch("/api/fs/roots?lang=" + langCur)
     const j = await r.json()
     renderRoots(j.roots || [])
     const c = (j.roots || []).find((x) => x.path === "/mnt/c")
     if (c) start = c.path
   } catch (e) {}
-  fsLoad(start)
+  return start
+}
+async function openFsPicker(cb) {
+  fsCb = cb
+  $("#fsfilter").value = ""
+  $("#fsovl").hidden = false
+  fsLoad(await refreshFsRoots())
 }
 function hideFsPicker() {
   $("#fsovl").hidden = true
@@ -288,18 +291,18 @@ function renderRoots(roots) {
 }
 async function fsLoad(p) {
   const box = $("#fslist")
-  box.innerHTML = '<div class="fempty">불러오는 중…</div>'
+  box.innerHTML = '<div class="fempty">' + esc(t("ui.loading")) + "</div>"
   try {
     const r = await fetch("/api/fs/list?path=" + encodeURIComponent(p))
     if (r.status === 404) {
       box.innerHTML =
-        '<div class="fempty">서버가 구버전입니다. muse-gui를 다시 시작하세요.</div>'
+        '<div class="fempty">' + esc(t("fs.oldServer")) + "</div>"
       return
     }
     const j = await r.json()
     if (!j.ok) {
       box.innerHTML =
-        '<div class="fempty">' + esc(j.error || "읽기 실패") + "</div>"
+        '<div class="fempty">' + esc(errText(j, t) || t("err.read")) + "</div>"
       return
     }
     fsCur = j.path
@@ -310,7 +313,7 @@ async function fsLoad(p) {
     renderFsCrumbs(fsCur)
     renderFsList()
   } catch (e) {
-    box.innerHTML = '<div class="fempty">서버 연결 실패</div>'
+    box.innerHTML = '<div class="fempty">' + esc(t("status.serverFail")) + "</div>"
   }
 }
 function renderFsCrumbs(path) {
@@ -344,7 +347,7 @@ function renderFsList() {
   const q = ($("#fsfilter").value || "").toLowerCase()
   const items = fsEntries.filter((e) => !q || e.name.toLowerCase().includes(q))
   if (!items.length) {
-    box.innerHTML = '<div class="fempty">비어 있음</div>'
+    box.innerHTML = '<div class="fempty">' + esc(t("fs.empty")) + "</div>"
     return
   }
   items.forEach((e) => {
@@ -406,7 +409,7 @@ function drawConvs() {
       ok.type = "button"
       ok.className = "crok"
       ok.textContent = "✓"
-      ok.title = "완료"
+      ok.title = t("conv.done")
       let finished = false
       const done = (save) => {
         if (finished || renamingKey !== c.k) return
@@ -454,7 +457,7 @@ function drawConvs() {
     b.title =
       (c.sid ? c.sid.slice(0, 8) + " · " : "") +
       c.msgs.length +
-      "개 메시지" +
+      t("conv.msgCount") +
       (c.cwd ? "\n" + c.cwd : "")
     if (c.k === convKey) b.classList.add("active")
     b.onclick = () => openConv(c.k)
@@ -463,14 +466,14 @@ function drawConvs() {
       const p = document.createElement("span")
       p.className = "pinbadge"
       p.textContent = "📌"
-      p.title = "상단 고정됨"
+      p.title = t("conv.pinned")
       row.appendChild(p)
     }
     const dots = document.createElement("button")
     dots.type = "button"
     dots.className = "cdots"
     dots.textContent = "⋮"
-    dots.title = "메뉴"
+    dots.title = t("ctx.menu")
     dots.onclick = (e) => {
       e.stopPropagation()
       showCtx(e, c.k)
@@ -523,6 +526,10 @@ function drawConvs() {
     }
   })
 }
+function placePopup(el, x, y, w, maxY) {
+  el.style.left = Math.min(x, window.innerWidth - w) + "px"
+  el.style.top = (maxY === undefined ? y : Math.min(y, maxY)) + "px"
+}
 function showCtx(e, k) {
   e.preventDefault()
   const c = convs.find((x) => x.k === k)
@@ -530,9 +537,12 @@ function showCtx(e, k) {
   ctx.dataset.k = k
   ctx.style.display = "block"
   const pinBtn = ctx.querySelector('[data-act="pin"]')
-  if (pinBtn) pinBtn.textContent = c && c.pin ? "고정 해제" : "상단 고정"
-  ctx.style.left = Math.min(e.clientX, window.innerWidth - 160) + "px"
-  ctx.style.top = Math.min(e.clientY, window.innerHeight - 140) + "px"
+  if (pinBtn) {
+    const pinned = !!(c && c.pin)
+    pinBtn.dataset.pinned = pinned ? "1" : ""
+    pinBtn.textContent = pinned ? t("ctx.unpin") : t("ctx.pin")
+  }
+  placePopup(ctx, e.clientX, e.clientY, 160, window.innerHeight - 140)
 }
 function hideCtx() {
   $("#ctx").style.display = "none"
@@ -558,7 +568,10 @@ $("#ctx").addEventListener("click", (e) => {
     confirm(
       '"' +
         c.t +
-        '" 대화와 muse 세션 기록을 함께 삭제할까요?\n(실행 중인 세션은 삭제되지 않습니다)',
+        '"' +
+        t("conv.delConfirmA") +
+        "\n" +
+        t("conv.delConfirmB"),
     )
   ) {
     const sid = c.sid || null
@@ -582,7 +595,7 @@ $("#ctx").addEventListener("click", (e) => {
       })
         .then((r) => r.json())
         .then((j) => {
-          if (!j.ok) alert("세션 기록 삭제 실패: " + (j.text || "?"))
+          if (!j.ok) alert(t("conv.delSessionFail") + (errText(j, t) || "?"))
         })
         .catch(() => {})
     }
@@ -654,9 +667,9 @@ $("#cwd").onclick = async () => {
       body: JSON.stringify({ path: p }),
     })
     const j = await r.json()
-    if (!j.ok) alert("폴더 열기 실패: " + (j.error || p))
+    if (!j.ok) alert(t("conv.openFolderFail") + (errText(j, t) || p))
   } catch (err) {
-    alert("폴더 열기 실패: " + p)
+    alert(t("conv.openFolderFail") + p)
   }
 }
 $("#gatebtn").onclick = () => {
@@ -672,7 +685,7 @@ $("#gatebtn").onclick = () => {
         sessionId = null
         convs.unshift({
           k: convKey,
-          t: "새 대화",
+          t: t("conv.new"),
           sid: null,
           cwd: p,
           msgs: [],
@@ -709,21 +722,20 @@ $("#fswin").onclick = async () => {
   const b = $("#fswin")
   b.disabled = true
   const old = b.textContent
-  b.textContent = "Windows에서 선택 중…"
+  b.textContent = t("fs.picking")
   try {
     const r = await fetch("/api/fs/pick-native", { method: "POST" })
     if (r.status === 404) {
-      $("#fssel").textContent =
-        "서버가 구버전입니다. muse-gui를 다시 시작하세요."
+      $("#fssel").textContent = t("fs.oldServer")
       return
     }
     const j = await r.json()
     if (j.ok && j.path) {
       fsLoad(j.path)
-    } else if (j.error && j.error !== "취소됨.")
-      $("#fssel").textContent = j.error
+    } else if (j.code && j.code !== "pick_cancelled")
+      $("#fssel").textContent = errText(j, t) || j.error || ""
   } catch (e) {
-    $("#fssel").textContent = "서버 연결 실패"
+    $("#fssel").textContent = t("status.serverFail")
   } finally {
     b.disabled = false
     b.textContent = old
@@ -733,6 +745,7 @@ $("#fsgo").onclick = () => {
   const p = $("#fspath").value.trim()
   if (p) fsLoad(p)
 }
-$("#rsidetoggle").onclick = () => setRside(true)
-$("#rsideopen").onclick = () => setRside(false)
-$("#filesbtn").onclick = () => openRside("files")
+$("#rsidetoggle").onclick = () => {
+  setRside(!bodyHas("rside-hidden"))
+  setTip("#rsidetoggle", t(bodyHas("rside-hidden") ? "side.expand" : "side.collapse"))
+}
