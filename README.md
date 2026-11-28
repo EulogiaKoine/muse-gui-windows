@@ -270,7 +270,8 @@ MIT입니다. 서버가 의존하는 내부 라이브러리는 표준 라이브�
 ## 9. Contribute
 
 포크 후 Pull Request는 자유롭게 받습니다. 동작을 바꾸는 변경은
-`tests/run.sh`(JS 구문·py 컴파일·렌더 하네스)를 통과시켜서 올립니다.
+`tests/run.sh`(JS 구문·py 컴파일·렌더 하네스·HTML/CSS 구조·참조 검사)를 통과시켜서 올립니다.
+UI 변경은 내장 ui-verify 스킬(`.agents/skills/ui-verify`) 게이트를 따릅니다.
 배포 브랜치(`main`) 통합은 사람 손으로 하며, 이때 JS는 세미콜론 없이
 1줄 조건식은 중괄호 없이 쓰는 스타일로 정리합니다.
 

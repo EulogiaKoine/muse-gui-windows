@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.11.27.99
+- 우측 탭 미표시 복구: rtabmenu 닫는태그 `>` 누락으로 `#rsidetabs`가 파싱 과정에서 삼켜지던 문제 수정(무에러·탭/내용 미표시)
+- `#rsidetabs` 부재 시 console.warn 추가(조용한 실패 방지)
+- ui-verify 스킬 신설: htmlcheck(id 파싱 생존+태그 균형)·csscheck(괄호 균형)·refcheck(JS id 참조+i18n 키) + run.sh 게이트
+
 ## 2026.11.27.98
 - 우측 탭 +버튼 완전 제거(목록 버튼으로 통합)·파일 버튼 제거
 - New Chat 화면에서 우측 사이드바 숨김

@@ -30,4 +30,6 @@ node tests/render.test.js
 node tests/usage.test.js
 node tests/interaction.test.js
 node tests/boot.test.js
-python3 tests/html_ids.py
+python3 .agents/skills/ui-verify/scripts/htmlcheck.py
+python3 .agents/skills/ui-verify/scripts/csscheck.py
+python3 .agents/skills/ui-verify/scripts/refcheck.py
