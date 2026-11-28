@@ -394,11 +394,10 @@
             <polyline points="14 2 14 8 20 8" />
           </svg></button
         ><button
-          id="rsideopen"
+          id="rsidetoggle"
           type="button"
-          title="사이드바 펼치기"
-          aria-label="사이드바 펼치기"
-          hidden
+          title="사이드바 접기"
+          aria-label="사이드바 접기"
         >
           <svg
             viewBox="0 0 24 24"
@@ -410,7 +409,7 @@
             stroke-linecap="round"
             stroke-linejoin="round"
           >
-            <polyline points="15 18 9 12 15 6" />
+            <polyline points="9 18 15 12 9 6" />
           </svg>
         </button>
       </header>
@@ -464,7 +463,18 @@
           title="기능 추가"
           aria-label="기능 추가"
         >
-          +
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
         </button>
         <div id="plusmenu" hidden></div>
         <label
@@ -487,10 +497,10 @@
     <aside id="rside">
       <div id="rsidehead">
         <button
-          id="rsidetoggle"
+          id="rtabmenu"
           type="button"
-          title="사이드바 접기"
-          aria-label="사이드바 접기"
+          title="탭 목록"
+          aria-label="탭 목록"
         >
           <svg
             viewBox="0 0 24 24"
@@ -500,35 +510,16 @@
             stroke="currentColor"
             stroke-width="2"
             stroke-linecap="round"
-            stroke-linejoin="round"
           >
-            <polyline points="9 18 15 12 9 6" />
-          </svg></button
-        >
+            <line x1="4" y1="6" x2="20" y2="6" />
+            <line x1="4" y1="12" x2="20" y2="12" />
+            <circle cx="8" cy="18" r="1.6" fill="currentColor" stroke="none" />
+            <line x1="12" y1="18" x2="20" y2="18" />
+          </svg>
+        </button>
         <div id="rsidetabs" role="tablist"></div>
+        <div id="tabmenu" hidden></div>
       </div>
-      <button
-        id="rtabmenu"
-        type="button"
-        title="탭 목록"
-        aria-label="탭 목록"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          width="14"
-          height="14"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-        >
-          <line x1="4" y1="6" x2="20" y2="6" />
-          <line x1="4" y1="12" x2="20" y2="12" />
-          <circle cx="8" cy="18" r="1.6" fill="currentColor" stroke="none" />
-          <line x1="12" y1="18" x2="20" y2="18" />
-        </svg>
-      </button>
-      <div id="tabmenu" hidden></div>
       <section id="rsidegoal" data-rpane="goal"></section>
       <section id="rsidehelp" data-rpane="help" hidden></section>
       <section id="rsidefiles" data-rpane="files" hidden></section>

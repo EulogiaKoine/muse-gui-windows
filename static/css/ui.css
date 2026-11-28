@@ -910,6 +910,10 @@ main.dragover #chat {
   width: 30px;
   height: 30px;
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border-radius: 50%;
   border: 1px solid var(--bd);
   background: var(--bg);
@@ -1264,22 +1268,6 @@ main.lobby form {
 .iconbtn:hover {
   color: var(--me);
   transform: scale(1.15);
-}
-#plus {
-  width: 30px;
-  height: 30px;
-  flex: none;
-  border-radius: 50%;
-  border: 1px solid var(--bd);
-  background: var(--bg);
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  color: var(--muted);
-  transition:
-    transform 0.12s ease,
-    color 0.12s ease,
-    border-color 0.12s ease;
 }
 #plus:hover {
   border-color: var(--me);

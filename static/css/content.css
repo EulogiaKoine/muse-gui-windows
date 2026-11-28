@@ -29,6 +29,11 @@ footer {
   align-items: center;
   color: var(--muted);
 }
+footer label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 footer select {
   font-size: 13px;
   max-width: 220px;
@@ -54,6 +59,9 @@ footer select:focus {
   padding: 4px 12px;
   cursor: pointer;
   font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 #yolo:hover {
   border-color: var(--me);

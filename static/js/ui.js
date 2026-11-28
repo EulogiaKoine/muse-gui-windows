@@ -77,10 +77,10 @@ let openTabs = (loadRTabs().open || []).slice()
 let closedTabs = new Set(loadRTabs().closed || [])
 let tabLabels = loadRTabs().labels || {}
 let tabPinned = (loadRTabs().pinned || []).slice()
-const RTAB_KEYS = { goal: "rtab.goal", help: "rtab.help", files: "rtab.files", subagents: "rtab.subagents" }
+const RTAB_LABEL = { goal: "Goal", help: "Help", files: "Files", subagents: "Subagents" }
 function tabLabel(id) {
   if (tabLabels[id]) return tabLabels[id]
-  return RTAB_KEYS[id] ? t(RTAB_KEYS[id]) : id
+  return RTAB_LABEL[id] || id
 }
 function openTabIds() {
   const av = availTabs()
@@ -248,8 +248,9 @@ function openTabList(anchor) {
 }
 function applyRside(hidden) {
   document.body.classList.toggle("rside-hidden", !!hidden)
-  const b = $("#rsideopen")
-  if (b) b.hidden = !hidden
+  const t = $("#rsidetoggle")
+  if (t) t.classList.toggle("flipped", !!hidden)
+  else console.warn("[rside] #rsidetoggle missing from document")
 }
 function setRside(hidden) {
   rsideHold = !!hidden
@@ -285,14 +286,14 @@ function renderGoal() {
   const g = c && c.goal
   if (!g) {
     box.innerHTML =
-      "<h3>" + esc(t("rtab.goal")) + '</h3><p class="hint">' + t("goal.emptyHtml") + "</p>"
+      '<p class="hint">' + t("goal.emptyHtml") + "</p>"
     return
   }
   const done = g.items.filter((x) => x.done).length,
     tot = g.items.length
   const pct = tot ? Math.round((done / tot) * 100) : 0
   let html =
-    "<h3>" + esc(t("rtab.goal")) + "</h3>" + '<div class="goalobj">' + esc(g.objective) + "</div>"
+    '<div class="goalobj">' + esc(g.objective) + "</div>"
   html +=
     '<div class="goalbar"><i style="width:' +
     pct +
@@ -338,7 +339,7 @@ function renderHelp() {
         : groups[1][1]
     ).push(c)
   })
-  let html = "<h3>" + esc(t("rtab.help")) + "</h3>"
+  let html = ""
   groups.forEach((gr) => {
     if (!gr[1].length) return
     html += '<div class="helpgrp"><h4>' + esc(t(gr[0])) + "</h4>"
@@ -666,7 +667,7 @@ async function renderAgents() {
   if (rsideTab !== "subagents") return
   if (!ok && !Object.keys(subRecs).length) {
     box.innerHTML =
-      "<h3>" + esc(t("rtab.subagents")) + "</h3><p class='hint'>" + esc(t("agents.fail")) + "</p>"
+      "<p class='hint'>" + esc(t("agents.fail")) + "</p>"
     return
   }
   const cur = typeof curConv === "function" ? curConv() : null
@@ -743,7 +744,7 @@ async function renderFiles() {
   const cwd =
     (c && c.cwd) || (typeof serverCwd !== "undefined" ? serverCwd : "") || ""
   box.innerHTML =
-    "<h3>" + esc(t("rtab.files")) + "</h3><p class='hint'>" + esc(t("files.loading")) + "</p>"
+    "<p class='hint'>" + esc(t("files.loading")) + "</p>"
   let j = null
   try {
     const r = await fetch(
@@ -758,11 +759,11 @@ async function renderFiles() {
   }
   if (!j || !j.ok) {
     box.innerHTML =
-      "<h3>" + esc(t("rtab.files")) + "</h3><p class='hint'>" + esc(t("files.fail")) + "</p>"
+      "<p class='hint'>" + esc(t("files.fail")) + "</p>"
     return
   }
   const base = j.cwd || cwd
-  let html = "<h3>" + esc(t("rtab.files")) + "</h3>"
+  let html = ""
   j.groups.forEach((g, gi) => {
     html +=
       "<details class='fgroup'" +

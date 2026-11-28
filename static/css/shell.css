@@ -104,7 +104,7 @@ body.rside-hidden #rside {
 main.lobby + #rside {
   display: none;
 }
-main.lobby #rsideopen,
+main.lobby #rsidetoggle,
 main.lobby #filesbtn {
   display: none;
 }
@@ -121,7 +121,7 @@ main.lobby #filesbtn {
   min-width: 0;
 }
 #rsidehead {
-  border-bottom: 1px solid var(--bd);
+  border-bottom: 1px solid color-mix(in srgb, var(--panel) 80%, var(--text));
 }
 #rsidetabs {
   overflow-x: auto;
@@ -130,28 +130,25 @@ main.lobby #filesbtn {
 #rsidetabs button {
   flex: none;
   width: auto;
-  max-width: 180px;
+  min-width: max-content;
   display: inline-flex;
   align-items: center;
   border: 1px solid transparent;
   border-bottom: 0;
   background: none;
   color: var(--muted);
-  border-radius: 8px 8px 0 0;
-  padding: 7px 8px;
+  border-radius: 6px 6px 0 0;
+  padding: 5px 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 10px;
   margin-bottom: -1px;
-}
-#rsidetabs button .tlab {
-  mask-image: linear-gradient(to right, #000 82%, transparent);
+  transition: background-color 0.15s ease;
 }
 #rsidetabs button:hover {
   color: var(--text);
-  background: var(--hover);
+  background-color: color-mix(in srgb, var(--hover) 65%, transparent);
 }
 #rsidetabs button.sel {
-  background: var(--bg);
   color: var(--text);
   font-weight: 600;
   border-color: var(--bd);
@@ -182,11 +179,11 @@ main.lobby #filesbtn {
 #rsidetabs button.pinned .tlab::before {
   content: "";
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: var(--me);
-  margin-right: 5px;
+  margin-right: 4px;
   vertical-align: 1px;
 }
 #rtabmenu {
@@ -197,10 +194,8 @@ main.lobby #filesbtn {
   padding: 4px 6px;
   cursor: pointer;
   flex: none;
-  align-self: flex-start;
   line-height: 1;
   font-size: 14px;
-  margin-top: 2px;
   transition: background-color 0.15s ease;
 }
 #rtabmenu:hover {
@@ -243,8 +238,7 @@ main.lobby #filesbtn {
   color: var(--me);
   font-weight: 600;
 }
-#rsidetoggle,
-#rsideopen {
+#rsidetoggle {
   border: 1px solid var(--bd);
   background: var(--bg);
   border-radius: 8px;
@@ -254,16 +248,15 @@ main.lobby #filesbtn {
   line-height: 0;
   flex: none;
 }
-#rsidetoggle:hover,
-#rsideopen:hover {
+#rsidetoggle:hover {
   border-color: var(--me);
   color: var(--me);
 }
-#rsideopen {
-  margin-left: auto;
+#rsidetoggle svg {
+  transition: transform 0.15s ease;
 }
-#rsideopen[hidden] {
-  display: none;
+#rsidetoggle.flipped svg {
+  transform: scaleX(-1);
 }
 #filesbtn {
   border: 0;
