@@ -352,6 +352,19 @@ form button[type="submit"]:active {
   font-size: 12px;
   color: var(--muted);
 }
+#agentdir {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: var(--text);
+}
+#agentdir:focus {
+  outline: 2px solid var(--me);
+  outline-offset: -1px;
+}
 .ucards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1047,8 +1060,36 @@ main.lobby #lobby {
 }
 main.lobby form {
   max-width: 640px;
-  margin: auto;
+  margin: auto auto 0;
   width: 100%;
+}
+#cwdbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 8px auto 0;
+  max-width: 640px;
+  padding: 8px 12px;
+  border: 1px solid var(--bd);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+#cwdbox[hidden] {
+  display: none;
+}
+main:not(.lobby) #cwdbox {
+  display: none;
+}
+#cwdpath {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+main.lobby #cwdwrap {
+  display: none;
 }
 @media (prefers-reduced-motion: reduce) {
   * {
