@@ -199,6 +199,19 @@
               <span id="srvdot" class="svcdot"></span
               ><span id="srvinfo" title="서버 실행 정보">연결 중…</span>
             </div>
+            <h3 id="agenthead">기본 에이전트 루트</h3>
+            <div class="row">
+              <input
+                id="agentdir"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="예: C:\muse-agent"
+              /><button type="button" class="optbtn" id="agentpick">
+                찾아보기
+              </button>
+            </div>
+            <div class="row"><span id="agentmsg" class="hint" hidden></span></div>
             <h3 id="themehead">테마</h3>
             <div class="row" id="themes">
               <button type="button" class="optbtn" data-th="light">
@@ -456,6 +469,10 @@
           </div>
         </div>
       </form>
+      <div id="cwdbox">
+        <button type="button" class="optbtn" id="cwdbtn">작업 디렉터리 선택</button>
+        <span id="cwdpath">미지정</span>
+      </div>
       <footer>
         <button
           id="plus"

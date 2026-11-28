@@ -821,7 +821,26 @@ $("#f").addEventListener("submit", async (e) => {
     !isSlashCmd && cc0 && cc0.sub && !cc0.sub.used && cc0.sub.seed
       ? cc0.sub.seed + "\n\n"
       : ""
-  saveConv(text.slice(0, 30))
+  let sendCwd = null
+  let sendSid = null
+  if (!text.startsWith("/") || sendText !== null) {
+    const cc0p = typeof curConv === "function" ? curConv() : null
+    if (!cc0p || !cc0p.cwd) {
+      const r = await resolveSendCwd()
+      if (!r) {
+        input.value = text
+        return
+      }
+      sendCwd = r.cwd
+      sendSid = r.sid || null
+    }
+  }
+  saveConv(text.slice(0, 30), sendCwd, sendSid)
+  if (sendSid) sessionId = sendSid
+  if (sendCwd) {
+    const cw = $("#cwd")
+    if (cw) cw.textContent = sendCwd
+  }
   const meTs = Date.now()
   if (skipEcho) skipEcho = false
   else {

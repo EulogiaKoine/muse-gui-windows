@@ -20,6 +20,7 @@ import sys
 import tempfile
 import time
 import urllib.parse
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HOST = os.environ.get("MUSE_GUI_HOST", "127.0.0.1")
@@ -1574,6 +1575,41 @@ def _open_wsl_shell(lin):
     return True, "", None, ""
 
 
+def _session_known(sid):
+    """CLI가 아는 세션인지(이어쓰기 대상). 디스크 기록→실행 중 순으로 확인."""
+    if not sid or not SID_RE.match(sid):
+        return False
+    try:
+        if find_session_dirs([sid]):
+            return True
+    except Exception:
+        pass
+    try:
+        return sid in running_session_ids()
+    except Exception:
+        return False
+
+
+def check_agent_root(path):
+    """기본 에이전트 폴더 검증. (ok, code, detail, linux_path).
+
+    WSL 루트 밑은 거부한다(Windows 탐색기로 열 수 있어야 하므로).
+    """
+    if not is_openable_path(path):
+        return False, "folder_bad_path", path, None
+    lin = _linux_side_path(path)
+    if lin is None or not os.path.isabs(lin):
+        return False, "folder_bad_path", path, None
+    lin = os.path.realpath(lin)
+    if not os.path.exists(lin):
+        return False, "folder_not_found", path, None
+    if not os.path.isdir(lin):
+        return False, "agentdir_notdir", path, None
+    if _is_wsl_root_dir(lin):
+        return False, "agentdir_wslroot", path, None
+    return True, None, "", lin
+
+
 def open_folder(path):
     """OS 기본 연결로 경로 열기. 항상 (ok, msg, code, detail) 4-튜플 반환.
 
@@ -1783,6 +1819,9 @@ def build_muse_cmd(prompt, session_id, workdir, images=()):
             cmd += ["--reasoning-effort", eff]
     if session_id:
         cmd += ["--session-id", session_id]
+        if not _session_known(session_id):
+            # 미리 정해진 새 세션 id: 작업 디렉터리도 함께 지정한다.
+            cmd += ["--workspace", workdir]
     elif not flag_value(MUSE_ARGS, "--workspace"):
         # 새 세션만 대화별 작업 디렉터리로 시작한다.
         cmd += ["--workspace", workdir]
@@ -2289,6 +2328,39 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps(
                 {"ok": ok, "error": None if ok else msg,
                  "code": code or None, "detail": detail},
+                ensure_ascii=False))
+            return
+        if path == "/api/agent-dir":
+            ok, code, detail, lin = check_agent_root(
+                body.get("path") or "")
+            self._send(200, json.dumps(
+                {"ok": ok, "root": lin if ok else None,
+                 "error": None if ok else code,
+                 "code": code if not ok else None,
+                 "detail": detail if not ok else None},
+                ensure_ascii=False))
+            return
+        if path == "/api/agent-dir/create":
+            ok, code, detail, lin = check_agent_root(
+                body.get("root") or "")
+            if not ok:
+                self._send(200, json.dumps(
+                    {"ok": False, "error": code, "code": code,
+                     "detail": detail},
+                    ensure_ascii=False))
+                return
+            sid = str(uuid.uuid4())
+            target = os.path.join(lin, sid)
+            try:
+                os.mkdir(target)
+            except OSError as e:
+                self._send(200, json.dumps(
+                    {"ok": False, "error": "mkdir failed",
+                     "code": "folder_exec", "detail": str(e)},
+                    ensure_ascii=False))
+                return
+            self._send(200, json.dumps(
+                {"ok": True, "sid": sid, "path": target},
                 ensure_ascii=False))
             return
         if path in ("/api/file/open", "/api/file/delete"):

@@ -96,7 +96,7 @@ function setRoute(p) {
     history.replaceState(null, "", p)
   } catch (e) {}
 }
-function saveConv(title) {
+function saveConv(title, cwd, sid) {
   convKey = convKey || "c" + Date.now()
   const ex = curConv()
   if (ex) {
@@ -105,8 +105,8 @@ function saveConv(title) {
     convs.unshift({
       k: convKey,
       t: title || t("conv.new"),
-      sid: null,
-      cwd: serverCwd,
+      sid: sid || null,
+      cwd: cwd || serverCwd,
       msgs: [],
       at: Date.now(),
       createdAt: Date.now(),
@@ -161,8 +161,6 @@ function touchLive() {
 function inputGated() {
   const c = curConv()
   const g = gateFor(c, !!c && liveSessions.includes(c.k))
-  if (g === "pick-new")
-    return { msg: t("gate.pickNew"), btn: t("gate.pickBtn"), act: "pick-new" }
   if (g === "resume")
     return {
       msg:
@@ -202,6 +200,129 @@ function updateOsChip() {
     c.textContent = serverPlatform
   } else c.hidden = true
 }
+let pendingCwd = ""
+let pendingSid = null
+function agentDir() {
+  try {
+    return (loadTheme().agentDir || "").trim()
+  } catch (e) {
+    return ""
+  }
+}
+function updateCwdBox() {
+  const box = $("#cwdbox")
+  if (!box) return
+  const b = $("#cwdbtn")
+  if (b) b.textContent = t("cwdbox.pick")
+  const p = $("#cwdpath")
+  if (p) {
+    const ad = agentDir()
+    p.textContent =
+      pendingCwd || (ad ? ad + " (" + t("cwdbox.auto") + ")" : t("cwdbox.unset"))
+    p.title = pendingCwd || ad || ""
+  }
+}
+function warnAgent(msg) {
+  const m = $("#netmsg")
+  if (m) {
+    m.textContent = msg
+    m.hidden = false
+  }
+  const w = $("#inwrap")
+  if (w) {
+    w.classList.remove("shake")
+    void w.offsetWidth
+    w.classList.add("shake")
+  }
+}
+async function resolveSendCwd() {
+  const cc = typeof curConv === "function" ? curConv() : null
+  if (cc && cc.cwd) return { cwd: cc.cwd, sid: cc.sid || null }
+  if (pendingCwd) return { cwd: pendingCwd, sid: pendingSid }
+  const root = agentDir()
+  if (!root) {
+    warnAgent(t("agentdir.required"))
+    return null
+  }
+  let j = null
+  try {
+    const r = await fetch("/api/agent-dir/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ root }),
+    })
+    j = await r.json()
+  } catch (e) {
+    j = null
+  }
+  if (!j || !j.ok) {
+    warnAgent((j && errText(j, t)) || t("agentdir.createFail") + root)
+    return null
+  }
+  pendingCwd = j.path
+  pendingSid = j.sid || null
+  updateCwdBox()
+  return { cwd: j.path, sid: j.sid || null }
+}
+async function saveAgentDir(p) {
+  const msg = $("#agentmsg")
+  const show = (text) => {
+    if (!msg) return
+    msg.textContent = text || ""
+    msg.hidden = !text
+  }
+  const v = (p || "").trim()
+  if (!v) {
+    try {
+      saveTheme({ agentDir: "" })
+    } catch (e) {}
+    show("")
+    updateCwdBox()
+    if (typeof hideNetMsg === "function") hideNetMsg()
+    return true
+  }
+  let j = null
+  try {
+    const r = await fetch("/api/agent-dir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: v }),
+    })
+    j = await r.json()
+  } catch (e) {
+    j = null
+  }
+  if (!j || !j.ok) {
+    show((j && errText(j, t)) || t("agentdir.invalid") + v, true)
+    return false
+  }
+  try {
+    saveTheme({ agentDir: j.root })
+  } catch (e) {}
+  const inp = $("#agentdir")
+  if (inp && document.activeElement !== inp) inp.value = j.root
+  show("")
+  updateCwdBox()
+  if (typeof hideNetMsg === "function") hideNetMsg()
+  return true
+}
+$("#cwdbtn").onclick = () => {
+  openFsPicker((p) => {
+    pendingCwd = p
+    pendingSid = null
+    updateCwdBox()
+    if (typeof hideNetMsg === "function") hideNetMsg()
+    input.focus()
+  })
+}
+$("#agentpick").onclick = () => {
+  openFsPicker((p) => {
+    const inp = $("#agentdir")
+    if (inp) inp.value = p
+    saveAgentDir(p)
+  })
+}
+$("#agentdir").addEventListener("change", (e) => saveAgentDir(e.target.value))
 let scrollSaveT = null
 function saveScroll() {
   const c = curConv()
@@ -256,7 +377,7 @@ let fsCb = null,
   fsParent = null,
   fsEntries = []
 async function refreshFsRoots() {
-  let start = serverCwd || "/"
+  let start = "/"
   try {
     const r = await fetch("/api/fs/roots?lang=" + langCur)
     const j = await r.json()
@@ -651,8 +772,12 @@ $("#newchat").onclick = () => {
   userFreshStart = true
   chat.innerHTML = ""
   $("#cwd").textContent = serverCwd
+  pendingCwd = ""
+  pendingSid = null
   setRoute("/")
   updateGate()
+  updateCwdBox()
+  if (typeof hideNetMsg === "function") hideNetMsg()
   drawRside()
   input.focus()
 }
@@ -678,36 +803,20 @@ $("#gatebtn").onclick = () => {
     touchLive()
     updateGate()
     input.focus()
-  } else
-    openFsPicker((p) => {
-      if (act === "pick-new") {
-        convKey = "c" + Date.now()
-        sessionId = null
-        convs.unshift({
-          k: convKey,
-          t: t("conv.new"),
-          sid: null,
-          cwd: p,
-          msgs: [],
-          at: Date.now(),
-          createdAt: Date.now(),
-        })
-        persistConvs()
-        drawConvs()
-        openConv(convKey)
-        input.focus()
-      } else {
-        const c = curConv()
-        if (c) {
-          c.cwd = p
-          persistConvs()
-          drawConvs()
-        }
-        $("#cwd").textContent = p
-        updateGate()
-        input.focus()
-      }
-    })
+    return
+  }
+  if (act !== "pick") return
+  openFsPicker((p) => {
+    const c = curConv()
+    if (c) {
+      c.cwd = p
+      persistConvs()
+      drawConvs()
+    }
+    $("#cwd").textContent = p
+    updateGate()
+    input.focus()
+  })
 }
 $("#fsclose").onclick = hideFsPicker
 $("#fscancel").onclick = hideFsPicker

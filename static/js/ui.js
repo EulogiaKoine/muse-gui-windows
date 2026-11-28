@@ -848,6 +848,12 @@ function loadTheme() {
 }
 const PALETTES = [
   {
+    id: "github",
+    labelKey: "palette.github",
+    descKey: "palette.githubD",
+    sw: ["#ffffff", "#0969da", "#0d1117"],
+  },
+  {
     id: "blue",
     labelKey: "palette.blue",
     descKey: "palette.blueD",
@@ -866,16 +872,16 @@ const PALETTES = [
     sw: ["#fcf9f8", "#b25200", "#130e0c"],
   },
   {
-    id: "github",
-    labelKey: "palette.github",
-    descKey: "palette.githubD",
-    sw: ["#ffffff", "#0969da", "#0d1117"],
-  },
-  {
     id: "obsidian",
     labelKey: "palette.obsidian",
     descKey: "palette.obsidianD",
     sw: ["#ffffff", "#7c3aed", "#202020"],
+  },
+  {
+    id: "teal",
+    labelKey: "palette.teal",
+    descKey: "palette.tealD",
+    sw: ["#f7fcfc", "#0e7490", "#0b1214"],
   },
 ]
 function closeCombos() {
