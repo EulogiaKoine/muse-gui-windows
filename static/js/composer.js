@@ -55,7 +55,7 @@ function autoGrow() {
   input.style.overflowY = h > 132 ? "auto" : "hidden"
 }
 input.addEventListener("input", autoGrow)
-chat.addEventListener("scroll", () => {
+chatscroll.addEventListener("scroll", () => {
   clearTimeout(scrollSaveT)
   scrollSaveT = setTimeout(saveScroll, 300)
 })

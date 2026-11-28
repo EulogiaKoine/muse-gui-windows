@@ -160,7 +160,7 @@ function addMsg(who, text, think, foot, withActs, extra) {
     }
     chat.appendChild(d)
   }
-  chat.scrollTop = chat.scrollHeight
+  chatscroll.scrollTop = chatscroll.scrollHeight
   return d
 }
 function resolveLinkPath(p) {
