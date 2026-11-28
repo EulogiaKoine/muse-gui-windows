@@ -128,10 +128,12 @@ class El {
   }
 }
 const chat = new El("div")
+const chatscroll = new El("div")
 const sandbox = {
   document: { createElement: (t) => new El(t), querySelector: () => null },
   console,
   chat,
+  chatscroll,
 }
 sandbox.window = sandbox
 vm.createContext(sandbox)

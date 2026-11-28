@@ -505,7 +505,7 @@ form button[type="submit"]:active {
 .achip button:hover {
   color: var(--err);
 }
-main.dragover #chat {
+main.dragover #chatscroll {
   outline: 2px dashed var(--me);
   outline-offset: -6px;
   border-radius: 10px;
@@ -1052,7 +1052,7 @@ main.dragover #chat {
 #lobby .chips button:hover {
   border-color: var(--me);
 }
-main.lobby #chat {
+main.lobby #chatscroll {
   display: none;
 }
 main.lobby #lobby {

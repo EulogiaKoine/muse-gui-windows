@@ -67,7 +67,6 @@ header {
 }
 /* 채팅 너비 설정: #chat·입력폼·푸터를 가운데로 좁힌다.
    viz iframe은 width:100%라 좁혀진 열 안에서 그대로 동작한다. */
-#chat,
 main:not(.lobby) form#f,
 main:not(.lobby) footer {
   width: 100%;

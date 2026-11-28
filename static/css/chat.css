@@ -1,24 +1,31 @@
 /* == muse-gui/css/chat.css ==
    Chat bubbles, fold, edit box. */
-#chat {
+#chatscroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable both-edges;
+}
+#chatscroll::-webkit-scrollbar {
+  width: 8px;
+}
+#chatscroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+#chatscroll::-webkit-scrollbar-thumb {
+  background: var(--bd);
+  border-radius: 4px;
+}
+#chat {
+  width: 100%;
+  max-width: var(--chat-w, none);
+  margin-left: auto;
+  margin-right: auto;
   padding: 18px 18px 8px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  scrollbar-width: thin;
-  scrollbar-gutter: stable both-edges;
-}
-#chat::-webkit-scrollbar {
-  width: 8px;
-}
-#chat::-webkit-scrollbar-track {
-  background: transparent;
-}
-#chat::-webkit-scrollbar-thumb {
-  background: var(--bd);
-  border-radius: 4px;
 }
 .msg {
   max-width: 78ch;

@@ -4,6 +4,7 @@
 "use strict"
 const $ = (s) => document.querySelector(s)
 const chat = $("#chat"),
+  chatscroll = $("#chatscroll"),
   input = $("#in"),
   slash = $("#slash")
 let slashList = [],
@@ -327,7 +328,7 @@ let scrollSaveT = null
 function saveScroll() {
   const c = curConv()
   if (!c) return
-  c.scroll = chat.scrollTop
+  c.scroll = chatscroll.scrollTop
   persistConvs()
 }
 function backfillCwd(c) {
@@ -365,7 +366,7 @@ function openConv(k) {
       Object.keys(ex).length ? ex : null,
     )
   })
-  chat.scrollTop = typeof c.scroll === "number" ? c.scroll : chat.scrollHeight
+  chatscroll.scrollTop = typeof c.scroll === "number" ? c.scroll : chatscroll.scrollHeight
   setRoute("/" + (c.sid || c.k))
   drawConvs()
   updateGate()
