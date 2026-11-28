@@ -250,7 +250,9 @@ http://127.0.0.1:8765/
 설정 모달의 스킬 패널에서 `muse skills list` 결과를 scope별(사용자·
 프로젝트·플러그인·내장)로 보고, 켜기/끄기·본문 보기가 됩니다.
 `새로 만들기`는 이름·설명·본문을 받아 검증(`muse skills validate`)을
-통과한 것만 사용자 scope에 설치합니다.
+통과한 것만 사용자 scope에 설치합니다. 프로젝트 내장 검증 스킬
+(`.agents/skills/ui-verify`)도 있으며, UI 변경은 `bash tests/run.sh`
+게이트를 통과시킨다.
 
 채팅에서는 ` ```viz-html ` 코드펜스로 인터랙티브 시각화를 넣을 수
 있습니다. `allow-scripts` 단독 sandbox iframe으로만 실행되며
